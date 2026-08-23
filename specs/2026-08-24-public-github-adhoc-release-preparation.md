@@ -1,6 +1,6 @@
 # 公开 GitHub 仓库与 ad hoc 预发布准备
 
-> 状态：已完成；公开源码已推送，预发布 Asset 仍待单独上传  
+> 状态：已完成；公开源码与首个 ad hoc 预发布 Asset 已发布  
 > 日期：2026-08-24  
 > 关联：[双版本分发与模型接入](../doc/spec/2026-08-22-dual-edition-model-integration.md) · [M2-08 模型接入与双版本发布](../doc/plan/2026-08-22-model-integration.md)  
 > 替代：无  
@@ -25,10 +25,11 @@
 - 新增 `make release-adhoc`：从同一 Release binary 打出 Core/Offline，强制 `WOICE_CODESIGN_IDENTITY=-`，校验架构、签名、DMG，并生成版本化 DMG 与 `SHA256SUMS.txt`。
 - `Offline` 仍要求调用者显式传入 `WOICE_OFFLINE_MODEL_ROOT`；脚本只接受 manifest 校验通过的 WhisperKit 模型包。
 - 在 `WaterDJiang/woice` 创建公开 GitHub 仓库，建立首个 `main` 提交并推送源码与文档。
+- 创建首个 GitHub Pre-release，上传 Core/Offline 两份 DMG 与 `SHA256SUMS.txt`；Release 明确标注为未公证的 ad hoc 包。
 
 ## 非范围
 
-- 不创建 GitHub Release 或上传 Release Asset；DMG 继续以已校验的本地预发布产物保留。
+- 不执行 Developer ID 签名、Notarization、Stapling 或 Gatekeeper 通过性声明；本次公开下载仅使用 ad hoc Pre-release。
 - 不执行 Developer ID 签名、Notarization、Stapling 或 Gatekeeper 通过性声明。
 - 不将模型权重、用户数据或发布二进制纳入 Git。
 - 不修改产品功能、模型默认路由或 Bundle ID。
@@ -41,3 +42,4 @@
 - AC-PG-004：提供 `WOICE_OFFLINE_MODEL_ROOT=<已验证模型根目录> make release-adhoc`，输出 `release/<version>-<build>-arm64-adhoc/` 下的两份 DMG 和 SHA-256 清单。
 - AC-PG-005：两份 DMG 的 App 均通过 `codesign --verify --deep --strict`；DMG 均通过 `hdiutil verify`；二进制仅含 `arm64`。
 - AC-PG-006：预发布说明明确 ad hoc 包未公证，下载后出现 Gatekeeper 提示属于预期；不将该包描述为正式发行包。
+- AC-PG-007：GitHub Pre-release 同时包含 Core DMG、Offline DMG 与 `SHA256SUMS.txt`，资产名称与本地校验清单一致。
