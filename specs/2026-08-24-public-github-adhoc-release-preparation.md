@@ -1,6 +1,6 @@
 # 公开 GitHub 仓库与 ad hoc 预发布准备
 
-> 状态：GitHub 首次公开推送进行中；预发布 Asset 仍待单独上传  
+> 状态：已完成；公开源码已推送，预发布 Asset 仍待单独上传  
 > 日期：2026-08-24  
 > 关联：[双版本分发与模型接入](../doc/spec/2026-08-22-dual-edition-model-integration.md) · [M2-08 模型接入与双版本发布](../doc/plan/2026-08-22-model-integration.md)  
 > 替代：无  
