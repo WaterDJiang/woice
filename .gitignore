@@ -1,0 +1,78 @@
+# macOS and editor state
+.DS_Store
+*.swp
+*.swo
+*.xcuserstate
+*.xcscmblueprint
+xcuserdata/
+
+# SwiftPM and Xcode build products
+.build/
+.swiftpm/xcode/
+.swiftpm/configuration/
+DerivedData/
+*.xcarchive/
+*.dSYM/
+*.dSYM.zip
+
+# Local packages and release artifacts
+build/
+release/
+*.dmg
+*.pkg
+*.ipa
+
+# Node Connector dependencies and reports
+node_modules/
+Connectors/*/node_modules/
+Connectors/*/dist/
+coverage/
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+__pycache__/
+*.py[cod]
+
+# Local configuration, credentials and signing material
+.env
+.env.*
+!.env.example
+secrets/
+credentials/
+private/
+*.p12
+*.p8
+*.cer
+*.mobileprovision
+*.provisionprofile
+*.pem
+*.key
+
+# User-generated Woice data
+.woice/
+woice-data/
+recordings/
+transcripts/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.db
+*.db-shm
+*.db-wal
+*.wav
+*.caf
+*.m4a
+*.mp3
+*.aiff
+!Tests/**/Fixtures/**
+
+# Downloaded and bundled model weights; fixtures must remain explicitly scoped.
+Models/
+model-cache/
+*.mlmodelc/
+*.mlpackage/
+*.safetensors
+*.gguf
+*.onnx
+*.bin
+!Tests/**/Fixtures/**

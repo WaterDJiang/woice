@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="520" viewBox="0 0 1600 520" fill="none">
+  <title>Woice W waveform logo lockup</title>
+  <g transform="translate(36 36) scale(.4375)">
+    <rect width="1024" height="1024" fill="#172033"/>
+    <path d="M110 510C184 510 224 704 310 704C398 704 446 310 512 310C578 310 626 704 714 704C800 704 840 510 914 510" stroke="#0C1422" stroke-width="190" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M110 510C184 510 224 704 310 704C398 704 446 310 512 310C578 310 626 704 714 704C800 704 840 510 914 510" stroke="#2D63D7" stroke-width="146" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M110 510C184 510 224 704 310 704C398 704 446 310 512 310C578 310 626 704 714 704C800 704 840 510 914 510" stroke="#172033" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <text x="500" y="304" fill="#172033" font-family="SF Pro Rounded, SF Pro Display, Helvetica Neue, sans-serif" font-size="176" font-weight="700" letter-spacing="-6">Woice</text>
+  <text x="508" y="390" fill="#52627C" font-family="SF Pro Text, Helvetica Neue, sans-serif" font-size="34" font-weight="500" letter-spacing="3">VOICE MATERIALS, KEPT CLOSE</text>
+</svg>

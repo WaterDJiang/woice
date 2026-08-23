@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="520" viewBox="0 0 1600 520" fill="none">
+  <title>Woice logo lockup</title>
+  <g transform="translate(36 36) scale(.4375)">
+    <rect x="128" y="128" width="768" height="768" rx="220" fill="#172033"/>
+    <g stroke="#F7F2E9" stroke-width="72" stroke-linecap="round">
+      <path d="M315 320C170 420 170 604 315 704"/>
+      <path d="M400 395C300 460 300 564 400 629"/>
+      <path d="M709 320C854 420 854 604 709 704"/>
+      <path d="M624 395C724 460 724 564 624 629"/>
+    </g>
+    <circle cx="512" cy="512" r="96" fill="#D97B68"/>
+  </g>
+  <text x="500" y="304" fill="#172033" font-family="SF Pro Rounded, SF Pro Display, Helvetica Neue, sans-serif" font-size="176" font-weight="700" letter-spacing="-6">Woice</text>
+  <text x="508" y="390" fill="#52627C" font-family="SF Pro Text, Helvetica Neue, sans-serif" font-size="34" font-weight="500" letter-spacing="3">VOICE MATERIALS, KEPT CLOSE</text>
+</svg>

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" fill="none">
+  <title>Woice recording anchor mark</title>
+  <rect width="1024" height="1024" fill="#172033"/>
+  <g stroke="#F7F2E9" stroke-width="72" stroke-linecap="round">
+    <path d="M315 320C170 420 170 604 315 704"/>
+    <path d="M400 395C300 460 300 564 400 629"/>
+    <path d="M709 320C854 420 854 604 709 704"/>
+    <path d="M624 395C724 460 724 564 624 629"/>
+  </g>
+  <circle cx="512" cy="512" r="96" fill="#D97B68"/>
+</svg>

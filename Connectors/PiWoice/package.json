@@ -1,0 +1,20 @@
+{
+  "name": "@woice/pi-woice-extension",
+  "version": "0.1.0",
+  "description": "PI Extension adapter for the local Woice Unix Socket connector",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "0.83.0"
+  },
+  "scripts": {
+    "test": "node --experimental-strip-types --test test/*.test.mjs"
+  }
+}

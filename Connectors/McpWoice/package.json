@@ -1,0 +1,15 @@
+{
+  "name": "@woice/mcp-woice-bridge",
+  "version": "0.1.0",
+  "description": "Read-only MCP stdio bridge to Woice's current-user Unix Socket",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "woice-mcp": "./src/index.mjs"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  }
+}
