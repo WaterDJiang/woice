@@ -945,104 +945,103 @@ final class AppState {
       errorMessage = "当前 App Store 版本只接受已验证的模型清单；请先检查模型清单。"
       presentActionFeedback(.failure("模型清单不可用"))
       return false
-    #endif
-    #if !WOICE_APP_STORE
+    #else
       guard !isDownloadingModel else { return false }
-    #endif
-    isDownloadingModel = true
-    modelDownloadProgress = nil
-    errorMessage = nil
-    let catalog = entry
-    let taskID: UUID
-    do {
-      if let existing = modelDownloadTasks.first(where: {
-        $0.packID == catalog.packID && $0.version == catalog.modelRevision
-      }) {
-        taskID = existing.id
-      } else {
-        taskID = UUID()
-      }
-      let existingTask = modelDownloadTasks.first(where: {
-        $0.packID == catalog.packID && $0.version == catalog.modelRevision
-      })
-      let task =
-        try ModelDownloadTask(
-          id: taskID,
-          packID: catalog.packID,
-          version: catalog.modelRevision,
-          state: .preflighting,
-          completedBytes: existingTask?.completedBytes ?? 0,
-          totalBytes: catalog.estimatedBytes,
-          stagingPath: store.rootURL.appendingPathComponent(
-            "downloads/\(catalog.packID)-\(catalog.modelRevision).hub-cache"
-          ).path,
-          lastError: nil,
-          intents: mergedIntents(existingTask?.intents ?? [], adding: initialIntent),
-          createdAt: existingTask?.createdAt ?? Date(),
-          updatedAt: Date())
-      try store.saveModelDownloadTask(task)
-      modelDownloadTasks = store.loadModelDownloadTasks()
-      activeModelDownloadTaskID = taskID
-      _ = try? updateModelDownloadTask(
-        id: taskID, state: .downloading, completedBytes: existingTask?.completedBytes ?? 0,
-        lastError: nil)
-    } catch {
-      isDownloadingModel = false
-      errorMessage = "模型下载任务无法保存：\(error.localizedDescription)；当前本机模型和录音未改变。"
-      presentActionFeedback(.failure("模型下载任务保存失败"))
-      return false
-    }
-    defer {
-      isDownloadingModel = false
-      activeModelDownloadTaskID = nil
-      if modelDownloadProgress?.fractionCompleted == 1 { modelDownloadProgress = nil }
-    }
-    do {
-      let result = try await whisperKitModelInstaller.install(
-        entry: catalog,
-        progress: { [weak self] progress in
-          Task { @MainActor [weak self] in
-            self?.updateModelDownloadProgress(progress, taskID: taskID, entry: catalog)
-          }
-        })
-      _ = try? updateModelDownloadTask(
-        id: taskID, state: .verifying, completedBytes: catalog.estimatedBytes,
-        lastError: nil)
-      let provider = try WhisperKitTranscriptionService(
-        manifest: result.manifest, modelFolder: result.installedURL)
-      _ = try? updateModelDownloadTask(
-        id: taskID, state: .activating, completedBytes: catalog.estimatedBytes,
-        lastError: nil)
-      var updatedSettings = settings
-      updatedSettings.selectedLocalModelPackID = result.manifest.packID
-      updatedSettings.selectedLocalModelVersion = result.manifest.version
-      updatedSettings.asrProviderSelection = .onDevice
-      try store.saveSettings(updatedSettings)
-      localTranscription = provider
-      settings = updatedSettings
-      withdrawExternalASRRequestsForLocalRoute()
-      try updateModelDownloadTask(
-        id: taskID, state: .installed, completedBytes: catalog.estimatedBytes, lastError: nil)
-      await refreshModelPackInventory()
-      await refreshASRProviderInventory()
+      isDownloadingModel = true
+      modelDownloadProgress = nil
       errorMessage = nil
-      presentActionFeedback(.success("模型已下载并安装"))
-      return true
-    } catch is CancellationError {
-      _ = try? updateModelDownloadTask(
-        id: taskID, state: .paused, completedBytes: currentDownloadBytes(taskID: taskID),
-        lastError: "用户取消下载；点击继续即可恢复。")
-      errorMessage = "模型下载已取消；当前本机模型和录音未改变。"
-      presentActionFeedback(.failure("模型下载已取消"))
-      return false
-    } catch {
-      _ = try? updateModelDownloadTask(
-        id: taskID, state: .failed, completedBytes: currentDownloadBytes(taskID: taskID),
-        lastError: error.localizedDescription)
-      errorMessage = "模型下载失败：\(error.localizedDescription)；当前本机模型和录音未改变。"
-      presentActionFeedback(.failure("模型下载失败：\(error.localizedDescription)"))
-      return false
-    }
+      let catalog = entry
+      let taskID: UUID
+      do {
+        if let existing = modelDownloadTasks.first(where: {
+          $0.packID == catalog.packID && $0.version == catalog.modelRevision
+        }) {
+          taskID = existing.id
+        } else {
+          taskID = UUID()
+        }
+        let existingTask = modelDownloadTasks.first(where: {
+          $0.packID == catalog.packID && $0.version == catalog.modelRevision
+        })
+        let task =
+          try ModelDownloadTask(
+            id: taskID,
+            packID: catalog.packID,
+            version: catalog.modelRevision,
+            state: .preflighting,
+            completedBytes: existingTask?.completedBytes ?? 0,
+            totalBytes: catalog.estimatedBytes,
+            stagingPath: store.rootURL.appendingPathComponent(
+              "downloads/\(catalog.packID)-\(catalog.modelRevision).hub-cache"
+            ).path,
+            lastError: nil,
+            intents: mergedIntents(existingTask?.intents ?? [], adding: initialIntent),
+            createdAt: existingTask?.createdAt ?? Date(),
+            updatedAt: Date())
+        try store.saveModelDownloadTask(task)
+        modelDownloadTasks = store.loadModelDownloadTasks()
+        activeModelDownloadTaskID = taskID
+        _ = try? updateModelDownloadTask(
+          id: taskID, state: .downloading, completedBytes: existingTask?.completedBytes ?? 0,
+          lastError: nil)
+      } catch {
+        isDownloadingModel = false
+        errorMessage = "模型下载任务无法保存：\(error.localizedDescription)；当前本机模型和录音未改变。"
+        presentActionFeedback(.failure("模型下载任务保存失败"))
+        return false
+      }
+      defer {
+        isDownloadingModel = false
+        activeModelDownloadTaskID = nil
+        if modelDownloadProgress?.fractionCompleted == 1 { modelDownloadProgress = nil }
+      }
+      do {
+        let result = try await whisperKitModelInstaller.install(
+          entry: catalog,
+          progress: { [weak self] progress in
+            Task { @MainActor [weak self] in
+              self?.updateModelDownloadProgress(progress, taskID: taskID, entry: catalog)
+            }
+          })
+        _ = try? updateModelDownloadTask(
+          id: taskID, state: .verifying, completedBytes: catalog.estimatedBytes,
+          lastError: nil)
+        let provider = try WhisperKitTranscriptionService(
+          manifest: result.manifest, modelFolder: result.installedURL)
+        _ = try? updateModelDownloadTask(
+          id: taskID, state: .activating, completedBytes: catalog.estimatedBytes,
+          lastError: nil)
+        var updatedSettings = settings
+        updatedSettings.selectedLocalModelPackID = result.manifest.packID
+        updatedSettings.selectedLocalModelVersion = result.manifest.version
+        updatedSettings.asrProviderSelection = .onDevice
+        try store.saveSettings(updatedSettings)
+        localTranscription = provider
+        settings = updatedSettings
+        withdrawExternalASRRequestsForLocalRoute()
+        try updateModelDownloadTask(
+          id: taskID, state: .installed, completedBytes: catalog.estimatedBytes, lastError: nil)
+        await refreshModelPackInventory()
+        await refreshASRProviderInventory()
+        errorMessage = nil
+        presentActionFeedback(.success("模型已下载并安装"))
+        return true
+      } catch is CancellationError {
+        _ = try? updateModelDownloadTask(
+          id: taskID, state: .paused, completedBytes: currentDownloadBytes(taskID: taskID),
+          lastError: "用户取消下载；点击继续即可恢复。")
+        errorMessage = "模型下载已取消；当前本机模型和录音未改变。"
+        presentActionFeedback(.failure("模型下载已取消"))
+        return false
+      } catch {
+        _ = try? updateModelDownloadTask(
+          id: taskID, state: .failed, completedBytes: currentDownloadBytes(taskID: taskID),
+          lastError: error.localizedDescription)
+        errorMessage = "模型下载失败：\(error.localizedDescription)；当前本机模型和录音未改变。"
+        presentActionFeedback(.failure("模型下载失败：\(error.localizedDescription)"))
+        return false
+      }
+    #endif
   }
 
   /// Consumes only the last locally verified Catalog snapshot. If a matching
