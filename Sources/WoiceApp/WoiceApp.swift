@@ -9,6 +9,7 @@ final class WoiceApp: NSObject, NSApplicationDelegate {
   private let menuBarController: WoiceMenuBarController
   private let appState: AppState
   private let workspaceRouter: WorkspaceRouter
+  private var terminationCleanupInProgress = false
 
   static func main() {
     let application = NSApplication.shared
@@ -23,6 +24,35 @@ final class WoiceApp: NSObject, NSApplicationDelegate {
     )
     appMenuItem.submenu = appMenu
     mainMenu.addItem(appMenuItem)
+
+    // Keep AppKit's standard first-responder editing path available to SwiftUI
+    // TextField controls. Without an Edit menu, ⌘A/⌘C/⌘V/⌘X are not reliably
+    // routed to the focused field in the packaged app.
+    let editMenuItem = NSMenuItem(title: "编辑", action: nil, keyEquivalent: "")
+    let editMenu = NSMenu(title: "编辑")
+    let editItems: [(String, Selector, String, NSEvent.ModifierFlags)] = [
+      ("撤销", Selector(("undo:")), "z", [.command]),
+      ("重做", Selector(("redo:")), "z", [.command, .shift]),
+      ("剪切", #selector(NSText.cut(_:)), "x", [.command]),
+      ("拷贝", #selector(NSText.copy(_:)), "c", [.command]),
+      ("粘贴", #selector(NSText.paste(_:)), "v", [.command]),
+      ("删除", #selector(NSText.delete(_:)), "", []),
+      ("全选", #selector(NSText.selectAll(_:)), "a", [.command]),
+    ]
+    for (index, (title, action, keyEquivalent, modifiers)) in editItems.enumerated() {
+      if index == 2 {
+        editMenu.addItem(.separator())
+      }
+      let item = editMenu.addItem(
+        withTitle: title,
+        action: action,
+        keyEquivalent: keyEquivalent
+      )
+      item.keyEquivalentModifierMask = modifiers
+    }
+    editMenuItem.submenu = editMenu
+    mainMenu.addItem(editMenuItem)
+
     let workspaceMenuItem = NSMenuItem(title: "工作区", action: nil, keyEquivalent: "")
     let workspaceMenu = NSMenu(title: "工作区")
     let workspaceItems: [(String, Selector, String)] = [
@@ -72,11 +102,15 @@ final class WoiceApp: NSObject, NSApplicationDelegate {
     workspaceWindowController = WoiceWorkspaceWindowController(appState: state, router: router)
     menuBarController = WoiceMenuBarController(
       appState: state, router: router, workspaceWindowController: workspaceWindowController)
-    do {
-      try state.startPiConnector()
-    } catch {
-      state.errorMessage = "本地 Connector 未启动：\(error.localizedDescription)"
-    }
+    #if !WOICE_APP_STORE
+      if StoreCapabilityProfile.current.allowsExternalAgentConnector {
+        do {
+          try state.startPiConnector()
+        } catch {
+          state.errorMessage = "本地 Connector 未启动：\(error.localizedDescription)"
+        }
+      }
+    #endif
     super.init()
   }
 
@@ -122,6 +156,18 @@ final class WoiceApp: NSObject, NSApplicationDelegate {
 
   func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
     false
+  }
+
+  func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+    guard !terminationCleanupInProgress else { return .terminateLater }
+    terminationCleanupInProgress = true
+    Task { @MainActor [weak self] in
+      guard let self else { return }
+      await appState.prepareForTermination()
+      terminationCleanupInProgress = false
+      NSApp.reply(toApplicationShouldTerminate: true)
+    }
+    return .terminateLater
   }
 
   @objc private func showLibraryWorkspace(_ sender: Any?) {

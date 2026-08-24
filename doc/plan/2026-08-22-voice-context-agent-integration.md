@@ -1,7 +1,7 @@
 # Woice 语音上下文与 Agent 协作开发计划
 
 > 编号：M2-09  
-> 状态：M2-09a/b/c、M2-09d 两个真实 CLI 出站 Journey、M2-09f 用户派发/结果 UI、M2-09g 审计/权限摘要、本机 MCP 入站 Smoke 与 Claude 合成 MCP 入站 Smoke 已完成；Codex 外部入站交互批准、真实用户素材入站、连接器可配置权限与 Agent 再派发二次确认、TCC/签名和发布验收仍未完成
+> 状态：源码与契约门禁已完成；M2-09a/b/c、M2-09d 两个真实 CLI 出站 Journey、M2-09f 用户派发/结果 UI、M2-09g 审计/权限摘要、本机 MCP 入站 Smoke 与 Claude 合成 MCP 入站 Smoke 均已有证据。Codex 外部入站交互批准、真实用户素材入站、稳定签名下的真实 CLI Smoke 仍是人工提醒；Woice 不提供 Agent 再派发入口，未来若新增必须作为新的用户确认任务，不扩展为 Agent 网关
 > 日期：2026-08-22  
 > 规格：[语音上下文来源产品定位](../spec/2026-08-22-voice-context-source-positioning.md)  
 > 设计：[语音上下文与 Agent 协作架构](../design/2026-08-22-voice-context-agent-collaboration.md)  
@@ -196,7 +196,7 @@ M2-09 不替代 M2-08。M2-08 继续负责 Core/Offline、WhisperKit、模型下
 - 派生结果显示来源链；不成为新的聊天页。
 - 设置新增“Agent 与连接”，与“模型与转写”分离。
 
-当前状态：设置页已新增只读“Agent 与连接”分区，处理工作区已显示持久化 Agent Job 状态、更新时间和中断/失败事实；录音详情已提供三步“发送给…”派发、目标版本/信任提示、结果预览、复制和 Finder 入口；真实 Codex/Claude 出站与本机 MCP 入站 Smoke 已通过。连接器可配置权限层、外部 Agent 入站和完整可访问性矩阵仍待 M2-09g/h。
+当前状态：设置页已新增只读“Agent 与连接”分区，处理工作区已显示持久化 Agent Job 状态、更新时间和中断/失败事实；录音详情已提供三步“发送给…”派发、目标版本/信任提示、结果预览、复制和 Finder 入口；真实 Codex/Claude 出站与本机 MCP 入站 Smoke 已通过。连接器三级权限、审计和 fail-closed 契约已由 WCL-05 收口；外部 Agent 入站批准和完整可访问性矩阵只作人工提醒。
 
 规格：[Agent 任务与连接状态 UI](../../specs/2026-08-23-agent-job-ui-status.md)
 
@@ -216,12 +216,12 @@ M2-09 不替代 M2-08。M2-08 继续负责 Core/Offline、WhisperKit、模型下
 - Agent 请求 Woice 再调用另一个 Agent 时默认二次确认。
 - traceID、parentJobID 和最大 hop，防止循环派发。
 
-当前状态：派发 Job 已保存 permissionSnapshotHash、traceID、parentJobID、hop/maxHop；出站请求、开始、完成、失败/取消及 PI 入站读取已写入 SQLite 元数据审计，审计不含原文、音频、Prompt 或结果正文。三步外发确认已覆盖目标、素材、数据类型、权限摘要和显式二次勾选；只读权限拒绝出站、录音控制关闭已加入契约测试。连接器三级权限可配置 UI、Agent 再派发二次确认和真实循环攻击矩阵仍待实现/验收。
+当前状态：派发 Job 已保存 permissionSnapshotHash、traceID、parentJobID、hop/maxHop；出站请求、开始、完成、失败/取消及 PI 入站读取已写入 SQLite 元数据审计，审计不含原文、音频、Prompt 或结果正文。三步外发确认已覆盖目标、素材、数据类型、权限摘要和显式二次勾选；只读权限拒绝出站、录音控制关闭、重复幂等键、父任务自循环、hop 超限、路径逃逸、超时、取消、非零退出和输出超限已加入契约/Runner 测试。当前 PI 协议没有 Agent 再派发方法；若未来增加，必须重新创建用户确认任务，不能由外部 Agent 隐式链式调用。真实 CLI 循环攻击矩阵仍属于人工提醒。
 
 测试：
 
-- 相同 Agent 循环、两个 Agent 互调、重复请求、取消后重放。
-- 未授权目录、符号链接、环境密钥和超量结果。
+- 相同 Agent 循环、两个 Agent 互调、重复请求、取消后重放已由 parent/hop/幂等/取消契约覆盖；真实 CLI 循环仍需人工 opt-in。
+- 未授权目录、符号链接、环境密钥和超量结果已由 Manifest/Runner 失败矩阵覆盖。
 
 验收：审计可以回答谁、何时、使用了哪些素材、交给谁、得到什么结果。
 
@@ -259,7 +259,7 @@ make acceptance-agent-external-inbound
 - 第二个 Agent 通过 MCP/RPC 分页读取转录。
 - CLI 崩溃、未登录、等待审批、超限和用户取消。
 
-退出：规格 AC-VC-001 至 AC-VC-009 全部有真实证据。
+退出：规格 AC-VC-001 至 AC-VC-009 的源码与自动契约门禁通过；真实 CLI 登录、交互批准、素材入站和 UI 可访问性保留人工 Journey，不作为核心发布阻塞。
 
 ## 6. 执行顺序
 

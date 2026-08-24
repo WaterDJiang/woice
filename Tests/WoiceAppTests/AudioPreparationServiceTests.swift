@@ -14,7 +14,7 @@ func meetingMixIsDeterministicAndKeepsSources() throws {
 
   let microphoneURL = root.appendingPathComponent("microphone.wav")
   let systemURL = root.appendingPathComponent("system.caf")
-  let outputURL = root.appendingPathComponent("meeting-mix.wav")
+  let outputURL = root.appendingPathComponent("meeting-mix.m4a")
   try writeTone(to: microphoneURL, frequency: 440, amplitude: 0.2)
   try writeTone(to: systemURL, frequency: 880, amplitude: 0.2, sampleRate: 48_000, channels: 2)
   let microphoneBytesBefore = try Data(contentsOf: microphoneURL)
@@ -30,12 +30,16 @@ func meetingMixIsDeterministicAndKeepsSources() throws {
   #expect(result.includedTracks == [.microphone, .systemAudio])
   #expect(result.duration >= 0.9)
   let output = try AVAudioFile(forReading: outputURL)
-  #expect(output.processingFormat.sampleRate == 16_000)
+  #expect(output.fileFormat.streamDescription.pointee.mFormatID == kAudioFormatMPEG4AAC)
+  #expect(output.processingFormat.sampleRate == 48_000)
   #expect(output.processingFormat.channelCount == 1)
   #expect(output.length > 0)
+  let compressedBytes = try outputURL.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
+  #expect(compressedBytes > 0)
+  #expect(compressedBytes < microphoneBytesBefore.count)
   let samples = try readMonoSamples(from: output)
-  #expect(toneMagnitude(samples: samples, sampleRate: 16_000, frequency: 440) > 0.03)
-  #expect(toneMagnitude(samples: samples, sampleRate: 16_000, frequency: 880) > 0.03)
+  #expect(toneMagnitude(samples: samples, sampleRate: 48_000, frequency: 440) > 0.03)
+  #expect(toneMagnitude(samples: samples, sampleRate: 48_000, frequency: 880) > 0.03)
   #expect(try Data(contentsOf: microphoneURL) == microphoneBytesBefore)
   #expect(try Data(contentsOf: systemURL) == systemBytesBefore)
 }

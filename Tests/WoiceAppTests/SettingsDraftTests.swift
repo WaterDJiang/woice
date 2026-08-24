@@ -169,11 +169,24 @@ func settingsCandidateCommitsOnlyAfterSuccessfulSave() throws {
   #expect(keychain!.read(account: "asr-api-key") == "draft-key")
 }
 
-@Test("Agent 连接分区不绑定 AppSettings 或 Keychain 保存")
-func agentSettingsSectionHasNoPersistenceScope() {
-  #expect(SettingsSection.agents.saveScope == nil)
+@Test("Agent 连接分区独立保存权限且不触碰 Keychain")
+@MainActor
+func agentSettingsSectionHasIndependentPersistenceScope() throws {
+  #expect(SettingsSection.agents.saveScope == .agents)
   #expect(SettingsSection.agents.title == "Agent 与连接")
   #expect(SettingsSection.agents.footerPrivacyMessage.contains("不保存 API Key"))
+  let root = FileManager.default.temporaryDirectory.appendingPathComponent(
+    "woice-settings-agents-" + UUID().uuidString, isDirectory: true)
+  defer { try? FileManager.default.removeItem(at: root) }
+  let keychain = RecordingKeychainStore()
+  let state = AppState(store: WorkspaceStore(storageRootURL: root), keychain: keychain)
+  var candidate = state.settings
+  candidate.agentPermissions.canCreateTasks = false
+  candidate.agentPermissions.canReadMaterials = false
+  #expect(state.saveSettings(candidate: candidate, scope: .agents))
+  #expect(state.settings.agentPermissions == candidate.agentPermissions)
+  #expect(keychain.reads.isEmpty)
+  #expect(keychain.writes.isEmpty)
 }
 
 @Test("候选设置校验失败时不提交 AppState")
@@ -269,7 +282,7 @@ func settingsSectionSaveIgnoresUncommittedOtherSection() throws {
   draft.asrModel = ""
 
   #expect(state.saveSettings(candidate: draft, scope: .recording))
-  #expect(state.settings.captureSystemAudio)
+  #expect(state.settings.captureSystemAudio == draft.captureSystemAudio)
   #expect(state.settings.asrEndpoint == originalEndpoint)
   #expect(state.settings.asrModel == originalModel)
 }

@@ -87,11 +87,17 @@ struct SettingsView: View {
   }
 
   private var activeSection: SettingsSection {
-    embeddedSection ?? selectedSection
+    let requested = embeddedSection ?? selectedSection
+    guard requested != .agents || StoreCapabilityProfile.current.allowsExternalAgentConnector else {
+      return .recording
+    }
+    return requested
   }
 
+  private var availableSections: [SettingsSection] { SettingsSection.availableCases }
+
   private var settingsSectionList: some View {
-    List(SettingsSection.allCases, selection: $selectedSection) { section in
+    List(availableSections, selection: $selectedSection) { section in
       HStack(spacing: 12) {
         Image(systemName: section.systemImage)
           .font(.body.weight(.medium))
@@ -143,7 +149,14 @@ struct SettingsView: View {
         case .files:
           StorageSettingsPane(settings: $draftSettings, store: appState.store)
         case .agents:
-          AgentSettingsPane(jobs: appState.agentDispatchJobs)
+          #if WOICE_APP_STORE
+            ContentUnavailableView(
+              "Store 版本不提供外部 Agent",
+              systemImage: "shippingbox",
+              description: Text("录音、转写、复听、搜索和导出仍可正常使用。"))
+          #else
+            AgentSettingsPane(settings: $draftSettings, jobs: appState.agentDispatchJobs)
+          #endif
         }
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -261,7 +274,14 @@ struct SettingsView: View {
         default: true
         }
       }.count
-      return activeCount == 0 ? "只读协议已就绪 · 未配置连接" : "\(activeCount) 个 Agent 任务处理中"
+      let permissions = draftSettings.agentPermissions
+      let enabled = [
+        permissions.canReadMaterials ? "只读" : nil,
+        permissions.canCreateTasks ? "创建任务" : nil,
+        permissions.canControlActiveRecording ? "录音控制" : nil,
+      ].compactMap { $0 }
+      let grantSummary = enabled.isEmpty ? "无权限" : enabled.joined(separator: "、")
+      return activeCount == 0 ? "\(grantSummary) · 未配置连接" : "\(activeCount) 个 Agent 任务处理中"
     }
   }
 
@@ -289,6 +309,12 @@ enum SettingsSection: String, CaseIterable, Identifiable {
   case files
   case agents
 
+  static var availableCases: [SettingsSection] {
+    allCases.filter {
+      $0 != .agents || StoreCapabilityProfile.current.allowsExternalAgentConnector
+    }
+  }
+
   var id: Self { self }
 
   var saveScope: AppSettingsScope? {
@@ -296,7 +322,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     case .recording: .recording
     case .services: .services
     case .files: .files
-    case .agents: nil
+    case .agents: .agents
     }
   }
 
@@ -415,150 +441,217 @@ private struct SettingsBanner: View {
   }
 }
 
-private struct AgentSettingsPane: View {
-  let jobs: [AgentDispatchJob]
+#if !WOICE_APP_STORE
+  private struct AgentSettingsPane: View {
+    @Binding var settings: AppSettings
+    let jobs: [AgentDispatchJob]
+    @State private var cliDiagnostics: [AgentCLIDiagnostic] = []
+    @State private var isLoadingCLIDiagnostics = false
 
-  private var recentJobs: [AgentDispatchJob] {
-    jobs.sorted { $0.updatedAt > $1.updatedAt }.prefix(10).map { $0 }
+    private var recentJobs: [AgentDispatchJob] {
+      jobs.sorted { $0.updatedAt > $1.updatedAt }.prefix(10).map { $0 }
+    }
+
+    var body: some View {
+      Form {
+        Section {
+          Toggle("允许读取素材", isOn: $settings.agentPermissions.canReadMaterials)
+          Toggle("允许创建后续任务", isOn: $settings.agentPermissions.canCreateTasks)
+          Toggle(
+            "允许控制正在录音",
+            isOn: $settings.agentPermissions.canControlActiveRecording
+          )
+          Label(
+            "录音控制默认关闭；任何创建任务仍会回到 Woice 由你确认，不会自动执行返回内容。",
+            systemImage: "hand.raised"
+          )
+          .font(.caption)
+          .foregroundStyle(.secondary)
+        } header: {
+          Label("权限分级", systemImage: "lock.shield")
+        } footer: {
+          Text("三项权限独立保存。关闭读取会拒绝素材查询；关闭创建任务会拒绝转换请求；Woice 当前不提供绕过用户动作的录音控制。")
+        }
+
+        Section {
+          SettingsBanner(
+            title: "录音素材仍是 Woice 的核心",
+            message: "Agent 只在素材完成后读取或接收你明确选择的内容。当前版本不会自动安装、登录或派发 CLI 任务，也不会执行 Agent 返回的命令。",
+            systemImage: "waveform.and.person.filled"
+          )
+        }
+
+        Section {
+          capabilityRow(
+            "素材只读查询", detail: "MCP / 本地 RPC 搜索、详情和分页读取",
+            systemImage: "doc.text.magnifyingglass")
+          capabilityRow("创建任务", detail: "用户确认后派发选中的素材并保存结果 Artifact", systemImage: "paperplane")
+          capabilityRow(
+            "控制正在录音", detail: "当前版本关闭；Connector 不能代替用户开始或停止录音",
+            systemImage: "mic.slash", isAvailable: false)
+          capabilityRow("Context Package", detail: "带哈希的文本、时间范围和显式音频快照", systemImage: "shippingbox")
+          capabilityRow(
+            "受控 CLI Runner（Beta）", detail: "固定可执行文件、环境白名单、超时和输出上限",
+            systemImage: "lock.shield")
+        } header: {
+          Label("已验证基础", systemImage: "checkmark.seal")
+        }
+
+        Section {
+          if recentJobs.isEmpty {
+            Label("尚无 Agent 任务", systemImage: "tray")
+              .foregroundStyle(.secondary)
+          } else {
+            ForEach(recentJobs) { job in
+              AgentJobStatusRow(job: job)
+            }
+          }
+        } header: {
+          Label("任务记录", systemImage: "clock.arrow.circlepath")
+        } footer: {
+          Text("任务状态来自本地 SQLite；应用重启不会自动重放运行中的外部任务。")
+        }
+
+        Section {
+          if isLoadingCLIDiagnostics {
+            ProgressView("正在检查本机 CLI Beta")
+          } else {
+            ForEach(cliDiagnostics) { diagnostic in
+              HStack(spacing: 10) {
+                Image(systemName: diagnostic.status.systemImage)
+                  .foregroundStyle(statusColor(for: diagnostic.status))
+                  .frame(width: 22)
+                VStack(alignment: .leading, spacing: 2) {
+                  Text(diagnostic.displayName)
+                    .font(.callout.weight(.medium))
+                  Text(diagnostic.status.label)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
+                Spacer()
+              }
+              .accessibilityElement(children: .combine)
+              .accessibilityLabel("\(diagnostic.displayName)，\(diagnostic.status.label)")
+            }
+          }
+          Button("重新检查") {
+            Task { await refreshCLIDiagnostics() }
+          }
+          .buttonStyle(.borderless)
+          Text("Woice 只检查可执行文件和版本探针，不读取或复制 CLI 凭据；登录状态不会被显示为“已连接”。")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        } header: {
+          Label("CLI 连接（Beta）", systemImage: "point.3.connected.trianglepath.dotted")
+        }
+      }
+      .formStyle(.grouped)
+      .task {
+        await refreshCLIDiagnostics()
+      }
+    }
+
+    private func refreshCLIDiagnostics() async {
+      isLoadingCLIDiagnostics = true
+      let diagnostics = await Task.detached(priority: .utility) {
+        AgentCLIAdapterCatalog().diagnostics()
+      }.value
+      cliDiagnostics = diagnostics
+      isLoadingCLIDiagnostics = false
+    }
+
+    private func statusColor(for status: AgentCLIConnectionStatus) -> Color {
+      switch status {
+      case .notInstalled: .secondary
+      case .versionDetected: .accentColor
+      case .versionProbeFailed, .unsupportedVersion: .orange
+      }
+    }
+
+    private func capabilityRow(
+      _ title: String, detail: String, systemImage: String, isAvailable: Bool = true
+    ) -> some View {
+      HStack(spacing: 10) {
+        Image(systemName: systemImage)
+          .foregroundStyle(.tint)
+          .frame(width: 22)
+        VStack(alignment: .leading, spacing: 2) {
+          Text(title).font(.callout.weight(.medium))
+          Text(detail).font(.caption).foregroundStyle(.secondary)
+        }
+        Spacer()
+        Image(systemName: isAvailable ? "checkmark.circle.fill" : "minus.circle")
+          .foregroundStyle(isAvailable ? .green : .secondary)
+          .accessibilityLabel(isAvailable ? "已验证" : "当前关闭")
+      }
+    }
   }
 
-  var body: some View {
-    Form {
-      Section {
-        SettingsBanner(
-          title: "录音素材仍是 Woice 的核心",
-          message: "Agent 只在素材完成后读取或接收你明确选择的内容。当前版本不会自动安装、登录或派发 CLI 任务，也不会执行 Agent 返回的命令。",
-          systemImage: "waveform.and.person.filled"
-        )
-      }
+  private struct AgentJobStatusRow: View {
+    let job: AgentDispatchJob
 
-      Section {
-        capabilityRow(
-          "素材只读查询", detail: "MCP / 本地 RPC 搜索、详情和分页读取",
-          systemImage: "doc.text.magnifyingglass")
-        capabilityRow("创建任务", detail: "用户确认后派发选中的素材并保存结果 Artifact", systemImage: "paperplane")
-        capabilityRow(
-          "控制正在录音", detail: "当前版本关闭；Connector 不能代替用户开始或停止录音",
-          systemImage: "mic.slash", isAvailable: false)
-        capabilityRow("Context Package", detail: "带哈希的文本、时间范围和显式音频快照", systemImage: "shippingbox")
-        capabilityRow(
-          "受控 CLI Runner（Beta）", detail: "固定可执行文件、环境白名单、超时和输出上限",
-          systemImage: "lock.shield")
-      } header: {
-        Label("已验证基础", systemImage: "checkmark.seal")
-      }
-
-      Section {
-        if recentJobs.isEmpty {
-          Label("尚无 Agent 任务", systemImage: "tray")
+    var body: some View {
+      HStack(spacing: 10) {
+        Image(systemName: statusSystemImage)
+          .foregroundStyle(statusColor)
+          .frame(width: 22)
+        VStack(alignment: .leading, spacing: 2) {
+          Text(AgentCLIAdapterCatalog.userFacingDisplayName(for: job.connectorID))
+            .font(.callout.weight(.medium))
+          Text(statusLabel)
+            .font(.caption)
             .foregroundStyle(.secondary)
-        } else {
-          ForEach(recentJobs) { job in
-            AgentJobStatusRow(job: job)
+          if let error = job.lastError, !error.isEmpty {
+            Text(error)
+              .font(.caption2)
+              .foregroundStyle(.orange)
+              .lineLimit(2)
           }
         }
-      } header: {
-        Label("任务记录", systemImage: "clock.arrow.circlepath")
-      } footer: {
-        Text("任务状态来自本地 SQLite；应用重启不会自动重放运行中的外部任务。")
+        Spacer()
+        Text(job.updatedAt, style: .time)
+          .font(.caption2.monospacedDigit())
+          .foregroundStyle(.tertiary)
       }
+      .accessibilityElement(children: .combine)
+    }
 
-      Section {
-        Label("尚无 CLI Beta 连接", systemImage: "link.badge.plus")
-          .foregroundStyle(.secondary)
-        Text("接入 Codex CLI 或其他 CLI Beta 前，仍需完成版本探针、登录状态、结果 Artifact 和真实 Smoke 验收。")
-          .font(.caption)
-          .foregroundStyle(.secondary)
-      } header: {
-        Label("CLI 连接（Beta）", systemImage: "point.3.connected.trianglepath.dotted")
+    private var statusLabel: String {
+      switch job.status {
+      case .draft: "草稿"
+      case .awaitingAuthorization: "等待授权"
+      case .queued: "排队中"
+      case .launching: "正在启动"
+      case .running: "处理中"
+      case .collecting: "正在收集结果"
+      case .awaitingAgentApproval: "等待 Agent 审批"
+      case .completed: "已完成"
+      case .failed: "处理失败"
+      case .cancelled: "已取消"
+      case .interrupted: "已中断，未自动重放"
       }
     }
-    .formStyle(.grouped)
-  }
 
-  private func capabilityRow(
-    _ title: String, detail: String, systemImage: String, isAvailable: Bool = true
-  ) -> some View {
-    HStack(spacing: 10) {
-      Image(systemName: systemImage)
-        .foregroundStyle(.tint)
-        .frame(width: 22)
-      VStack(alignment: .leading, spacing: 2) {
-        Text(title).font(.callout.weight(.medium))
-        Text(detail).font(.caption).foregroundStyle(.secondary)
+    private var statusSystemImage: String {
+      switch job.status {
+      case .completed: "checkmark.circle.fill"
+      case .failed, .interrupted: "exclamationmark.triangle.fill"
+      case .cancelled: "xmark.circle"
+      case .draft: "doc"
+      default: "arrow.triangle.2.circlepath"
       }
-      Spacer()
-      Image(systemName: isAvailable ? "checkmark.circle.fill" : "minus.circle")
-        .foregroundStyle(isAvailable ? .green : .secondary)
-        .accessibilityLabel(isAvailable ? "已验证" : "当前关闭")
     }
-  }
-}
 
-private struct AgentJobStatusRow: View {
-  let job: AgentDispatchJob
-
-  var body: some View {
-    HStack(spacing: 10) {
-      Image(systemName: statusSystemImage)
-        .foregroundStyle(statusColor)
-        .frame(width: 22)
-      VStack(alignment: .leading, spacing: 2) {
-        Text(AgentCLIAdapterCatalog.userFacingDisplayName(for: job.connectorID))
-          .font(.callout.weight(.medium))
-        Text(statusLabel)
-          .font(.caption)
-          .foregroundStyle(.secondary)
-        if let error = job.lastError, !error.isEmpty {
-          Text(error)
-            .font(.caption2)
-            .foregroundStyle(.orange)
-            .lineLimit(2)
-        }
+    private var statusColor: Color {
+      switch job.status {
+      case .completed: .green
+      case .failed, .interrupted: .orange
+      case .cancelled: .secondary
+      default: .accentColor
       }
-      Spacer()
-      Text(job.updatedAt, style: .time)
-        .font(.caption2.monospacedDigit())
-        .foregroundStyle(.tertiary)
-    }
-    .accessibilityElement(children: .combine)
-  }
-
-  private var statusLabel: String {
-    switch job.status {
-    case .draft: "草稿"
-    case .awaitingAuthorization: "等待授权"
-    case .queued: "排队中"
-    case .launching: "正在启动"
-    case .running: "处理中"
-    case .collecting: "正在收集结果"
-    case .awaitingAgentApproval: "等待 Agent 审批"
-    case .completed: "已完成"
-    case .failed: "处理失败"
-    case .cancelled: "已取消"
-    case .interrupted: "已中断，未自动重放"
     }
   }
-
-  private var statusSystemImage: String {
-    switch job.status {
-    case .completed: "checkmark.circle.fill"
-    case .failed, .interrupted: "exclamationmark.triangle.fill"
-    case .cancelled: "xmark.circle"
-    case .draft: "doc"
-    default: "arrow.triangle.2.circlepath"
-    }
-  }
-
-  private var statusColor: Color {
-    switch job.status {
-    case .completed: .green
-    case .failed, .interrupted: .orange
-    case .cancelled: .secondary
-    default: .accentColor
-    }
-  }
-}
+#endif
 
 private struct RecordingSettingsPane: View {
   @Binding var settings: AppSettings
@@ -604,6 +697,12 @@ private struct RecordingSettingsPane: View {
         .pickerStyle(.menu)
         Toggle("转写完成后自动复制原文", isOn: $settings.autoCopyTranscript)
         Toggle("转写完成后自动粘贴到当前应用", isOn: $settings.autoPasteTranscript)
+          .disabled(!StoreCapabilityProfile.current.allowsAutomaticPaste)
+        if !StoreCapabilityProfile.current.allowsAutomaticPaste {
+          Text("Store 版本首发关闭自动粘贴；仍可在原文区域手动复制或粘贴。")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
       } header: {
         Label("录音与转写", systemImage: "mic")
       } footer: {
@@ -645,25 +744,22 @@ private struct RecordingSettingsPane: View {
       }
 
       Section {
-        Toggle(isOn: $settings.captureSystemAudio) {
-          Label("录制电脑播放的声音（会议录制）", systemImage: "speaker.wave.2")
-        }
-        if settings.captureSystemAudio {
-          Picker("会议转写方式", selection: $settings.meetingTranscriptionMode) {
-            ForEach(MeetingTranscriptionMode.allCases, id: \.self) { mode in
-              Text(mode.label).tag(mode)
-            }
+        Label("录音来源在工作台顶部切换", systemImage: "switch.2")
+          .foregroundStyle(.secondary)
+        Picker("会议转写方式", selection: $settings.meetingTranscriptionMode) {
+          ForEach(MeetingTranscriptionMode.allCases, id: \.self) { mode in
+            Text(mode.label).tag(mode)
           }
-          .pickerStyle(.menu)
-          Text(settings.meetingTranscriptionMode.description)
-            .font(.caption)
-            .foregroundStyle(.secondary)
         }
+        .pickerStyle(.menu)
+        Text(settings.meetingTranscriptionMode.description)
+          .font(.caption)
+          .foregroundStyle(.secondary)
         SystemAudioCapabilityRow(service: systemAudioCapability)
       } header: {
         Label("系统声音录制", systemImage: "speaker.wave.2")
       } footer: {
-        Text("录音开始后，电脑声音会独立保存；这里只检查权限和能力，不会自动录音。详细采集范围会在需要时提示。")
+        Text("麦克风和电脑声音由工作台顶部两个按钮独立控制；这里只设置双轨转写方式并检查系统能力。")
       }
 
       Section {
@@ -755,12 +851,22 @@ private struct MicrophoneStatusRow: View {
         Spacer(minLength: 8)
         HStack(spacing: 8) {
           ActionFeedbackButton {
-            status = recorder.microphoneStatus
-            return .success("麦克风状态已刷新")
+            guard !isCheckingInput else { return .progress("正在检查麦克风") }
+            isCheckingInput = true
+            Task { @MainActor in
+              status = await recorder.refreshMicrophoneStatus()
+              isCheckingInput = false
+              appState.presentActionFeedback(
+                status.hasUsableInput
+                  ? .success("麦克风状态已刷新")
+                  : .failure("未发现可用的麦克风输入"))
+            }
+            return .progress("正在检查麦克风")
           } label: {
             Label("刷新", systemImage: "arrow.clockwise")
           }
           .buttonStyle(.woiceBorderless)
+          .disabled(isCheckingInput)
 
           Button {
             runInputCheck()
@@ -827,7 +933,7 @@ private struct MicrophoneStatusRow: View {
         }
       }
     }
-    .task { status = recorder.microphoneStatus }
+    .task { status = await recorder.refreshMicrophoneStatus() }
   }
 
   private func runInputCheck() {

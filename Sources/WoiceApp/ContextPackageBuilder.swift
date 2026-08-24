@@ -201,13 +201,6 @@ final class ContextPackageBuilder: @unchecked Sendable {
   }
 
   private func sha256(url: URL) -> String {
-    guard let handle = try? FileHandle(forReadingFrom: url) else { return "" }
-    defer { try? handle.close() }
-    var digest = SHA256()
-    while true {
-      guard let chunk = try? handle.read(upToCount: 1024 * 1024), !chunk.isEmpty else { break }
-      digest.update(data: chunk)
-    }
-    return digest.finalize().map { String(format: "%02x", $0) }.joined()
+    (try? FileSHA256.digest(url: url)) ?? ""
   }
 }

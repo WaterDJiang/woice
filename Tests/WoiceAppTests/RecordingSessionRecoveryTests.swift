@@ -78,6 +78,34 @@ func interruptedDualTrackRecordingRecoversMeetingMix() throws {
   #expect(SHA256.hash(data: try Data(contentsOf: systemURL)) == systemBefore)
 }
 
+@Test("异常退出恢复系统音频单轨时不伪造麦克风或会议合成")
+@MainActor
+func interruptedSystemOnlyRecordingPreservesSourceSemantics() throws {
+  let root = FileManager.default.temporaryDirectory.appendingPathComponent(
+    "woice-session-recovery-system-only-\(UUID().uuidString)", isDirectory: true)
+  defer { try? FileManager.default.removeItem(at: root) }
+  let store = WorkspaceStore(storageRootURL: root)
+  let id = UUID()
+  let systemURL = store.recordingsURL.appendingPathComponent("\(id.uuidString).system.m4a")
+  try writeRecoveryFixture(to: systemURL)
+  try store.saveRecordingSession(
+    RecordingSessionJournal(
+      id: id,
+      createdAt: Date(timeIntervalSince1970: 1_750_000_075),
+      audioFileName: systemURL.lastPathComponent,
+      systemAudioFileName: systemURL.lastPathComponent,
+      captureMicrophone: false,
+      captureSystemAudio: true,
+      meetingTranscriptionMode: .standardMix))
+
+  let state = AppState(store: store)
+  let record = try #require(state.recordings.first)
+  #expect(!state.microphoneAudioFileExists(for: record))
+  #expect(state.systemAudioFileExists(for: record))
+  #expect(record.meetingMixFileName == nil)
+  #expect(record.meetingTranscriptionMode == nil)
+}
+
 @Test("Journal 存在但没有可读音频时不创建伪造录音")
 @MainActor
 func invalidInterruptedRecordingJournalFailsClosed() throws {

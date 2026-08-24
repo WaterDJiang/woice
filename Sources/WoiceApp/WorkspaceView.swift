@@ -117,7 +117,11 @@ final class WorkspaceRouter {
   }
 
   func show(settings section: SettingsSection) {
-    route = .settings(section)
+    if section == .agents && !StoreCapabilityProfile.current.allowsExternalAgentConnector {
+      route = .settings(.recording)
+    } else {
+      route = .settings(section)
+    }
   }
 
   func show(recordID: UUID) {
@@ -177,54 +181,6 @@ struct WorkspaceView: View {
       }
       .navigationSplitViewStyle(.balanced)
       .navigationTitle("Woice 工作台")
-      .toolbar {
-        if router.route.area == .library {
-          ToolbarItem(placement: .secondaryAction) {
-            Button {
-              importedRecordID = nil
-              isShowingMediaImport = true
-            } label: {
-              Label("导入音视频…", systemImage: "square.and.arrow.down")
-            }
-            .buttonStyle(.woiceToolbar)
-            .help("导入音频或视频并在当前窗口转文字")
-          }
-        }
-        ToolbarItem(placement: .primaryAction) {
-          Button {
-            if appState.isRecording {
-              Task { await appState.stopRecording() }
-            } else {
-              appState.startRecording()
-            }
-          } label: {
-            Label(
-              appState.isRecording ? "结束录音" : "开始录音",
-              systemImage: appState.isRecording ? "stop.fill" : "mic.fill"
-            )
-          }
-          .buttonStyle(.borderedProminent)
-          .controlSize(.large)
-          .tint(appState.isRecording ? .red : nil)
-          .keyboardShortcut(.return, modifiers: [])
-          .disabled(!appState.isRecording && appState.isBusy)
-          .accessibilityLabel(appState.isRecording ? "结束录音" : "开始录音")
-          .help(appState.isRecording ? "结束录音并保存素材" : "开始录音")
-        }
-        ToolbarItem(placement: .status) {
-          if appState.isRecording {
-            Label(formatDuration(appState.elapsed), systemImage: "record.circle.fill")
-              .foregroundStyle(.red)
-              .font(.caption.monospacedDigit())
-              .accessibilityLabel("正在录音")
-              .accessibilityValue(formatDuration(appState.elapsed))
-          } else {
-            Label(appState.processingState.label, systemImage: appState.processingState.systemImage)
-              .font(.caption)
-              .foregroundStyle(.secondary)
-          }
-        }
-      }
       if let feedback = appState.actionFeedback {
         ActionFeedbackBanner(feedback: feedback)
           .padding(16)
@@ -429,12 +385,14 @@ private struct WorkspaceSidebar: View {
       Divider()
       if selection == .library {
         libraryContext
+          .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
       } else {
         ScrollView {
           contextContent
             .padding(.horizontal, 8)
             .padding(.vertical, 10)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
       }
       Divider()
       sidebarRow(.settings)
@@ -443,7 +401,13 @@ private struct WorkspaceSidebar: View {
     .listStyle(.sidebar)
     .navigationTitle("Woice")
     .navigationSubtitle("工作台")
-    .frame(minWidth: 280, idealWidth: 320, maxWidth: 360)
+    .frame(
+      minWidth: WorkspaceSidebarLayout.minimumWidth,
+      idealWidth: WorkspaceSidebarLayout.idealWidth,
+      maxWidth: WorkspaceSidebarLayout.maximumWidth,
+      maxHeight: .infinity,
+      alignment: .top
+    )
     .alert(
       "将素材移到废纸篓？",
       isPresented: Binding(
@@ -595,7 +559,10 @@ private struct WorkspaceSidebar: View {
       let records = appState.recordings.filter {
         !$0.processingTasks.isEmpty || $0.processingError != nil
       }
-      if records.isEmpty && appState.agentDispatchJobs.isEmpty {
+      if records.isEmpty
+        && (!StoreCapabilityProfile.current.allowsExternalAgentConnector
+          || appState.agentDispatchJobs.isEmpty)
+      {
         Text("没有待处理任务")
           .font(.caption)
           .foregroundStyle(.secondary)
@@ -636,7 +603,7 @@ private struct WorkspaceSidebar: View {
       Text("设置")
         .font(.headline)
         .padding(.horizontal, 10)
-      ForEach(SettingsSection.allCases) { section in
+      ForEach(SettingsSection.availableCases) { section in
         Button {
           settingsSelection = section
         } label: {
@@ -819,7 +786,10 @@ private struct WorkspaceProcessingList: View {
 
   var body: some View {
     List {
-      if recordsWithTasks.isEmpty && appState.agentDispatchJobs.isEmpty {
+      if recordsWithTasks.isEmpty
+        && (!StoreCapabilityProfile.current.allowsExternalAgentConnector
+          || appState.agentDispatchJobs.isEmpty)
+      {
         ContentUnavailableView(
           "暂无处理任务", systemImage: "checkmark.circle", description: Text("录音后的转写和笔记任务会显示在这里。"))
       } else {
@@ -858,48 +828,52 @@ private struct WorkspaceProcessingList: View {
             }
           }
         }
-        if !appState.agentDispatchJobs.isEmpty {
-          Section("Agent 任务（CLI Beta）") {
-            ForEach(appState.agentDispatchJobs.sorted { $0.updatedAt > $1.updatedAt }) { job in
-              VStack(alignment: .leading, spacing: 5) {
-                HStack(spacing: 8) {
-                  Image(systemName: agentStatusSystemImage(job.status))
-                    .foregroundStyle(agentStatusColor(job.status))
-                  Text(AgentCLIAdapterCatalog.userFacingDisplayName(for: job.connectorID))
-                    .font(.callout.weight(.medium))
-                  Spacer()
-                  Text(job.updatedAt, style: .time)
-                    .font(.caption2.monospacedDigit())
-                    .foregroundStyle(.tertiary)
-                }
-                Text(agentStatusLabel(job.status))
-                  .font(.caption)
-                  .foregroundStyle(.secondary)
-                if let error = job.lastError, !error.isEmpty {
-                  Text(error)
-                    .font(.caption2)
-                    .foregroundStyle(.orange)
-                    .lineLimit(2)
-                }
-                if let artifact = job.resultArtifact {
+        #if !WOICE_APP_STORE
+          if StoreCapabilityProfile.current.allowsExternalAgentConnector,
+            !appState.agentDispatchJobs.isEmpty
+          {
+            Section("Agent 任务（CLI Beta）") {
+              ForEach(appState.agentDispatchJobs.sorted { $0.updatedAt > $1.updatedAt }) { job in
+                VStack(alignment: .leading, spacing: 5) {
                   HStack(spacing: 8) {
-                    Label("结果已保存", systemImage: "arrow.down.doc")
-                      .font(.caption2)
-                      .foregroundStyle(.green)
+                    Image(systemName: agentStatusSystemImage(job.status))
+                      .foregroundStyle(agentStatusColor(job.status))
+                    Text(AgentCLIAdapterCatalog.userFacingDisplayName(for: job.connectorID))
+                      .font(.callout.weight(.medium))
                     Spacer()
-                    Button("查看结果") {
-                      router.show(recordID: artifact.parentRecordingID)
+                    Text(job.updatedAt, style: .time)
+                      .font(.caption2.monospacedDigit())
+                      .foregroundStyle(.tertiary)
+                  }
+                  Text(agentStatusLabel(job.status))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                  if let error = job.lastError, !error.isEmpty {
+                    Text(error)
+                      .font(.caption2)
+                      .foregroundStyle(.orange)
+                      .lineLimit(2)
+                  }
+                  if let artifact = job.resultArtifact {
+                    HStack(spacing: 8) {
+                      Label("结果已保存", systemImage: "arrow.down.doc")
+                        .font(.caption2)
+                        .foregroundStyle(.green)
+                      Spacer()
+                      Button("查看结果") {
+                        router.show(recordID: artifact.parentRecordingID)
+                      }
+                      .buttonStyle(.bordered)
+                      .controlSize(.small)
                     }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
                   }
                 }
+                .padding(.vertical, 5)
+                .accessibilityElement(children: .combine)
               }
-              .padding(.vertical, 5)
-              .accessibilityElement(children: .combine)
             }
           }
-        }
+        #endif
       }
     }
     .navigationTitle("处理任务")
@@ -945,7 +919,7 @@ private struct WorkspaceSettingsList: View {
   @Binding var selection: SettingsSection
 
   var body: some View {
-    List(SettingsSection.allCases, selection: $selection) { section in
+    List(SettingsSection.availableCases, selection: $selection) { section in
       Label {
         VStack(alignment: .leading, spacing: 2) {
           Text(section.title)
@@ -1004,7 +978,9 @@ private struct WorkspaceProcessingOverview: View {
         Text("从左侧选择一条任务，查看模型、授权和失败原因。Agent 任务只在用户明确派发后运行。")
           .foregroundStyle(.secondary)
       }
-      if !appState.agentDispatchJobs.isEmpty {
+      if StoreCapabilityProfile.current.allowsExternalAgentConnector,
+        !appState.agentDispatchJobs.isEmpty
+      {
         Label(
           "Agent 任务：\(appState.agentDispatchJobs.count) 条已记录",
           systemImage: "arrow.triangle.branch"

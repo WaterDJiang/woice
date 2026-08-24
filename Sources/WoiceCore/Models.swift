@@ -144,7 +144,9 @@ public struct AppSettings: Codable, Equatable, Sendable {
   public var autoCopyTranscript = true
   public var autoPasteTranscript = false
   public var exportDirectory = ""
-  public var captureSystemAudio = false
+  public var captureMicrophone = true
+  public var captureSystemAudio = true
+  public var hasEnabledRecordingSource: Bool { captureMicrophone || captureSystemAudio }
   public var meetingTranscriptionMode: MeetingTranscriptionMode = .sourceSeparated
   /// Version 1 makes reliable per-track transcription the default. A missing
   /// value identifies settings written before the real dual-track regression
@@ -153,6 +155,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
   public var includeTranscriptTimestamps = false
   public var enableLiveTranscription = false
   public var recordingShortcut: RecordingShortcut = .optionSpace
+  public var agentPermissions: AgentPermissionSet = .default
 
   public static let `default` = AppSettings()
 
@@ -160,10 +163,11 @@ public struct AppSettings: Codable, Equatable, Sendable {
     case asrConfiguration, asrProviderSelection, selectedLocalModelPackID,
       selectedLocalModelVersion, asrEndpoint, asrModel, asrAPIKey, llmEndpoint, llmModel, llmAPIKey,
       language
-    case autoCopyTranscript, autoPasteTranscript, exportDirectory, captureSystemAudio,
+    case autoCopyTranscript, autoPasteTranscript, exportDirectory, captureMicrophone,
+      captureSystemAudio,
       meetingTranscriptionMode, meetingTranscriptionStrategyVersion,
       includeTranscriptTimestamps, enableLiveTranscription,
-      recordingShortcut
+      recordingShortcut, agentPermissions
   }
 
   public init() {}
@@ -196,8 +200,10 @@ public struct AppSettings: Codable, Equatable, Sendable {
     autoPasteTranscript =
       try container.decodeIfPresent(Bool.self, forKey: .autoPasteTranscript) ?? false
     exportDirectory = try container.decodeIfPresent(String.self, forKey: .exportDirectory) ?? ""
+    captureMicrophone =
+      try container.decodeIfPresent(Bool.self, forKey: .captureMicrophone) ?? true
     captureSystemAudio =
-      try container.decodeIfPresent(Bool.self, forKey: .captureSystemAudio) ?? false
+      try container.decodeIfPresent(Bool.self, forKey: .captureSystemAudio) ?? true
     let decodedMeetingMode = try? container.decode(
       MeetingTranscriptionMode.self, forKey: .meetingTranscriptionMode)
     let decodedMeetingStrategyVersion = try container.decodeIfPresent(
@@ -212,6 +218,9 @@ public struct AppSettings: Codable, Equatable, Sendable {
       try container.decodeIfPresent(Bool.self, forKey: .enableLiveTranscription) ?? false
     recordingShortcut =
       (try? container.decode(RecordingShortcut.self, forKey: .recordingShortcut)) ?? .optionSpace
+    agentPermissions =
+      (try? container.decode(AgentPermissionSet.self, forKey: .agentPermissions))
+      ?? .default
   }
 
   public func encode(to encoder: Encoder) throws {
@@ -225,6 +234,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
     try container.encode(autoCopyTranscript, forKey: .autoCopyTranscript)
     try container.encode(autoPasteTranscript, forKey: .autoPasteTranscript)
     try container.encode(exportDirectory, forKey: .exportDirectory)
+    try container.encode(captureMicrophone, forKey: .captureMicrophone)
     try container.encode(captureSystemAudio, forKey: .captureSystemAudio)
     try container.encode(meetingTranscriptionMode, forKey: .meetingTranscriptionMode)
     try container.encode(
@@ -232,6 +242,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
     try container.encode(includeTranscriptTimestamps, forKey: .includeTranscriptTimestamps)
     try container.encode(enableLiveTranscription, forKey: .enableLiveTranscription)
     try container.encode(recordingShortcut, forKey: .recordingShortcut)
+    try container.encode(agentPermissions, forKey: .agentPermissions)
   }
 
   private static func normalizedASRSelection(
@@ -1023,7 +1034,7 @@ public enum WoiceError: LocalizedError, Equatable, Sendable {
         "当前 Woice 安装实例未获得有效屏幕录制授权；请在系统设置的隐私与安全性 > 屏幕录制中允许 Woice，然后返回这里重新检查。若 Woice 已开启仍失败，请关闭旧版 Woice 授权、重新打开当前安装包后再授权。"
     case .systemAudioUnavailable:
       return "当前 Mac 没有可共享显示器或窗口形式的系统音频采集目标，请解锁桌面、退出远程桌面后重试。"
-    case .noAudio: return "这次录音没有捕获到音频。"
+    case .noAudio: return "这次录音没有捕获到可用音频，请检查麦克风或系统音频输入后重试。"
     case .audioFileMissing: return "录音文件没有成功保存，请重试。"
     case .transcriptMissing: return "这条录音还没有转写原文，请先完成转写。"
     case .invalidEndpoint(let value): return "API 地址无效：\(value)"

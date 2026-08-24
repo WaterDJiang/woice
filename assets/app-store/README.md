@@ -7,10 +7,11 @@
 - `metadata-draft.md`：中文主商店页文案、字段草案和待补信息。
 - `screenshot-brief.md`：Mac 截图的画面顺序、文案和导出规格。
 - `submission-checklist.md`：提交前的资产、隐私、签名、公证和审核检查。
+- `apple-submission-reference.md`：2026-08-24 Apple 官方截图、上传、隐私清单和审核资料链接快照。
 
 ## 当前已准备
 
-- App Icon：`../brand/exports/woice-app-icon-1024.png` 与 `../brand/exports/AppIcon.appiconset/` macOS 尺寸族；均从最终 PNG 母版缩放。
+- App Icon：`../brand/exports/woice-app-icon-1024.png`、`../brand/exports/AppIcon.appiconset/` 和正式 Xcode 使用的 `../brand/exports/AppIcon.xcassets/`；三者由 AppIcon 资源门禁保持一致。
 - 最终母版：`../brand/source/woice-final-ribbon-1254.png`；保留蓝色立体丝带、深色内折、微光和白底。
 - 品牌组合：`../brand/source/woice-mark.svg`、`../brand/source/woice-lockup.svg`。
 - Mac 截图规格：优先 2560×1600，16:10，无透明通道。

@@ -11,6 +11,44 @@ private struct AudioWriterSnapshot {
   let activity: AudioActivitySnapshot
 }
 
+private struct MicrophoneInputFormat: Sendable {
+  let sampleRate: Double
+  let channelCount: Int
+}
+
+/// Bridges a potentially non-cancellable CoreAudio probe to a bounded async
+/// caller. A stuck HAL call may continue on its detached thread, but it can no
+/// longer block the MainActor or a settings render.
+private final class MicrophoneProbeGate: @unchecked Sendable {
+  private let lock = NSLock()
+  private var continuation: CheckedContinuation<MicrophoneInputFormat?, Never>?
+  private var resolved = false
+
+  func install(_ continuation: CheckedContinuation<MicrophoneInputFormat?, Never>) {
+    lock.lock()
+    if resolved {
+      lock.unlock()
+      continuation.resume(returning: nil)
+      return
+    }
+    self.continuation = continuation
+    lock.unlock()
+  }
+
+  func resolve(_ result: MicrophoneInputFormat?) {
+    lock.lock()
+    guard !resolved else {
+      lock.unlock()
+      return
+    }
+    resolved = true
+    let continuation = self.continuation
+    self.continuation = nil
+    lock.unlock()
+    continuation?.resume(returning: result)
+  }
+}
+
 /// A VAD-closed WAV that can be transcribed while the main recording remains open.
 /// The main recording is still the source of truth; this file is only a derived,
 /// disposable processing input.
@@ -38,6 +76,11 @@ struct MicrophoneCheckResult: Equatable, Sendable {
   let duration: TimeInterval
   let bufferCount: Int
   let peakLevel: Float
+}
+
+enum MicrophoneCapturePolicy {
+  static let firstBufferTimeout: Duration = .seconds(1)
+  static let firstBufferPollInterval: Duration = .milliseconds(50)
 }
 
 enum RecordingStoragePolicy {
@@ -76,7 +119,19 @@ private final class AudioWriter: @unchecked Sendable {
     segmentDirectory: URL? = nil,
     segmentObserver: (@Sendable (RecordedAudioSegment) -> Void)? = nil
   ) throws {
-    file = try AVAudioFile(forWriting: url, settings: format.settings)
+    let settings =
+      url.pathExtension.lowercased() == "m4a"
+      ? RecordingAudioFormat.aacSettings(
+        sampleRate: format.sampleRate, channelCount: Int(format.channelCount), bitRate: 64_000)
+      : format.settings
+    file =
+      if url.pathExtension.lowercased() == "m4a" {
+        try AVAudioFile(
+          forWriting: url, settings: settings, commonFormat: format.commonFormat,
+          interleaved: format.isInterleaved)
+      } else {
+        try AVAudioFile(forWriting: url, settings: settings)
+      }
     sampleRate = format.sampleRate
     activityMonitor = AudioActivityMonitor(sampleRate: format.sampleRate)
     self.audioBufferObserver = audioBufferObserver
@@ -246,31 +301,53 @@ final class RecordingService {
   private(set) var isRecording = false
   private(set) var lastWriteError: String?
   private var segmentObserver: (@Sendable (RecordedAudioSegment) -> Void)?
+  private var cachedInputFormat: MicrophoneInputFormat?
 
   var microphoneStatus: MicrophoneInputStatus {
-    let permission: MicrophonePermissionState
-    switch AVAudioApplication.shared.recordPermission {
-    case .undetermined:
-      permission = .notDetermined
-    case .denied:
-      permission = .denied
-    case .granted:
-      permission = .granted
-    @unknown default:
-      permission = .unknown
-    }
-    guard permission == .granted else {
+    let permission = currentMicrophonePermission
+    guard permission == .granted, let cachedInputFormat else {
       return MicrophoneInputStatus(
-        permission: permission, hasUsableInput: false, sampleRate: 0, channelCount: 0)
+        permission: permission,
+        hasUsableInput: false,
+        sampleRate: cachedInputFormat?.sampleRate ?? 0,
+        channelCount: cachedInputFormat?.channelCount ?? 0)
     }
-    let statusEngine = engine ?? AVAudioEngine()
-    let format = statusEngine.inputNode.inputFormat(forBus: 0)
     return MicrophoneInputStatus(
       permission: permission,
-      hasUsableInput: format.sampleRate > 0 && format.channelCount > 0,
-      sampleRate: format.sampleRate,
-      channelCount: Int(format.channelCount)
+      hasUsableInput: cachedInputFormat.sampleRate > 0 && cachedInputFormat.channelCount > 0,
+      sampleRate: cachedInputFormat.sampleRate,
+      channelCount: cachedInputFormat.channelCount
     )
+  }
+
+  /// Probes the current input away from the MainActor and returns within a
+  /// bounded interval. CoreAudio's HAL call cannot always be cancelled, so a
+  /// stuck probe is intentionally abandoned rather than freezing the UI.
+  func refreshMicrophoneStatus() async -> MicrophoneInputStatus {
+    let permission = currentMicrophonePermission
+    guard permission == .granted else {
+      cachedInputFormat = nil
+      return microphoneStatus
+    }
+    guard !isRecording else { return microphoneStatus }
+
+    let gate = MicrophoneProbeGate()
+    let format = await withTaskCancellationHandler {
+      await withCheckedContinuation { continuation in
+        gate.install(continuation)
+        Task.detached(priority: .utility) {
+          gate.resolve(Self.probeMicrophoneInputFormat())
+        }
+        Task.detached(priority: .utility) {
+          try? await Task.sleep(for: .seconds(1))
+          gate.resolve(nil)
+        }
+      }
+    } onCancel: {
+      gate.resolve(nil)
+    }
+    cachedInputFormat = format
+    return microphoneStatus
   }
 
   var receivedBufferCount: Int { writer?.snapshot().bufferCount ?? 0 }
@@ -297,6 +374,8 @@ final class RecordingService {
     guard format.sampleRate > 0, format.channelCount > 0 else {
       throw WoiceError.microphoneUnavailable
     }
+    cachedInputFormat = MicrophoneInputFormat(
+      sampleRate: format.sampleRate, channelCount: Int(format.channelCount))
     let audioWriter = try AudioWriter(
       url: url,
       format: format,
@@ -322,6 +401,35 @@ final class RecordingService {
     isRecording = true
     lastWriteError = nil
     self.segmentObserver = segmentObserver
+    do {
+      try await waitForFirstAudioBuffer(from: audioWriter)
+    } catch {
+      let failedURL = stop().url
+      if let failedURL {
+        try? FileManager.default.removeItem(at: failedURL)
+        try? FileManager.default.removeItem(at: Self.segmentDirectory(for: failedURL))
+      }
+      throw error
+    }
+  }
+
+  private func waitForFirstAudioBuffer(from audioWriter: AudioWriter) async throws {
+    let clock = ContinuousClock()
+    let deadline = clock.now.advanced(by: MicrophoneCapturePolicy.firstBufferTimeout)
+    while clock.now < deadline {
+      let snapshot = audioWriter.snapshot()
+      if snapshot.bufferCount > 0, snapshot.duration > 0 { return }
+      if let errorDescription = snapshot.errorDescription {
+        throw WoiceError.storageFailure(errorDescription)
+      }
+      try await Task.sleep(for: MicrophoneCapturePolicy.firstBufferPollInterval)
+    }
+    let snapshot = audioWriter.snapshot()
+    if snapshot.bufferCount > 0, snapshot.duration > 0 { return }
+    if let errorDescription = snapshot.errorDescription {
+      throw WoiceError.storageFailure(errorDescription)
+    }
+    throw WoiceError.noAudio
   }
 
   private func validateStorageCapacity(for url: URL) throws {
@@ -428,5 +536,22 @@ final class RecordingService {
 
   nonisolated private static func segmentDirectory(for url: URL) -> URL {
     url.deletingPathExtension().appendingPathExtension("segments")
+  }
+
+  private var currentMicrophonePermission: MicrophonePermissionState {
+    switch AVAudioApplication.shared.recordPermission {
+    case .undetermined: .notDetermined
+    case .denied: .denied
+    case .granted: .granted
+    @unknown default: .unknown
+    }
+  }
+
+  private nonisolated static func probeMicrophoneInputFormat() -> MicrophoneInputFormat? {
+    let statusEngine = AVAudioEngine()
+    let format = statusEngine.inputNode.inputFormat(forBus: 0)
+    guard format.sampleRate > 0, format.channelCount > 0 else { return nil }
+    return MicrophoneInputFormat(
+      sampleRate: format.sampleRate, channelCount: Int(format.channelCount))
   }
 }

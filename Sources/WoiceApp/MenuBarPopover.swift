@@ -21,6 +21,7 @@ struct MenuBarPopover: View {
       } else if shouldShowProcessingStatus {
         processingStatus
       }
+      sourceConfiguration
       primaryAction
       Divider()
       MenuBarCommandList { command in
@@ -59,7 +60,7 @@ struct MenuBarPopover: View {
     } label: {
       Label(
         appState.isRecording ? "结束录音" : "开始录音",
-        systemImage: appState.isRecording ? "stop.fill" : "mic.fill"
+        systemImage: appState.isRecording ? "stop.fill" : "record.circle"
       )
       .frame(maxWidth: .infinity)
     }
@@ -67,10 +68,55 @@ struct MenuBarPopover: View {
     .controlSize(.large)
     .tint(appState.isRecording ? .red : nil)
     .keyboardShortcut(.return, modifiers: [])
-    .disabled(!appState.isRecording && appState.isBusy)
+    .disabled(!appState.isRecording && !appState.canStartRecording)
     .accessibilityLabel(appState.isRecording ? "结束录音" : "开始录音")
     .accessibilityHint(appState.isRecording ? "保存当前录音并开始处理" : "开始一段新的本机录音")
     .help(appState.isRecording ? "结束录音并保存素材" : "开始录音")
+  }
+
+  private var sourceConfiguration: some View {
+    VStack(alignment: .leading, spacing: 9) {
+      HStack(alignment: .firstTextBaseline) {
+        Text("录音来源")
+          .font(.caption.weight(.semibold))
+          .foregroundStyle(.secondary)
+        Spacer()
+        Text(
+          RecordingSourceSelectionPresentation.summary(
+            microphoneEnabled: appState.settings.captureMicrophone,
+            systemAudioEnabled: appState.settings.captureSystemAudio
+          )
+        )
+        .font(.caption)
+        .foregroundStyle(.secondary)
+      }
+      HStack(spacing: 8) {
+        RecordingSourceControl(
+          title: "麦克风",
+          systemImage: "mic.fill",
+          isEnabled: appState.settings.captureMicrophone,
+          isLocked: appState.isRecording
+        ) {
+          appState.setMicrophoneCaptureEnabled(!appState.settings.captureMicrophone)
+        }
+        RecordingSourceControl(
+          title: "电脑声音",
+          systemImage: "speaker.wave.2.fill",
+          isEnabled: appState.settings.captureSystemAudio,
+          isLocked: appState.isRecording
+        ) {
+          appState.setSystemAudioCaptureEnabled(!appState.settings.captureSystemAudio)
+        }
+      }
+      if !appState.settings.hasEnabledRecordingSource {
+        Label("至少开启一个音源后才能录音", systemImage: "exclamationmark.circle")
+          .font(.caption)
+          .foregroundStyle(.orange)
+          .accessibilityLabel("至少开启一个音源后才能录音")
+      }
+    }
+    .padding(10)
+    .background(.quaternary.opacity(0.45), in: RoundedRectangle(cornerRadius: 10))
   }
 
   private var recordingStatus: some View {
@@ -83,18 +129,20 @@ struct MenuBarPopover: View {
         Text(formatDuration(appState.elapsed))
           .font(.title3.monospacedDigit().weight(.semibold))
       }
-      HStack(spacing: 6) {
-        Image(systemName: appState.audioActivity.systemImage)
-        Text("麦克风输入 · \(appState.audioActivity.label)")
-        Spacer()
-        Text("有声 \(formatDuration(appState.voiceDuration))")
-          .monospacedDigit()
+      if appState.settings.captureMicrophone {
+        HStack(spacing: 6) {
+          Image(systemName: appState.audioActivity.systemImage)
+          Text("麦克风输入 · \(appState.audioActivity.label)")
+          Spacer()
+          Text("有声 \(formatDuration(appState.voiceDuration))")
+            .monospacedDigit()
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        ProgressView(value: Double(min(max(appState.inputLevel * 4, 0), 1)))
+          .tint(appState.receivedBufferCount > 0 ? .green : .orange)
+          .accessibilityLabel("麦克风输入电平")
       }
-      .font(.caption)
-      .foregroundStyle(.secondary)
-      ProgressView(value: Double(min(max(appState.inputLevel * 4, 0), 1)))
-        .tint(appState.receivedBufferCount > 0 ? .green : .orange)
-        .accessibilityLabel("麦克风输入电平")
       if appState.settings.captureSystemAudio {
         Label(
           appState.isSystemAudioCapturing ? "电脑声音正在保存" : "电脑声音尚未开始",

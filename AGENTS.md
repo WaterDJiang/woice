@@ -7,15 +7,15 @@
 ## 当前阶段
 
 - 当前优先级：录音可靠性 -> 转写与模型 -> 素材管理 -> Agent 协作。M1 真实 Mac Journey、M2-01 双轨、M2-08 Core/Offline 模型能力优先；M2-09 Agent 协作后置。
-- 当前实现使用 SwiftPM：`Package.swift`、`Sources/WoiceCore/`、`Sources/WoiceApp/`、`Tests/`。
+- 当前实现使用 SwiftPM：`Package.swift`、`Sources/WoiceCore/`、`Sources/WoiceApp/`、`Tests/`；正式 Store 组合根由 `project.yml` 生成 `Woice.xcodeproj`，两者边界不得复制实现。
 - 当前闭环已覆盖菜单栏、录音、复听、设置、Keychain、macOS on-device ASR、真实 WhisperKit Tiny 本机 ASR、OpenAI-compatible ASR/LLM、原文和 Markdown；本机 ASR 会保存模型版本快照。SQLite/WAL、模型下载任务恢复、用户模型版本选择、bundled/downloaded 双库存、Unix Socket RPC、PI 薄适配和受控进程已有基础。WhisperKit Tiny 的固定 revision 已在当前机器完成真实录音转写，Core/Offline ad hoc 产物可生成并严格验签；默认大模型基准、正式签名公证、真实 Agent 素材派发仍按计划推进。
-- XcodeGen 在当前机器未安装，因此 `Package.swift` 是现阶段构建真相源；恢复 XcodeGen 后再生成 Xcode 工程，不把未验证依赖描述成已实现。
+- XcodeGen 2.46.0 已安装，`make xcode-project` 可从 `project.yml` 生成正式工程；`Package.swift` 仍是核心开发/测试真相源，`make xcode-build-store` 已验证 Store Target 无签名编译、Bundle validation、AppIcon/PrivacyInfo/NOTICES/DistributionManifest/SBOM 资源门禁，正式签名 Archive 仍待外部凭据。`make archive-app-store` 缺少 `WOICE_STORE_TEAM_ID` 或 `WOICE_STORE_CODE_SIGN_IDENTITY` 时必须 fail-closed。
 
 ## 开发环境
 
 - macOS 14+，Apple Silicon
 - Xcode 16.4+，Swift 6.1 language mode
-- XcodeGen 2.45.4，Swift Package Manager
+- XcodeGen 2.46.0，Swift Package Manager
 - SwiftUI + AppKit，AVFoundation，GRDB/SQLite，WhisperKit
 
 ## 命令

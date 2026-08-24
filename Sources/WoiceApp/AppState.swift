@@ -51,7 +51,7 @@ struct ExternalProcessingRequest: Identifiable {
     if let sourceTrack {
       switch sourceTrack {
       case .meetingMix: return "会议合成音频（WAV）"
-      case .microphone: return "麦克风原始录音（WAV）"
+      case .microphone: return "麦克风原始录音（M4A）"
       case .systemAudio: return "电脑声音音轨（标准化 WAV）"
       }
     }
@@ -179,6 +179,12 @@ enum BackgroundTranscriptionState: Equatable, Sendable {
   }
 }
 
+enum RecordingTerminationPolicy {
+  static func requiresAudioCleanup(isRecording: Bool, isSystemAudioCapturing: Bool) -> Bool {
+    isRecording || isSystemAudioCapturing
+  }
+}
+
 @MainActor
 @Observable
 final class AppState {
@@ -211,7 +217,9 @@ final class AppState {
   var verifiedModelCatalogEntries: [ModelPackManifest] = []
   var agentDispatchJobs: [AgentDispatchJob]
   private(set) var agentAuditEvents: [AgentAuditEvent]
-  private(set) var piConnectorServer: PiConnectorServer?
+  #if !WOICE_APP_STORE
+    private(set) var piConnectorServer: PiConnectorServer?
+  #endif
 
   let store: WorkspaceStore
   let recorder: RecordingService
@@ -249,9 +257,12 @@ final class AppState {
   private var backgroundSegmentFailures: [UUID: Set<Int>] = [:]
   private var backgroundTranscriptionChain: Task<Void, Never>?
   private var activeLocalTranscriptionIDs: Set<String> = []
-  private var agentDispatchCancellations: [UUID: ControlledCLICancellation] = [:]
+  #if !WOICE_APP_STORE
+    private var agentDispatchCancellations: [UUID: ControlledCLICancellation] = [:]
+  #endif
   @ObservationIgnored private var recordingLifecycleObservers: [NSObjectProtocol] = []
   private var isStoppingForRecordingInterruption = false
+  private var isPreparingForTermination = false
   @ObservationIgnored private var actionFeedbackTask: Task<Void, Never>?
   private let recycleMaterialDirectory: (URL) throws -> Void
 
@@ -347,8 +358,34 @@ final class AppState {
     return AcceptanceFixtureTranscriptionService()
   }
 
-  var isRecording: Bool { recorder.isRecording }
+  var isRecording: Bool { recorder.isRecording || systemAudioRecorder.isCapturing }
   var isSystemAudioCapturing: Bool { systemAudioRecorder.isCapturing }
+  var canStartRecording: Bool { settings.hasEnabledRecordingSource && !isBusy }
+
+  func setMicrophoneCaptureEnabled(_ isEnabled: Bool) {
+    updateRecordingSources(microphone: isEnabled, systemAudio: nil)
+  }
+
+  func setSystemAudioCaptureEnabled(_ isEnabled: Bool) {
+    updateRecordingSources(microphone: nil, systemAudio: isEnabled)
+  }
+
+  private func updateRecordingSources(microphone: Bool?, systemAudio: Bool?) {
+    guard !isRecording else { return }
+    var updated = settings
+    if let microphone { updated.captureMicrophone = microphone }
+    if let systemAudio { updated.captureSystemAudio = systemAudio }
+    var persisted = updated
+    persisted.asrAPIKey = ""
+    persisted.llmAPIKey = ""
+    do {
+      try store.saveSettings(persisted)
+      settings = updated
+      errorMessage = updated.hasEnabledRecordingSource ? nil : "请至少开启一个音源。"
+    } catch {
+      errorMessage = "录音来源未保存：\(error.localizedDescription)"
+    }
+  }
   var isBusy: Bool {
     switch processingState {
     case .authorizing, .transcribing, .generating, .awaitingAuthorization:
@@ -399,210 +436,243 @@ final class AppState {
     }
   }
 
-  /// Starts one explicit outbound handoff after the UI has shown the target,
-  /// data types and permission summary. The actual CLI runs off the main actor;
-  /// only durable state projections return to AppState.
-  @discardableResult
-  func dispatchToAgent(
-    record: RecordingRecord,
-    manifest: AgentCLIAdapterManifest,
-    instruction: String,
-    permissionLevel: AgentPermissionLevel = .createTasks
-  ) async -> UUID? {
-    let readableTranscript = TranscriptTextNormalizer.normalize(record.transcript ?? "")
-    guard !readableTranscript.isEmpty else {
-      presentActionFeedback(.failure("这条录音还没有可交给 Agent 的原文"))
-      return nil
-    }
-    let trimmedInstruction = instruction.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !trimmedInstruction.isEmpty else {
-      presentActionFeedback(.failure("请先填写要交给 Agent 的任务说明"))
-      return nil
-    }
-    do {
-      _ = try manifest.validated()
-      guard permissionLevel == .createTasks,
-        manifest.capabilities.contains(.receiveText),
-        manifest.capabilities.contains(.returnText)
-      else {
-        presentActionFeedback(.failure("当前连接器只允许经过确认的创建任务，不允许控制录音或无结果派发"))
+  #if !WOICE_APP_STORE
+    /// Starts one explicit outbound handoff after the UI has shown the target,
+    /// data types and permission summary. The actual CLI runs off the main actor;
+    /// only durable state projections return to AppState.
+    @discardableResult
+    func dispatchToAgent(
+      record: RecordingRecord,
+      manifest: AgentCLIAdapterManifest,
+      instruction: String,
+      permissionLevel: AgentPermissionLevel = .createTasks
+    ) async -> UUID? {
+      guard StoreCapabilityProfile.current.allowsExternalAgentConnector else {
+        presentActionFeedback(.failure("当前 Store 版本不提供外部 Agent 连接"))
         return nil
       }
-      let package = try ContextPackageBuilder().build(
-        items: [
-          ContextPackageBuildItem(
-            reference: ContextArtifactReference(
-              artifactID: "recording:\(record.id.uuidString):transcript",
-              recordingID: record.id,
-              kind: .transcript,
-              timeRange: nil),
-            text: readableTranscript)
-        ],
-        instruction: trimmedInstruction)
-      let jobID = UUID()
-      let job = AgentDispatchJob(
-        id: jobID,
-        idempotencyKey:
-          "agent:\(manifest.id):\(record.id.uuidString):\(package.package.contentHash)",
-        connectorID: manifest.id,
-        connectorVersion: manifest.version,
-        contextPackageID: package.package.id,
-        instructionHash: sha256(Data(trimmedInstruction.utf8)),
-        permissionSnapshotHash: sha256(
-          Data(
-            "outbound|\(permissionLevel.rawValue)|\(manifest.id)|\(record.id.uuidString)|text"
-              .utf8)),
-        traceID: UUID().uuidString,
-        status: .queued)
-      guard saveAgentDispatchJob(job) else {
-        try? FileManager.default.removeItem(at: package.directoryURL)
+      let readableTranscript = TranscriptTextNormalizer.normalize(record.transcript ?? "")
+      guard !readableTranscript.isEmpty else {
+        presentActionFeedback(.failure("这条录音还没有可交给 Agent 的原文"))
         return nil
       }
-      _ = recordAgentAudit(
-        AgentAuditEvent(
-          action: .dispatchRequested,
-          caller: "local-user",
+      let trimmedInstruction = instruction.trimmingCharacters(in: .whitespacesAndNewlines)
+      guard !trimmedInstruction.isEmpty else {
+        presentActionFeedback(.failure("请先填写要交给 Agent 的任务说明"))
+        return nil
+      }
+      do {
+        _ = try manifest.validated()
+        guard permissionLevel == .createTasks,
+          manifest.capabilities.contains(.receiveText),
+          manifest.capabilities.contains(.returnText)
+        else {
+          presentActionFeedback(.failure("当前连接器只允许经过确认的创建任务，不允许控制录音或无结果派发"))
+          return nil
+        }
+        let package = try ContextPackageBuilder().build(
+          items: [
+            ContextPackageBuildItem(
+              reference: ContextArtifactReference(
+                artifactID: "recording:\(record.id.uuidString):transcript",
+                recordingID: record.id,
+                kind: .transcript,
+                timeRange: nil),
+              text: readableTranscript)
+          ],
+          instruction: trimmedInstruction)
+        let jobID = UUID()
+        guard settings.agentPermissions.allows(permissionLevel) else {
+          try? FileManager.default.removeItem(at: package.directoryURL)
+          presentActionFeedback(.failure("当前 Agent 权限未允许“\(permissionLevel.label)”"))
+          return nil
+        }
+        let job = AgentDispatchJob(
+          id: jobID,
+          idempotencyKey:
+            "agent:\(manifest.id):\(record.id.uuidString):\(package.package.contentHash)",
           connectorID: manifest.id,
           connectorVersion: manifest.version,
-          jobID: jobID,
-          traceID: job.traceID,
-          parentJobID: job.parentJobID,
-          hop: job.hop,
-          artifactIDs: package.package.artifactRefs.map(\.artifactID),
-          dataTypes: package.package.artifactRefs.map(\.kind)))
-      let cancellation = ControlledCLICancellation()
-      agentDispatchCancellations[jobID] = cancellation
-      updateAgentDispatchJob(jobID: jobID, status: .launching)
-      let service = AgentDispatchService()
-      let rootURL = store.rootURL
-      Task { @MainActor [weak self] in
-        do {
-          self?.updateAgentDispatchJob(jobID: jobID, status: .running)
-          if let job = self?.agentDispatchJobs.first(where: { $0.id == jobID }) {
-            _ = self?.recordAgentAudit(
-              AgentAuditEvent(
-                action: .dispatchStarted,
-                caller: "local-user",
-                connectorID: job.connectorID,
-                connectorVersion: job.connectorVersion,
-                jobID: job.id,
-                traceID: job.traceID,
-                parentJobID: job.parentJobID,
-                hop: job.hop))
-          }
-          let execution = try await Task.detached(priority: .userInitiated) {
-            try service.execute(
-              manifest: manifest,
-              package: package,
-              parentRecordingID: record.id,
-              rootURL: rootURL,
-              cancellation: cancellation)
-          }.value
+          contextPackageID: package.package.id,
+          instructionHash: sha256(Data(trimmedInstruction.utf8)),
+          permissionSnapshotHash: sha256(
+            Data(
+              "outbound|\(permissionLevel.rawValue)|\(manifest.id)|\(record.id.uuidString)|text"
+                .utf8)),
+          traceID: UUID().uuidString,
+          status: .queued)
+        if agentDispatchJobs.contains(where: { $0.idempotencyKey == job.idempotencyKey }) {
           try? FileManager.default.removeItem(at: package.directoryURL)
-          self?.updateAgentDispatchJob(
-            jobID: jobID, status: .completed, resultArtifact: execution.artifact)
-          if let job = self?.agentDispatchJobs.first(where: { $0.id == jobID }) {
-            _ = self?.recordAgentAudit(
-              AgentAuditEvent(
-                action: .dispatchCompleted,
-                caller: "local-user",
-                connectorID: job.connectorID,
-                connectorVersion: job.connectorVersion,
-                jobID: job.id,
-                traceID: job.traceID,
-                parentJobID: job.parentJobID,
-                hop: job.hop,
-                artifactIDs: execution.artifact.parentArtifactIDs,
-                resultArtifactID: execution.artifact.id,
-                outcomeCode: "completed"))
-          }
-          self?.agentDispatchCancellations.removeValue(forKey: jobID)
-          self?.presentActionFeedback(.success("Agent 任务已完成，结果已保存为新素材"))
-        } catch {
-          try? FileManager.default.removeItem(at: package.directoryURL)
-          let cancelled = (error as? ControlledCLIRunnerError) == .cancelled
-          self?.updateAgentDispatchJob(
-            jobID: jobID,
-            status: cancelled ? .cancelled : .failed,
-            errorCode: cancelled ? .cancelled : self?.agentDispatchErrorCode(error),
-            error: error.localizedDescription)
-          if let job = self?.agentDispatchJobs.first(where: { $0.id == jobID }) {
-            _ = self?.recordAgentAudit(
-              AgentAuditEvent(
-                action: cancelled ? .dispatchCancelled : .dispatchFailed,
-                caller: "local-user",
-                connectorID: job.connectorID,
-                connectorVersion: job.connectorVersion,
-                jobID: job.id,
-                traceID: job.traceID,
-                parentJobID: job.parentJobID,
-                hop: job.hop,
-                outcomeCode: self?.agentDispatchErrorCode(error).rawValue))
-          }
-          self?.agentDispatchCancellations.removeValue(forKey: jobID)
-          self?.presentActionFeedback(
-            .failure(cancelled ? "Agent 任务已取消" : "Agent 任务失败：\(error.localizedDescription)"))
+          presentActionFeedback(.failure("相同素材和任务已派发，已阻止重复 Agent 请求"))
+          return nil
         }
+        guard saveAgentDispatchJob(job) else {
+          try? FileManager.default.removeItem(at: package.directoryURL)
+          return nil
+        }
+        _ = recordAgentAudit(
+          AgentAuditEvent(
+            action: .dispatchRequested,
+            caller: "local-user",
+            connectorID: manifest.id,
+            connectorVersion: manifest.version,
+            jobID: jobID,
+            traceID: job.traceID,
+            parentJobID: job.parentJobID,
+            hop: job.hop,
+            artifactIDs: package.package.artifactRefs.map(\.artifactID),
+            dataTypes: package.package.artifactRefs.map(\.kind)))
+        let cancellation = ControlledCLICancellation()
+        agentDispatchCancellations[jobID] = cancellation
+        updateAgentDispatchJob(jobID: jobID, status: .launching)
+        let service = AgentDispatchService()
+        let rootURL = store.rootURL
+        Task { @MainActor [weak self] in
+          do {
+            self?.updateAgentDispatchJob(jobID: jobID, status: .running)
+            if let job = self?.agentDispatchJobs.first(where: { $0.id == jobID }) {
+              _ = self?.recordAgentAudit(
+                AgentAuditEvent(
+                  action: .dispatchStarted,
+                  caller: "local-user",
+                  connectorID: job.connectorID,
+                  connectorVersion: job.connectorVersion,
+                  jobID: job.id,
+                  traceID: job.traceID,
+                  parentJobID: job.parentJobID,
+                  hop: job.hop))
+            }
+            let execution = try await Task.detached(priority: .userInitiated) {
+              try service.execute(
+                manifest: manifest,
+                package: package,
+                parentRecordingID: record.id,
+                rootURL: rootURL,
+                cancellation: cancellation)
+            }.value
+            try? FileManager.default.removeItem(at: package.directoryURL)
+            self?.updateAgentDispatchJob(
+              jobID: jobID, status: .completed, resultArtifact: execution.artifact)
+            if let job = self?.agentDispatchJobs.first(where: { $0.id == jobID }) {
+              _ = self?.recordAgentAudit(
+                AgentAuditEvent(
+                  action: .dispatchCompleted,
+                  caller: "local-user",
+                  connectorID: job.connectorID,
+                  connectorVersion: job.connectorVersion,
+                  jobID: job.id,
+                  traceID: job.traceID,
+                  parentJobID: job.parentJobID,
+                  hop: job.hop,
+                  artifactIDs: execution.artifact.parentArtifactIDs,
+                  resultArtifactID: execution.artifact.id,
+                  outcomeCode: "completed"))
+            }
+            self?.agentDispatchCancellations.removeValue(forKey: jobID)
+            self?.presentActionFeedback(.success("Agent 任务已完成，结果已保存为新素材"))
+          } catch {
+            try? FileManager.default.removeItem(at: package.directoryURL)
+            let cancelled = (error as? ControlledCLIRunnerError) == .cancelled
+            self?.updateAgentDispatchJob(
+              jobID: jobID,
+              status: cancelled ? .cancelled : .failed,
+              errorCode: cancelled ? .cancelled : self?.agentDispatchErrorCode(error),
+              error: error.localizedDescription)
+            if let job = self?.agentDispatchJobs.first(where: { $0.id == jobID }) {
+              _ = self?.recordAgentAudit(
+                AgentAuditEvent(
+                  action: cancelled ? .dispatchCancelled : .dispatchFailed,
+                  caller: "local-user",
+                  connectorID: job.connectorID,
+                  connectorVersion: job.connectorVersion,
+                  jobID: job.id,
+                  traceID: job.traceID,
+                  parentJobID: job.parentJobID,
+                  hop: job.hop,
+                  outcomeCode: self?.agentDispatchErrorCode(error).rawValue))
+            }
+            self?.agentDispatchCancellations.removeValue(forKey: jobID)
+            self?.presentActionFeedback(
+              .failure(cancelled ? "Agent 任务已取消" : "Agent 任务失败：\(error.localizedDescription)"))
+          }
+        }
+        presentActionFeedback(.progress("已派发给 \(manifest.displayName)，正在等待结果"))
+        return jobID
+      } catch {
+        errorMessage = error.localizedDescription
+        presentActionFeedback(.failure("创建 Agent 任务失败：\(error.localizedDescription)"))
+        return nil
       }
-      presentActionFeedback(.progress("已派发给 \(manifest.displayName)，正在等待结果"))
-      return jobID
-    } catch {
-      errorMessage = error.localizedDescription
-      presentActionFeedback(.failure("创建 Agent 任务失败：\(error.localizedDescription)"))
+    }
+
+    @discardableResult
+    func cancelAgentDispatch(jobID: UUID) -> Bool {
+      guard let cancellation = agentDispatchCancellations[jobID] else {
+        presentActionFeedback(.failure("这条 Agent 任务当前不可取消"))
+        return false
+      }
+      cancellation.cancel()
+      presentActionFeedback(.progress("正在取消 Agent 任务"))
+      return true
+    }
+
+    func agentResultURL(for artifact: AgentResultArtifact) -> URL {
+      store.agentResultURL(for: artifact)
+    }
+
+    private func updateAgentDispatchJob(
+      jobID: UUID,
+      status: AgentDispatchStatus,
+      resultArtifact: AgentResultArtifact? = nil,
+      errorCode: AgentDispatchErrorCode? = nil,
+      error: String? = nil
+    ) {
+      guard var job = agentDispatchJobs.first(where: { $0.id == jobID }) else { return }
+      job.status = status
+      job.updatedAt = Date()
+      if let resultArtifact { job.resultArtifact = resultArtifact }
+      job.lastErrorCode = errorCode
+      job.lastError = error
+      _ = saveAgentDispatchJob(job)
+    }
+
+    private func agentDispatchErrorCode(_ error: Error) -> AgentDispatchErrorCode {
+      switch error {
+      case ControlledCLIRunnerError.executableMissing: .notInstalled
+      case ControlledCLIRunnerError.rejectedTrust,
+        ControlledCLIRunnerError.signatureVerificationFailed:
+        .permissionDenied
+      case ControlledCLIRunnerError.timedOut: .timedOut
+      case ControlledCLIRunnerError.cancelled: .cancelled
+      case ControlledCLIRunnerError.outputLimitExceeded: .outputLimitExceeded
+      case ControlledCLIRunnerError.nonZeroExit: .crashed
+      case AgentDispatchServiceError.unsupportedOutput: .invalidOutput
+      case AgentDispatchServiceError.emptyOutput: .invalidOutput
+      default: .invalidContract
+      }
+    }
+
+    private func sha256(_ data: Data) -> String {
+      SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+    }
+  #else
+    @discardableResult
+    func dispatchToAgent(
+      record: RecordingRecord,
+      manifest: AgentCLIAdapterManifest,
+      instruction: String,
+      permissionLevel: AgentPermissionLevel = .createTasks
+    ) async -> UUID? {
+      presentActionFeedback(.failure("当前 Store 版本不提供外部 Agent 连接"))
       return nil
     }
-  }
 
-  @discardableResult
-  func cancelAgentDispatch(jobID: UUID) -> Bool {
-    guard let cancellation = agentDispatchCancellations[jobID] else {
-      presentActionFeedback(.failure("这条 Agent 任务当前不可取消"))
+    @discardableResult
+    func cancelAgentDispatch(jobID: UUID) -> Bool {
+      presentActionFeedback(.failure("当前 Store 版本不提供外部 Agent 连接"))
       return false
     }
-    cancellation.cancel()
-    presentActionFeedback(.progress("正在取消 Agent 任务"))
-    return true
-  }
-
-  func agentResultURL(for artifact: AgentResultArtifact) -> URL {
-    store.agentResultURL(for: artifact)
-  }
-
-  private func updateAgentDispatchJob(
-    jobID: UUID,
-    status: AgentDispatchStatus,
-    resultArtifact: AgentResultArtifact? = nil,
-    errorCode: AgentDispatchErrorCode? = nil,
-    error: String? = nil
-  ) {
-    guard var job = agentDispatchJobs.first(where: { $0.id == jobID }) else { return }
-    job.status = status
-    job.updatedAt = Date()
-    if let resultArtifact { job.resultArtifact = resultArtifact }
-    job.lastErrorCode = errorCode
-    job.lastError = error
-    _ = saveAgentDispatchJob(job)
-  }
-
-  private func agentDispatchErrorCode(_ error: Error) -> AgentDispatchErrorCode {
-    switch error {
-    case ControlledCLIRunnerError.executableMissing: .notInstalled
-    case ControlledCLIRunnerError.rejectedTrust,
-      ControlledCLIRunnerError.signatureVerificationFailed:
-      .permissionDenied
-    case ControlledCLIRunnerError.timedOut: .timedOut
-    case ControlledCLIRunnerError.cancelled: .cancelled
-    case ControlledCLIRunnerError.outputLimitExceeded: .outputLimitExceeded
-    case ControlledCLIRunnerError.nonZeroExit: .crashed
-    case AgentDispatchServiceError.unsupportedOutput: .invalidOutput
-    case AgentDispatchServiceError.emptyOutput: .invalidOutput
-    default: .invalidContract
-    }
-  }
-
-  private func sha256(_ data: Data) -> String {
-    SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
-  }
+  #endif
 
   var globalShortcutInstalled: Bool { globalShortcutService.isInstalled }
   var globalShortcutCurrent: RecordingShortcut { globalShortcutService.currentShortcut }
@@ -638,6 +708,45 @@ final class AppState {
     for observer in recordingLifecycleObservers {
       NotificationCenter.default.removeObserver(observer)
     }
+  }
+
+  /// Stops device-facing resources without starting a potentially long
+  /// transcription job. The recording-session journal intentionally remains
+  /// until the next launch can index the finalized WAV/CAF files, so a quit
+  /// during capture cannot turn a valid recording into an orphaned file.
+  func prepareForTermination() async {
+    guard !isPreparingForTermination else { return }
+    isPreparingForTermination = true
+    recordingTimerTask?.cancel()
+    recordingTimerTask = nil
+    actionFeedbackTask?.cancel()
+    backgroundTranscriptionChain?.cancel()
+    backgroundTranscriptionChain = nil
+    modelDownloadTask?.cancel()
+    liveTranscription.cancel()
+    liveTranscriptionState = .disabled
+
+    #if !WOICE_APP_STORE
+      for cancellation in agentDispatchCancellations.values {
+        cancellation.cancel()
+      }
+      agentDispatchCancellations.removeAll()
+      piConnectorServer?.stop()
+    #endif
+
+    if RecordingTerminationPolicy.requiresAudioCleanup(
+      isRecording: recorder.isRecording,
+      isSystemAudioCapturing: systemAudioRecorder.isCapturing)
+    {
+      if systemAudioRecorder.isCapturing {
+        _ = await systemAudioRecorder.stop()
+      }
+      if recorder.isRecording {
+        _ = recorder.stop()
+      }
+    }
+    globalShortcutService.uninstall()
+    isPreparingForTermination = false
   }
 
   var localASRAuthorizationState: LocalASRAuthorizationState {
@@ -1418,16 +1527,24 @@ final class AppState {
     }
   }
 
-  func startPiConnector() throws {
-    guard piConnectorServer == nil else { return }
-    let socketURL = store.rootURL.appendingPathComponent("woice.sock")
-    let server = PiConnectorServer(router: PiConnectorRouter(appState: self), socketURL: socketURL)
-    try server.start()
-    piConnectorServer = server
-  }
+  #if !WOICE_APP_STORE
+    func startPiConnector() throws {
+      guard piConnectorServer == nil else { return }
+      let socketURL = store.rootURL.appendingPathComponent("woice.sock")
+      let server = PiConnectorServer(
+        router: PiConnectorRouter(appState: self), socketURL: socketURL)
+      try server.start()
+      piConnectorServer = server
+    }
+  #endif
 
   func startRecording() {
-    guard !recorder.isRecording, !isBusy else { return }
+    guard !isRecording, !isBusy else { return }
+    guard settings.hasEnabledRecordingSource else {
+      errorMessage = "请至少开启一个音源。"
+      presentActionFeedback(.failure("请至少开启一个音源"))
+      return
+    }
     isShowingOnboarding = false
     errorMessage = nil
     systemAudioStartError = nil
@@ -1438,15 +1555,17 @@ final class AppState {
     processingState = .authorizing
     let id = UUID()
     activeRecordingID = id
-    let fileName = "\(id.uuidString).wav"
+    let fileName =
+      settings.captureMicrophone
+      ? "\(id.uuidString).m4a" : "\(id.uuidString).system.m4a"
     let url = store.recordingsURL.appendingPathComponent(fileName)
     let systemAudioURL =
       settings.captureSystemAudio
-      ? store.recordingsURL.appendingPathComponent("\(id.uuidString).caf") : nil
-    let liveEnabled = settings.enableLiveTranscription
+      ? store.recordingsURL.appendingPathComponent("\(id.uuidString).system.m4a") : nil
+    let liveEnabled = settings.captureMicrophone && settings.enableLiveTranscription
     let liveLanguage = settings.language
     let liveService = liveTranscription
-    let backgroundEnabled = canRunBackgroundLocalASR
+    let backgroundEnabled = settings.captureMicrophone && canRunBackgroundLocalASR
     recordingSessionStartedAt = Date()
     systemAudioStartedAt = nil
     do {
@@ -1456,6 +1575,7 @@ final class AppState {
           createdAt: recordingSessionStartedAt ?? Date(),
           audioFileName: fileName,
           systemAudioFileName: systemAudioURL?.lastPathComponent,
+          captureMicrophone: settings.captureMicrophone,
           captureSystemAudio: settings.captureSystemAudio,
           meetingTranscriptionMode: settings.meetingTranscriptionMode))
     } catch {
@@ -1485,16 +1605,21 @@ final class AppState {
             self.liveTranscriptionState = liveService.snapshot().state
           }
         }
-        try await recorder.start(
-          to: url,
-          audioBufferObserver: audioBufferObserver,
-          segmentObserver: segmentObserver)
+        if settings.captureMicrophone {
+          try await recorder.start(
+            to: url,
+            audioBufferObserver: audioBufferObserver,
+            segmentObserver: segmentObserver)
+        }
         var systemAudioError: String?
         if let systemAudioURL {
           do {
             try await systemAudioRecorder.start(to: systemAudioURL)
             systemAudioStartedAt = Date()
           } catch {
+            if !settings.captureMicrophone {
+              throw error
+            }
             systemAudioError = "系统音频未开始：\(error.localizedDescription)；麦克风仍会继续录音。"
           }
         }
@@ -1526,7 +1651,7 @@ final class AppState {
   }
 
   func stopRecording() async {
-    guard recorder.isRecording else { return }
+    guard isRecording else { return }
     stopRecordingTimer()
     let systemAudioResult = await systemAudioRecorder.stop()
     let result = recorder.stop()
@@ -1555,19 +1680,21 @@ final class AppState {
       && systemAudioResult.url != nil
       && systemAudioResult.duration > 0.05
     elapsed = max(result.duration, hasUsableSystemAudio ? systemAudioResult.duration : 0)
-    guard let url = result.url else {
+    guard let url = result.url ?? systemAudioResult.url else {
       store.clearRecordingSession()
       clearBackgroundState(for: recordID)
       backgroundTranscriptionState = .disabled
       return
     }
-    let microphoneFileIsUsable = isUsableAudioFile(at: url)
+    let microphoneFileIsUsable =
+      settings.captureMicrophone
+      && result.url.map(isUsableAudioFile(at:)) == true
     if let writeError = recorder.lastWriteError {
       if !Self.shouldPreserveRecording(
         microphoneFileIsUsable: microphoneFileIsUsable,
         systemAudioIsUsable: hasUsableSystemAudio)
       {
-        try? FileManager.default.removeItem(at: url)
+        if let microphoneURL = result.url { try? FileManager.default.removeItem(at: microphoneURL) }
         store.clearRecordingSession()
         processingState = .failed("录音文件写入失败：\(writeError)")
         errorMessage = "录音文件写入失败：\(writeError)"
@@ -1600,7 +1727,7 @@ final class AppState {
       clearBackgroundState(for: recordID)
       return
     }
-    let noMicrophoneInput = result.peakLevel <= 0.0001
+    let noMicrophoneInput = !settings.captureMicrophone || result.peakLevel <= 0.0001
     let noMicrophoneInputMessage = "没有检测到麦克风输入，请检查系统输入设备和麦克风权限。"
     let voiceSegments = result.activity.segments.map { VoiceSegment(start: $0.start, end: $0.end) }
     await backgroundTranscriptionChain?.value
@@ -1613,11 +1740,11 @@ final class AppState {
     }
     var meetingMixFileName: String?
     var meetingMixGenerationFailed = false
-    if settings.captureSystemAudio, hasUsableSystemAudio,
+    if settings.captureMicrophone, settings.captureSystemAudio, hasUsableSystemAudio,
       let systemAudioURL = systemAudioResult.url
     {
       let mixURL = store.recordingsURL.appendingPathComponent(
-        "\(recordID.uuidString).meeting-mix.wav")
+        "\(recordID.uuidString).meeting-mix.m4a")
       do {
         _ = try AudioPreparationService.prepareMeetingMix(
           microphoneURL: microphoneFileIsUsable ? url : nil,
@@ -2303,7 +2430,7 @@ final class AppState {
       }
       presentActionFeedback(.success("转写已完成"))
       if settings.autoCopyTranscript { copyTranscript(result.text) }
-      if settings.autoPasteTranscript {
+      if StoreCapabilityProfile.current.allowsAutomaticPaste && settings.autoPasteTranscript {
         do {
           try textInsertion.paste(text: result.text)
         } catch {
@@ -2547,7 +2674,7 @@ final class AppState {
       }
       presentActionFeedback(.success("本机转写已完成"))
       if settings.autoCopyTranscript { copyTranscript(result.text) }
-      if settings.autoPasteTranscript {
+      if StoreCapabilityProfile.current.allowsAutomaticPaste && settings.autoPasteTranscript {
         do {
           try textInsertion.paste(text: result.text)
         } catch {
@@ -2889,7 +3016,10 @@ final class AppState {
   @discardableResult
   func saveSettings(candidate: AppSettings? = nil, scope: AppSettingsScope? = nil) -> Bool {
     let requested = candidate ?? settings
-    let candidate = scope?.applying(requested, to: settings) ?? requested
+    var candidate = scope?.applying(requested, to: settings) ?? requested
+    if !StoreCapabilityProfile.current.allowsAutomaticPaste {
+      candidate.autoPasteTranscript = false
+    }
     if let error = endpointValidation(for: candidate.asrEndpoint, name: "语言转文字") {
       errorMessage = error
       return false
@@ -3082,6 +3212,11 @@ final class AppState {
 
   func audioFileExists(for record: RecordingRecord) -> Bool {
     FileManager.default.fileExists(atPath: store.audioURL(for: record).path)
+  }
+
+  func microphoneAudioFileExists(for record: RecordingRecord) -> Bool {
+    guard record.audioFileName != record.systemAudioFileName else { return false }
+    return audioFileExists(for: record)
   }
 
   func audioURL(for record: RecordingRecord) -> URL {
@@ -4087,8 +4222,9 @@ final class AppState {
       return
     }
 
-    let microphoneURL = store.recordingsURL.appendingPathComponent(journal.audioFileName)
-    let microphone = audioFileMetadata(at: microphoneURL)
+    let primaryURL = store.recordingsURL.appendingPathComponent(journal.audioFileName)
+    let microphoneURL = journal.captureMicrophone ? primaryURL : nil
+    let microphone = microphoneURL.flatMap(audioFileMetadata(at:))
     let systemURL = journal.systemAudioFileName.map {
       store.recordingsURL.appendingPathComponent($0)
     }
@@ -4107,9 +4243,9 @@ final class AppState {
       recoveredSegments.isEmpty
       ? nil : recoveredSegments.map(\.text).joined(separator: "\n")
     var recoveredMeetingMixFileName: String?
-    if microphone != nil, system != nil, let systemURL {
+    if microphone != nil, system != nil, let microphoneURL, let systemURL {
       let mixURL = store.recordingsURL.appendingPathComponent(
-        "\(journal.id.uuidString).meeting-mix.wav")
+        "\(journal.id.uuidString).meeting-mix.m4a")
       if (try? AudioPreparationService.prepareMeetingMix(
         microphoneURL: microphoneURL,
         systemAudioURL: systemURL,
@@ -4118,11 +4254,13 @@ final class AppState {
         recoveredMeetingMixFileName = mixURL.lastPathComponent
       }
     }
+    let recoveredSourceTrack: AudioTrackKind =
+      journal.captureMicrophone ? .microphone : .systemAudio
     let recoveredTask: ProcessingTask? = backgroundJournal.map { journal in
       ProcessingTask(
         kind: .transcription,
         idempotencyKey: taskKey(
-          recordID: journal.recordID, kind: .transcription, sourceTrack: .microphone),
+          recordID: journal.recordID, kind: .transcription, sourceTrack: recoveredSourceTrack),
         status: .interrupted,
         lastError: recoveredSegments.isEmpty
           ? "上次录音未正常结束；请手动转写。"
@@ -4133,7 +4271,7 @@ final class AppState {
         dataLocation: journal.dataLocation,
         capability: .transcription,
         configurationHash: journal.configurationHash,
-        sourceTrack: .microphone)
+        sourceTrack: recoveredSourceTrack)
     }
 
     let record = RecordingRecord(
@@ -4149,7 +4287,8 @@ final class AppState {
       systemAudioFileName: system == nil ? nil : journal.systemAudioFileName,
       systemAudioDuration: system?.duration,
       meetingMixFileName: recoveredMeetingMixFileName,
-      meetingTranscriptionMode: journal.captureSystemAudio && system != nil
+      meetingTranscriptionMode: journal.captureMicrophone && journal.captureSystemAudio
+        && system != nil
         ? .sourceSeparated : nil,
       transcriptSegments: recoveredSegments.isEmpty ? nil : recoveredSegments,
       processingTasks: recoveredTask.map { [$0] } ?? [])

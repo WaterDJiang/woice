@@ -25,11 +25,35 @@ func recordingStoragePolicyAllowsNormalOrUnknownCapacity() {
   #expect(RecordingStoragePolicy.validationError(availableBytes: nil) == nil)
 }
 
+@Test("麦克风首帧门禁使用有限等待")
+func microphoneCapturePolicyIsBounded() {
+  #expect(MicrophoneCapturePolicy.firstBufferTimeout == .seconds(1))
+  #expect(MicrophoneCapturePolicy.firstBufferPollInterval == .milliseconds(50))
+}
+
+@Test("无音频错误说明下一步检查")
+func microphoneCaptureFailureExplainsNextAction() {
+  #expect(WoiceError.noAudio.localizedDescription.contains("检查麦克风或系统音频输入"))
+}
+
+@Test("退出时只要有音频资源就必须先执行清理")
+func terminationPolicyRequiresAudioCleanup() {
+  #expect(
+    RecordingTerminationPolicy.requiresAudioCleanup(
+      isRecording: false, isSystemAudioCapturing: false) == false)
+  #expect(
+    RecordingTerminationPolicy.requiresAudioCleanup(
+      isRecording: true, isSystemAudioCapturing: false))
+  #expect(
+    RecordingTerminationPolicy.requiresAudioCleanup(
+      isRecording: false, isSystemAudioCapturing: true))
+}
+
 @Test("麦克风状态暴露权限和可用输入格式")
 @MainActor
-func microphoneStatusReportsUsableInput() {
+func microphoneStatusReportsUsableInput() async {
   let recorder = RecordingService()
-  let status = recorder.microphoneStatus
+  let status = await recorder.refreshMicrophoneStatus()
   guard AVAudioApplication.shared.recordPermission == .granted else {
     #expect(status.permission != .granted)
     return

@@ -1,6 +1,13 @@
 // swift-tools-version: 6.0
 
+import Foundation
 import PackageDescription
+
+let isAppStoreDistribution =
+    ProcessInfo.processInfo.environment["WOICE_DISTRIBUTION"] == "app-store"
+let appStoreSwiftSettings: [SwiftSetting] = isAppStoreDistribution
+    ? [.define("WOICE_APP_STORE")]
+    : []
 
 let package = Package(
     name: "Woice",
@@ -26,12 +33,14 @@ let package = Package(
                 .product(name: "WhisperKit", package: "argmax-oss-swift")
             ],
             path: "Sources/WoiceApp",
-            resources: [.process("Resources")]
+            resources: [.process("Resources")],
+            swiftSettings: appStoreSwiftSettings
         ),
         .testTarget(
             name: "WoiceAppTests",
             dependencies: ["WoiceCore", "WoiceApp"],
-            path: "Tests/WoiceAppTests"
+            path: "Tests/WoiceAppTests",
+            swiftSettings: appStoreSwiftSettings
         )
     ]
 )

@@ -184,6 +184,44 @@ func appStateMeetingModePersistsDualTrackRecord() async throws {
   }
 }
 
+@Test("AppState 退出清理固化正在录音的 WAV 并保留 Journal")
+@MainActor
+func appStateTerminationFinalizesRecordingAndRetainsJournal() async throws {
+  guard ProcessInfo.processInfo.environment["WOICE_RUN_APPSTATE_CAPTURE"] == "1" else {
+    return
+  }
+  guard AVAudioApplication.shared.recordPermission == .granted else { return }
+
+  let root = FileManager.default.temporaryDirectory.appendingPathComponent(
+    "woice-app-state-termination-\(UUID().uuidString)", isDirectory: true)
+  defer { try? FileManager.default.removeItem(at: root) }
+
+  let store = WorkspaceStore(storageRootURL: root)
+  let state = AppState(store: store)
+  state.settings.captureSystemAudio = false
+  state.settings.enableLiveTranscription = false
+  state.startRecording()
+
+  let deadline = Date().addingTimeInterval(3)
+  while !state.recorder.isRecording || state.recorder.receivedBufferCount == 0, Date() < deadline {
+    try await Task.sleep(for: .milliseconds(50))
+  }
+  guard state.recorder.isRecording, state.recorder.receivedBufferCount > 0 else {
+    Issue.record("退出清理测试未等到可用麦克风 PCM 首帧。")
+    return
+  }
+
+  let journal = try #require(store.loadRecordingSession())
+  let audioURL = store.recordingsURL.appendingPathComponent(journal.audioFileName)
+  await state.prepareForTermination()
+
+  #expect(!state.recorder.isRecording)
+  #expect(store.loadRecordingSession()?.id == journal.id)
+  let audioFile = try AVAudioFile(forReading: audioURL)
+  #expect(audioFile.length > 0)
+  #expect(state.recordings.isEmpty)
+}
+
 @Test("AppState 启动时恢复 queued Job 为等待外发确认")
 @MainActor
 func appStateRestoresQueuedProcessingAuthorization() throws {
@@ -290,7 +328,7 @@ func appStateQueuesSourceSeparatedTranscriptionByTrack() throws {
   let state = AppState(store: store)
   state.requestTranscription(for: record)
   #expect(state.pendingExternalProcessing?.sourceTrack == .microphone)
-  #expect(state.pendingExternalProcessing?.dataDescription == "麦克风原始录音（WAV）")
+  #expect(state.pendingExternalProcessing?.dataDescription == "麦克风原始录音（M4A）")
   #expect(state.pendingExternalProcessingCount == 2)
   state.dismissExternalProcessing()
   #expect(state.pendingExternalProcessing == nil)
@@ -563,6 +601,7 @@ func appStateRecordingTranscribesWithCustomASR() async throws {
   state.settings.includeTranscriptTimestamps = true
   state.settings.llmEndpoint = "https://example.test/v1"
   state.settings.llmAPIKey = "llm-key"
+  state.settings.captureSystemAudio = false
 
   state.startRecording()
   try await Task.sleep(for: .seconds(2))
@@ -604,7 +643,8 @@ func appStateRecordingTranscribesWithCustomASR() async throws {
   #expect(transcriptionRequest.httpBody != nil || transcriptionRequest.httpBodyStream != nil)
   #expect(requests.contains(where: { $0.url?.path == "/v1/chat/completions" }))
   let audioData = try Data(contentsOf: state.audioURL(for: record))
-  #expect(audioData.starts(with: Data("RIFF".utf8)))
+  #expect(audioData.count > 12)
+  #expect(audioData[4..<8] == Data("ftyp".utf8))
 }
 
 @Test("ASR 失败保留录音并可通过显式重试恢复")

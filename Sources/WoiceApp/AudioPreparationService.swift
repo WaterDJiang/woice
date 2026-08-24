@@ -57,7 +57,8 @@ enum AudioPreparationService {
     microphoneStartOffset: TimeInterval = 0,
     systemAudioStartOffset: TimeInterval = 0
   ) throws -> MeetingMixPreparationResult {
-    let targetFormat = try targetFormat()
+    let targetFormat = try targetFormat(
+      sampleRate: outputURL.pathExtension.lowercased() == "m4a" ? 48_000 : targetSampleRate)
     let temporaryDirectory = outputURL.deletingLastPathComponent()
     try FileManager.default.createDirectory(
       at: temporaryDirectory, withIntermediateDirectories: true)
@@ -109,10 +110,10 @@ enum AudioPreparationService {
       track: .microphone)
   }
 
-  private static func targetFormat() throws -> AVAudioFormat {
+  private static func targetFormat(sampleRate: Double = targetSampleRate) throws -> AVAudioFormat {
     guard
       let format = AVAudioFormat(
-        standardFormatWithSampleRate: targetSampleRate, channels: targetChannels)
+        standardFormatWithSampleRate: sampleRate, channels: targetChannels)
     else { throw AudioPreparationError.outputFailed("无法创建 16 kHz 单声道格式。") }
     return format
   }
@@ -143,7 +144,20 @@ enum AudioPreparationService {
     try? FileManager.default.removeItem(at: destinationURL)
     let output: AVAudioFile
     do {
-      output = try AVAudioFile(forWriting: destinationURL, settings: targetFormat.settings)
+      let settings =
+        destinationURL.pathExtension.lowercased() == "m4a"
+        ? RecordingAudioFormat.aacSettings(
+          sampleRate: targetFormat.sampleRate, channelCount: Int(targetFormat.channelCount),
+          bitRate: 64_000)
+        : targetFormat.settings
+      output =
+        if destinationURL.pathExtension.lowercased() == "m4a" {
+          try AVAudioFile(
+            forWriting: destinationURL, settings: settings,
+            commonFormat: targetFormat.commonFormat, interleaved: targetFormat.isInterleaved)
+        } else {
+          try AVAudioFile(forWriting: destinationURL, settings: settings)
+        }
     } catch {
       throw AudioPreparationError.outputFailed(error.localizedDescription)
     }
@@ -224,7 +238,20 @@ enum AudioPreparationService {
     try? FileManager.default.removeItem(at: destinationURL)
     let output: AVAudioFile
     do {
-      output = try AVAudioFile(forWriting: destinationURL, settings: targetFormat.settings)
+      let settings =
+        destinationURL.pathExtension.lowercased() == "m4a"
+        ? RecordingAudioFormat.aacSettings(
+          sampleRate: targetFormat.sampleRate, channelCount: Int(targetFormat.channelCount),
+          bitRate: 64_000)
+        : targetFormat.settings
+      output =
+        if destinationURL.pathExtension.lowercased() == "m4a" {
+          try AVAudioFile(
+            forWriting: destinationURL, settings: settings,
+            commonFormat: targetFormat.commonFormat, interleaved: targetFormat.isInterleaved)
+        } else {
+          try AVAudioFile(forWriting: destinationURL, settings: settings)
+        }
     } catch { throw AudioPreparationError.outputFailed(error.localizedDescription) }
     defer {
       if #available(macOS 15.0, *) { output.close() }

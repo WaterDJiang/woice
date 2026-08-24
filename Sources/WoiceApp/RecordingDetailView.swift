@@ -6,8 +6,7 @@ struct RecordingDetailView: View {
   let record: RecordingRecord
   @State private var exportedURL: URL?
   @State private var playback = AudioPlaybackService()
-  @State private var systemPlayback = AudioPlaybackService()
-  @State private var meetingPlayback = AudioPlaybackService()
+  @State private var selectedPlaybackTrack: AudioTrackKind = .microphone
   @State private var isShowingAgentDispatch = false
   @State private var isConfirmingDeletion = false
 
@@ -26,15 +25,20 @@ struct RecordingDetailView: View {
               .disabled(record.transcript?.isEmpty != false)
             Button("粘贴到当前应用") { appState.pasteTranscript(for: record) }
               .disabled(record.transcript?.isEmpty != false)
-            Button("发送给 Agent（CLI Beta）…", systemImage: "paperplane") {
-              isShowingAgentDispatch = true
-            }
-            .disabled(record.transcript?.isEmpty != false)
+            #if !WOICE_APP_STORE
+              if StoreCapabilityProfile.current.allowsExternalAgentConnector {
+                Button("发送给 Agent（CLI Beta）…", systemImage: "paperplane") {
+                  isShowingAgentDispatch = true
+                }
+                .disabled(record.transcript?.isEmpty != false)
+              }
+            #endif
             Button("重新转写") { appState.requestTranscription(for: record) }
               .disabled(!appState.canTranscribe)
             Divider()
             Menu("导出", systemImage: "square.and.arrow.down") {
               exportButton(.microphoneAudio)
+                .disabled(!appState.microphoneAudioFileExists(for: record))
               exportButton(.systemAudio)
                 .disabled(!appState.systemAudioFileExists(for: record))
               exportButton(.meetingMixAudio)
@@ -60,6 +64,7 @@ struct RecordingDetailView: View {
               Button("打开麦克风原始音频") {
                 _ = appState.openMaterialFile(for: record, track: .microphone)
               }
+              .disabled(!appState.microphoneAudioFileExists(for: record))
               Button("打开电脑声音音频") {
                 _ = appState.openMaterialFile(for: record, track: .systemAudio)
               }
@@ -76,12 +81,8 @@ struct RecordingDetailView: View {
         }
 
         audioFileStatus
-        audioPlayer
-        if record.systemAudioFileName != nil {
-          systemAudioPlayer
-        }
-        if record.meetingMixFileName != nil {
-          meetingMixPlayer
+        if !playbackTrackOptions.isEmpty {
+          unifiedAudioPlayer
         }
         if let voiceSegments = record.voiceSegments, !voiceSegments.isEmpty {
           voiceSegmentList(voiceSegments)
@@ -94,9 +95,13 @@ struct RecordingDetailView: View {
               Label(transcriptSourceLabel, systemImage: "text.quote")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-              Text(readableTranscript)
-                .textSelection(.enabled)
-                .frame(maxWidth: .infinity, alignment: .leading)
+              ScrollView {
+                Text(readableTranscript)
+                  .textSelection(.enabled)
+                  .frame(maxWidth: .infinity, alignment: .leading)
+                  .padding(.trailing, 8)
+              }
+              .frame(minHeight: 180, idealHeight: 260, maxHeight: 320)
               HStack(spacing: 8) {
                 ActionFeedbackButton {
                   appState.copyTranscript(readableTranscript)
@@ -120,38 +125,42 @@ struct RecordingDetailView: View {
           }
           if let segments = record.transcriptSegments, !segments.isEmpty {
             section("时间戳片段", systemImage: "clock") {
-              VStack(alignment: .leading, spacing: 8) {
-                ForEach(Array(segments.enumerated()), id: \.offset) { _, segment in
-                  let readableSegmentText = TranscriptTextNormalizer.normalize(segment.text)
-                  Button {
-                    playback.play(url: appState.audioURL(for: record))
-                    playback.seek(to: segment.start)
-                  } label: {
-                    HStack(alignment: .firstTextBaseline, spacing: 10) {
-                      Image(systemName: "play.circle")
-                        .foregroundStyle(.tint)
-                      Text(timestamp(segment.start))
-                        .font(.caption.monospacedDigit())
-                        .foregroundStyle(.secondary)
-                        .frame(width: 48, alignment: .leading)
-                      if record.meetingTranscriptionMode == .sourceSeparated,
-                        let sourceTrack = segment.sourceTrack
-                      {
-                        Text(sourceTrack.label)
-                          .font(.caption2.weight(.medium))
+              ScrollView {
+                LazyVStack(alignment: .leading, spacing: 8) {
+                  ForEach(Array(segments.enumerated()), id: \.offset) { _, segment in
+                    let readableSegmentText = TranscriptTextNormalizer.normalize(segment.text)
+                    Button {
+                      playback.play(url: appState.audioURL(for: record))
+                      playback.seek(to: segment.start)
+                    } label: {
+                      HStack(alignment: .firstTextBaseline, spacing: 10) {
+                        Image(systemName: "play.circle")
                           .foregroundStyle(.tint)
-                          .frame(width: 64, alignment: .leading)
+                        Text(timestamp(segment.start))
+                          .font(.caption.monospacedDigit())
+                          .foregroundStyle(.secondary)
+                          .frame(width: 48, alignment: .leading)
+                        if record.meetingTranscriptionMode == .sourceSeparated,
+                          let sourceTrack = segment.sourceTrack
+                        {
+                          Text(sourceTrack.label)
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(.tint)
+                            .frame(width: 64, alignment: .leading)
+                        }
+                        Text(readableSegmentText)
+                          .frame(maxWidth: .infinity, alignment: .leading)
                       }
-                      Text(readableSegmentText)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                      .contentShape(Rectangle())
                     }
-                    .contentShape(Rectangle())
+                    .buttonStyle(.plain)
+                    .disabled(!appState.audioFileExists(for: record))
+                    .accessibilityLabel("播放 \(timestamp(segment.start)) 的片段：\(readableSegmentText)")
                   }
-                  .buttonStyle(.plain)
-                  .disabled(!appState.audioFileExists(for: record))
-                  .accessibilityLabel("播放 \(timestamp(segment.start)) 的片段：\(readableSegmentText)")
                 }
+                .padding(.trailing, 8)
               }
+              .frame(minHeight: 180, idealHeight: 300, maxHeight: 360)
             }
           }
         } else {
@@ -187,53 +196,57 @@ struct RecordingDetailView: View {
           processingTaskStatus
         }
 
-        if !agentResultJobs.isEmpty {
-          section("Agent 结果", systemImage: "arrow.down.doc") {
-            VStack(alignment: .leading, spacing: 12) {
-              ForEach(agentResultJobs) { job in
-                if let artifact = job.resultArtifact {
-                  VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                      Label(
-                        "\(AgentCLIAdapterCatalog.userFacingDisplayName(for: artifact.connectorID)) \(artifact.connectorVersion)",
-                        systemImage: artifact.kind == .markdown ? "doc.richtext" : "doc.text"
-                      )
-                      .font(.callout.weight(.semibold))
-                      Spacer()
-                      Text(artifact.createdAt, style: .relative)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    }
-                    Text(artifact.preview.isEmpty ? "结果已保存，暂无预览。" : artifact.preview)
-                      .font(.body.monospaced())
-                      .lineLimit(8)
-                      .textSelection(.enabled)
-                      .frame(maxWidth: .infinity, alignment: .leading)
-                    HStack(spacing: 8) {
-                      ActionFeedbackButton {
-                        appState.copyAgentResultPreview(artifact)
-                        return .success("已复制 Agent 结果预览")
-                      } label: {
-                        Label("复制预览", systemImage: "doc.on.doc")
+        #if !WOICE_APP_STORE
+          if StoreCapabilityProfile.current.allowsExternalAgentConnector,
+            !agentResultJobs.isEmpty
+          {
+            section("Agent 结果", systemImage: "arrow.down.doc") {
+              VStack(alignment: .leading, spacing: 12) {
+                ForEach(agentResultJobs) { job in
+                  if let artifact = job.resultArtifact {
+                    VStack(alignment: .leading, spacing: 8) {
+                      HStack {
+                        Label(
+                          "\(AgentCLIAdapterCatalog.userFacingDisplayName(for: artifact.connectorID)) \(artifact.connectorVersion)",
+                          systemImage: artifact.kind == .markdown ? "doc.richtext" : "doc.text"
+                        )
+                        .font(.callout.weight(.semibold))
+                        Spacer()
+                        Text(artifact.createdAt, style: .relative)
+                          .font(.caption)
+                          .foregroundStyle(.secondary)
                       }
-                      .buttonStyle(.bordered)
-                      ActionFeedbackButton {
-                        _ = appState.revealAgentResult(artifact)
-                        return .success("已在 Finder 中显示 Agent 结果")
-                      } label: {
-                        Label("在 Finder 中显示", systemImage: "folder")
+                      Text(artifact.preview.isEmpty ? "结果已保存，暂无预览。" : artifact.preview)
+                        .font(.body.monospaced())
+                        .lineLimit(8)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                      HStack(spacing: 8) {
+                        ActionFeedbackButton {
+                          appState.copyAgentResultPreview(artifact)
+                          return .success("已复制 Agent 结果预览")
+                        } label: {
+                          Label("复制预览", systemImage: "doc.on.doc")
+                        }
+                        .buttonStyle(.bordered)
+                        ActionFeedbackButton {
+                          _ = appState.revealAgentResult(artifact)
+                          return .success("已在 Finder 中显示 Agent 结果")
+                        } label: {
+                          Label("在 Finder 中显示", systemImage: "folder")
+                        }
+                        .buttonStyle(.bordered)
                       }
-                      .buttonStyle(.bordered)
+                      .controlSize(.small)
                     }
-                    .controlSize(.small)
+                    .padding(12)
+                    .background(.quaternary.opacity(0.45), in: RoundedRectangle(cornerRadius: 10))
                   }
-                  .padding(12)
-                  .background(.quaternary.opacity(0.45), in: RoundedRectangle(cornerRadius: 10))
                 }
               }
             }
           }
-        }
+        #endif
 
         if let markdown = record.generatedMarkdown, !markdown.isEmpty {
           section("AI 笔记", systemImage: "sparkles") {
@@ -278,27 +291,16 @@ struct RecordingDetailView: View {
       .padding(28)
     }
     .navigationTitle("录音详情")
-    .task {
-      playback.prepare(url: appState.audioURL(for: record))
-      if let systemURL = appState.systemAudioURL(for: record),
-        appState.systemAudioFileExists(for: record)
-      {
-        systemPlayback.prepare(url: systemURL)
-      }
-      if appState.meetingMixFileExists(for: record) {
-        meetingPlayback.prepare(url: appState.meetingMixURL(for: record))
-      }
-    }
-    .sheet(isPresented: $isShowingAgentDispatch) {
-      AgentDispatchSheet(record: record)
+    #if !WOICE_APP_STORE
+      .sheet(isPresented: $isShowingAgentDispatch) {
+        AgentDispatchSheet(record: record)
         .environment(appState)
-    }
+      }
+    #endif
     .alert("将素材移到废纸篓？", isPresented: $isConfirmingDeletion) {
       Button("取消", role: .cancel) {}
       Button("移到废纸篓", role: .destructive) {
         playback.stop()
-        systemPlayback.stop()
-        meetingPlayback.stop()
         _ = appState.moveToTrash(record: record)
       }
     } message: {
@@ -306,8 +308,15 @@ struct RecordingDetailView: View {
     }
     .onDisappear {
       playback.stop()
-      systemPlayback.stop()
-      meetingPlayback.stop()
+    }
+    .onAppear {
+      if playbackTrackOptions.contains(where: { $0.kind == .meetingMix }) {
+        selectedPlaybackTrack = .meetingMix
+      } else if !playbackTrackOptions.contains(where: { $0.kind == selectedPlaybackTrack }),
+        let first = playbackTrackOptions.first
+      {
+        selectedPlaybackTrack = first.kind
+      }
     }
   }
 
@@ -376,6 +385,130 @@ struct RecordingDetailView: View {
     }
   }
 
+  private struct PlaybackTrackOption: Identifiable {
+    let kind: AudioTrackKind
+    let title: String
+    let systemImage: String
+    let url: URL
+    let fallbackDuration: TimeInterval
+
+    var id: AudioTrackKind { kind }
+  }
+
+  private var playbackTrackOptions: [PlaybackTrackOption] {
+    var options: [PlaybackTrackOption] = []
+    if appState.microphoneAudioFileExists(for: record) {
+      options.append(
+        PlaybackTrackOption(
+          kind: .microphone,
+          title: "麦克风",
+          systemImage: "mic.fill",
+          url: appState.audioURL(for: record),
+          fallbackDuration: record.duration))
+    }
+    if let url = appState.systemAudioURL(for: record), appState.systemAudioFileExists(for: record) {
+      options.append(
+        PlaybackTrackOption(
+          kind: .systemAudio,
+          title: "电脑声音",
+          systemImage: "speaker.wave.2.fill",
+          url: url,
+          fallbackDuration: record.systemAudioDuration ?? record.duration))
+    }
+    if appState.meetingMixFileExists(for: record) {
+      let url = appState.meetingMixURL(for: record)
+      options.append(
+        PlaybackTrackOption(
+          kind: .meetingMix,
+          title: "会议合成",
+          systemImage: "waveform.and.mic",
+          url: url,
+          fallbackDuration: record.duration))
+    }
+    return options
+  }
+
+  private var selectedPlaybackOption: PlaybackTrackOption? {
+    playbackTrackOptions.first(where: { $0.kind == selectedPlaybackTrack })
+      ?? playbackTrackOptions.first
+  }
+
+  private var unifiedAudioPlayer: some View {
+    section("音频回放", systemImage: "waveform") {
+      VStack(alignment: .leading, spacing: 12) {
+        HStack(spacing: 8) {
+          ForEach(playbackTrackOptions) { option in
+            Button {
+              if selectedPlaybackTrack != option.kind {
+                playback.stop()
+                selectedPlaybackTrack = option.kind
+              }
+            } label: {
+              Label(option.title, systemImage: option.systemImage)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(
+              selectedPlaybackTrack == option.kind
+                ? Color.accentColor : Color.secondary.opacity(0.35)
+            )
+            .accessibilityValue(selectedPlaybackTrack == option.kind ? "已选择" : "未选择")
+          }
+        }
+        if let option = selectedPlaybackOption {
+          Text(playbackTrackDescription(for: option.kind))
+            .font(.caption)
+            .foregroundStyle(.secondary)
+          HStack(spacing: 12) {
+            Button {
+              playback.toggle(url: option.url)
+            } label: {
+              let isCurrentPlaying = playback.isPlaying && playback.currentURL == option.url
+              Label(
+                isCurrentPlaying ? "暂停" : "播放",
+                systemImage: isCurrentPlaying ? "pause.fill" : "play.fill")
+            }
+            .buttonStyle(.borderedProminent)
+            Button("停止") { playback.stop() }
+              .disabled(!playback.isPlaying && playback.currentTime == 0)
+            Spacer()
+            Text(
+              "\(formatDuration(playback.currentTime)) / \(formatDuration(playback.duration > 0 ? playback.duration : option.fallbackDuration))"
+            )
+            .font(.caption.monospacedDigit())
+            .foregroundStyle(.secondary)
+          }
+          Slider(
+            value: Binding(
+              get: { playback.currentURL == option.url ? playback.currentTime : 0 },
+              set: { playback.seek(to: $0) }
+            ),
+            in:
+              0...max(
+                playback.duration > 0 ? playback.duration : option.fallbackDuration, 0.01)
+          )
+          .disabled(playback.currentURL != option.url || playback.duration <= 0)
+          .accessibilityLabel("\(option.title)播放位置")
+          if let error = playback.errorMessage {
+            Label(error, systemImage: "exclamationmark.triangle.fill")
+              .font(.caption)
+              .foregroundStyle(.red)
+          }
+        }
+      }
+    }
+  }
+
+  private func playbackTrackDescription(for kind: AudioTrackKind) -> String {
+    switch kind {
+    case .microphone:
+      return "麦克风原始音轨，只在本机按需加载和播放。"
+    case .systemAudio:
+      return "电脑播放的视频、会议或其他系统声音，只在本机按需加载和播放。"
+    case .meetingMix:
+      return "麦克风与电脑声音的会议合成文件，用于完整回放和标准模式转写。"
+    }
+  }
+
   private var audioPlayer: some View {
     section("我的声音（麦克风）", systemImage: "mic.fill") {
       VStack(alignment: .leading, spacing: 10) {
@@ -438,30 +571,35 @@ struct RecordingDetailView: View {
         .foregroundStyle(.secondary)
         HStack(spacing: 12) {
           Button {
-            meetingPlayback.toggle(url: appState.meetingMixURL(for: record))
+            playback.toggle(url: appState.meetingMixURL(for: record))
           } label: {
             Label(
-              meetingPlayback.isPlaying ? "暂停" : "播放",
-              systemImage: meetingPlayback.isPlaying ? "pause.fill" : "play.fill")
+              playback.isPlaying && playback.currentURL == appState.meetingMixURL(for: record)
+                ? "暂停" : "播放",
+              systemImage: playback.isPlaying
+                && playback.currentURL == appState.meetingMixURL(for: record)
+                ? "pause.fill" : "play.fill")
           }
           .buttonStyle(.borderedProminent)
           .disabled(!appState.meetingMixFileExists(for: record))
-          Button("停止") { meetingPlayback.stop() }
-            .disabled(!meetingPlayback.isPlaying && meetingPlayback.currentTime == 0)
+          Button("停止") { playback.stop() }
+            .disabled(!playback.isPlaying && playback.currentTime == 0)
           Spacer()
           Text(
-            "\(formatDuration(meetingPlayback.currentTime)) / \(formatDuration(meetingPlayback.duration))"
+            "\(formatDuration(playback.currentTime)) / \(formatDuration(playback.duration > 0 ? playback.duration : record.duration))"
           )
           .font(.caption.monospacedDigit())
           .foregroundStyle(.secondary)
         }
         Slider(
           value: Binding(
-            get: { meetingPlayback.currentTime },
-            set: { meetingPlayback.seek(to: $0) }
-          ), in: 0...max(meetingPlayback.duration, 0.01)
+            get: { playback.currentTime },
+            set: { playback.seek(to: $0) }
+          ), in: 0...max(playback.duration > 0 ? playback.duration : record.duration, 0.01)
         )
-        .disabled(meetingPlayback.duration <= 0)
+        .disabled(
+          playback.currentURL != appState.meetingMixURL(for: record) || playback.duration <= 0
+        )
         .accessibilityLabel("会议回放进度")
       }
     }
@@ -652,31 +790,35 @@ struct RecordingDetailView: View {
           }
           HStack(spacing: 12) {
             Button {
-              systemPlayback.toggle(url: url)
+              playback.toggle(url: url)
             } label: {
               Label(
-                systemPlayback.isPlaying ? "暂停" : "播放",
-                systemImage: systemPlayback.isPlaying ? "pause.fill" : "play.fill")
+                playback.isPlaying && playback.currentURL == url ? "暂停" : "播放",
+                systemImage: playback.isPlaying && playback.currentURL == url
+                  ? "pause.fill" : "play.fill")
             }
             .buttonStyle(.bordered)
-            Button("停止") { systemPlayback.stop() }
-              .disabled(!systemPlayback.isPlaying && systemPlayback.currentTime == 0)
+            Button("停止") { playback.stop() }
+              .disabled(!playback.isPlaying && playback.currentTime == 0)
             Spacer()
             Text(
-              "\(formatDuration(systemPlayback.currentTime)) / \(formatDuration(systemPlayback.duration))"
+              "\(formatDuration(playback.currentTime)) / \(formatDuration(playback.duration > 0 ? playback.duration : (record.systemAudioDuration ?? record.duration)))"
             )
             .font(.caption.monospacedDigit())
             .foregroundStyle(.secondary)
           }
           Slider(
             value: Binding(
-              get: { systemPlayback.currentTime },
-              set: { systemPlayback.seek(to: $0) }
+              get: { playback.currentTime },
+              set: { playback.seek(to: $0) }
             ),
-            in: 0...max(systemPlayback.duration, 0.01)
+            in:
+              0...max(
+                playback.duration > 0
+                  ? playback.duration : (record.systemAudioDuration ?? record.duration), 0.01)
           )
-          .disabled(systemPlayback.duration <= 0)
-          if let error = systemPlayback.errorMessage {
+          .disabled(playback.currentURL != url || playback.duration <= 0)
+          if let error = playback.errorMessage {
             Label(error, systemImage: "exclamationmark.triangle.fill")
               .font(.caption)
               .foregroundStyle(.red)

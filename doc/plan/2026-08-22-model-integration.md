@@ -1,6 +1,6 @@
 # Woice 模型接入与双版本发布开发计划
 
-> 状态：核心代码与本机发行切片已完成，外部发布/真实桌面验收进行中（本机 Speech + WhisperKit Tiny/Large 真实闭环、Provider 配置迁移/Registry、版本选择、下载任务、模型 Catalog 信任/回滚/轮换校验、受限 HTTPS 传输与多文件下载编排、Core/Offline 本地 DMG、三步首启引导和本机 ASR 服务预设已落地；Tiny/Large-v3 五类各 300 秒严格性能门禁、默认 Large-v3 路由、QuickTime 可见播放源下真实系统音频验收、完整 `make verify` 和最新安装均已通过；正式 Developer ID/公证、生产 Catalog、真实会议准确率和真实桌面矩阵待执行）  
+> 状态：核心代码与本机发行切片已完成，WCL-04 正式发行验证待凭据（本机 Speech + WhisperKit Tiny/Large 真实闭环、Provider 配置迁移/Registry、版本选择、下载任务、模型 Catalog 信任/回滚/轮换校验、受限 HTTPS 传输与多文件下载编排、Core/Offline 本地 DMG、三步首启引导和本机 ASR 服务预设已落地；Tiny/Large-v3 五类各 300 秒严格性能门禁、默认 Large-v3 路由、QuickTime 可见播放源下真实系统音频验收、最新 `make verify` 和此前稳定 Build `2026082408` 证据均已有记录；当前安装包为源码构建 `0.1.0 (Build 1)`；正式 Developer ID/公证、生产 Catalog、远程产物读回和真实桌面矩阵按 WCL 记录）  
 > 日期：2026-08-22  
 > 规格：[双版本分发与模型接入](../spec/2026-08-22-dual-edition-model-integration.md) · [会议双音轨与合并转写](../spec/2026-08-22-dual-track-meeting-transcription.md)  
 > 设计：[模型接入与连接向导架构](../design/2026-08-22-model-onboarding-provider-architecture.md)  
@@ -15,21 +15,24 @@
 
 转写路由末次更新：设置页已保存的转写目标现在是唯一真相源。新设置和旧 `automatic` 默认使用本机模型；下载、导入或切换已安装模型会激活本机路线；只有用户明确选择自定义服务才使用 Endpoint/模型 ID。麦克风、系统声音、meetingMix、导入素材和失败任务重试共用该规则，任务快照记录实际 Provider。
 
-当前实现进度：AppSettings 已迁移到统一 `ASRProviderConfiguration`（旧设置字段兼容读取，API Key 仍只进 Keychain）；有限可信 ASR Registry 发布 Provider、能力、数据位置和健康状态，设置页显示能力状态。停止录音后的本机路径可使用 macOS on-device Speech 或已安装 WhisperKit；ProcessingTask 保存 Provider、模型、版本、位置和不含 API Key 的 `sha256-v1` 配置摘要；设置页可显式下载固定 revision 的 WhisperKit Tiny/Large、查看进度和实际模型，并提供四个只填草稿的 loopback OpenAI-compatible 本机服务预设；外部 Endpoint 仍保留逐次确认。设置页现在按录音与输入、模型与转写、文件与隐私独立保存，识别语言使用原生 Picker 且新设置默认为“自动检测”，其他分区的非法草稿不会阻塞当前分区，普通保存不触碰 Keychain。录音开始前会检查保存卷最低可用空间，低于 256 MiB 时 fail-closed；录音期间已关闭的本机 VAD 片段现在会原子写入耐久 sidecar，异常退出可恢复部分原文且不覆盖原始 WAV。当前机器已通过所有专项验收：`make acceptance-core`、`make acceptance-meeting`、`make acceptance-meeting-transcription`、`make acceptance-interruption`、`make acceptance-settings`、`make acceptance-material`、`make acceptance-recovery`、`make acceptance-catalog`、`make acceptance-local-provider` 和 `WOICE_OFFLINE_MODEL_ROOT="/Users/water/Library/Application Support/Woice" make acceptance-offline-model`；其中可见 QuickTime 播放源下的 `make acceptance-meeting` 已验证窗口级可听系统音频、CAF 与 meetingMix。`TranscriptArtifact` 版本链已接入首次转写、Large 重转写、来源分离转写和历史版本切换，原文与模型快照可导出且不覆盖旧版本。Tiny/Large-v3 通过五类各 300 秒严格性能矩阵，未显式选择时默认路由冻结为 Large-v3；系统音频启动会把“屏幕录制权限未授权”“没有可共享显示器或窗口”和其他运行时失败分开报告；请求权限后的当前实例 TCC 复核失败时，设置页现在显示“需要重新授权当前安装包”并说明旧版 ad hoc 授权边界；全桌面、多窗口、真实会议应用、真实人工语料准确率和睡眠/设备变化/长录音矩阵仍需真实桌面复验。录音 Journal 恢复、模型发现、R2 搜索/外部打开也已通过目标测试。模型 Catalog 已具备版本、条目唯一性、Ed25519 签名、公钥信任根、版本回滚保护、签名历史重放、密钥轮换/撤销、受限 HTTPS 拉取和多文件下载编排；设置页提供显式更新与发行版条目下载入口，未配置发行版信任根时保持禁用；Core/Offline 本地 DMG 均已由 `make verify-core` / `make verify-offline` 的 `hdiutil verify` 校验；首次启动已改为三步可跳过引导。最新 `make verify` 通过 176 项 Swift 测试、6 项 PI、2 项 MCP、文档/Harness/lint 和生产构建；当前稳定签名 Build B `2026082324` 已安装到 `/Applications/Woice.app`，正式发布仍需 Developer ID/公证和完整覆盖安装/干净账户矩阵。
+当前收口事实（2026-08-24）：旧段落中的 176 项测试与 Build `2026082324` 属于历史记录；最新官网版为 201 项 Swift 测试 / 13 个 Suite，Store 条件为 179 项 / 10 个 Suite，当前安装包为源码构建 `0.1.0 (Build 1)`；此前稳定包 Build `2026082408` 保留为历史证据。正式 `Woice.xcodeproj` 的 Store 无签名构建、模型发行门禁和本机 Store Bundle 预检通过。正式 Developer ID/公证、生产 Catalog/远程 manifest 读回、Store 签名 Archive 和真实桌面矩阵按 WCL-04/WCL-06 及非开发提醒记录。
+以下“当前实现进度”段落保留为历史累积记录，不覆盖上面的 2026-08-24 收口事实。
 
-当前执行覆盖（2026-08-23）：上段历史计数由最新 `make verify` 的 183 项 Swift 测试 / 11 个 Suite、PI 6 项、MCP 2 项和稳定签名 Build B `2026082332` 覆盖；导入页、处理任务列表、侧栏和可继续入口共用 `ProcessingTaskProjection`，VoiceOver 标签与活动任务状态一致，空文件/损坏视频/无音轨视频 fail-closed、正常音频导入、启动/AX/键盘 Journey 和 A/B 覆盖安装已通过。Developer ID/公证、生产 Catalog、真实会议准确率、真实用户长文件、真实 Provider 失败重试和长时稳定性仍按当前路线图保留为未完成。
+当前实现进度：AppSettings 已迁移到统一 `ASRProviderConfiguration`（旧设置字段兼容读取，API Key 仍只进 Keychain）；有限可信 ASR Registry 发布 Provider、能力、数据位置和健康状态，设置页显示能力状态。停止录音后的本机路径可使用 macOS on-device Speech 或已安装 WhisperKit；ProcessingTask 保存 Provider、模型、版本、位置和不含 API Key 的 `sha256-v1` 配置摘要；设置页可显式下载固定 revision 的 WhisperKit Tiny/Large、查看进度和实际模型，并提供四个只填草稿的 loopback OpenAI-compatible 本机服务预设；外部 Endpoint 仍保留逐次确认。设置页现在按录音与输入、模型与转写、文件与隐私独立保存，识别语言使用原生 Picker 且新设置默认为“自动检测”，其他分区的非法草稿不会阻塞当前分区，普通保存不触碰 Keychain。录音开始前会检查保存卷最低可用空间，低于 256 MiB 时 fail-closed；录音期间已关闭的本机 VAD 片段现在会原子写入耐久 sidecar，异常退出可恢复部分原文且不覆盖原始 WAV。当前机器已通过所有专项验收：`make acceptance-core`、`make acceptance-meeting`、`make acceptance-meeting-transcription`、`make acceptance-interruption`、`make acceptance-settings`、`make acceptance-material`、`make acceptance-recovery`、`make acceptance-catalog`、`make acceptance-local-provider` 和 `WOICE_OFFLINE_MODEL_ROOT="/Users/water/Library/Application Support/Woice" make acceptance-offline-model`；其中可见 QuickTime 播放源下的 `make acceptance-meeting` 已验证窗口级可听系统音频、CAF 与 meetingMix。`TranscriptArtifact` 版本链已接入首次转写、Large 重转写、来源分离转写和历史版本切换，原文与模型快照可导出且不覆盖旧版本。Tiny/Large-v3 通过五类各 300 秒严格性能矩阵，未显式选择时默认路由冻结为 Large-v3；系统音频启动会把“屏幕录制权限未授权”“没有可共享显示器或窗口”和其他运行时失败分开报告；请求权限后的当前实例 TCC 复核失败时，设置页现在显示“需要重新授权当前安装包”并说明旧版 ad hoc 授权边界；全桌面、多窗口、真实会议应用、真实人工语料准确率和睡眠/设备变化/长录音矩阵仍需真实桌面复验。录音 Journal 恢复、模型发现、R2 搜索/外部打开也已通过目标测试。模型 Catalog 已具备版本、条目唯一性、Ed25519 签名、公钥信任根、版本回滚保护、签名历史重放、密钥轮换/撤销、受限 HTTPS 拉取和多文件下载编排；设置页提供显式更新与发行版条目下载入口，未配置发行版信任根时保持禁用；Core/Offline 本地 DMG 均已由 `make verify-core` / `make verify-offline` 的 `hdiutil verify` 校验；首次启动已改为三步可跳过引导。最新 `make verify` 通过 176 项 Swift 测试、6 项 PI、2 项 MCP、文档/Harness/lint 和生产构建；上述 Build B `2026082324` 为历史安装证据，当前 `/Applications/Woice.app` 为源码构建 `0.1.0 (Build 1)`，正式发布仍需 Developer ID/公证和完整覆盖安装/干净账户矩阵。
 
-末次更新（覆盖上句的历史计数）：在上述门禁后又加入可读取部分录音的保留策略及回归测试；本轮另完成 Tiny/Large-v3 五类各 300 秒严格性能矩阵、默认 Large-v3 启动路由冻结、测试专用真实临时钥匙串隔离和完整总门禁。最新 `make verify`、`make install`、`make verify-core` 和 `WOICE_OFFLINE_MODEL_ROOT="/Users/water/Library/Application Support/Woice" make verify-offline` 均通过；生产 login Keychain 密码/解锁状态仍需本机单独修复验证。
+历史执行覆盖（2026-08-23）：上段历史计数由当时的 183 项 Swift 测试 / 11 个 Suite、PI 6 项、MCP 2 项和稳定签名 Build B `2026082332` 覆盖；导入页、处理任务列表、侧栏和可继续入口共用 `ProcessingTaskProjection`，VoiceOver 标签与活动任务状态一致，空文件/损坏视频/无音轨视频 fail-closed、正常音频导入、启动/AX/键盘 Journey 和 A/B 覆盖安装已通过。后续正式发行、真实会议准确率、真实用户长文件、真实 Provider 失败重试和长时稳定性已按当前 WCL/人工边界归档。
+
+末次更新（2026-08-24，覆盖上句的历史计数）：在上述门禁后又加入可读取部分录音的保留策略及回归测试；本轮另完成 Tiny/Large-v3 五类各 300 秒严格性能矩阵、默认 Large-v3 启动路由冻结、测试专用真实临时钥匙串隔离和完整总门禁。最新 `make verify`、`make install`、`make verify-core` 和 `WOICE_OFFLINE_MODEL_ROOT="/Users/water/Library/Application Support/Woice" make verify-offline` 均通过；生产 Developer ID/公证/Catalog 与远程 manifest 读回仍按 WCL-04 等待真实凭据，真实视觉/TCC/长时矩阵仅作人工提醒。
 
 系统音频末次更新：随后加入窗口级 ScreenCaptureKit 回退和 `systemAudioCaptureTarget` 持久化；验收脚本已改为由可见 QuickTime 循环播放临时音频，最新 `make acceptance-meeting` 通过（15.432 秒），验证窗口级可听系统声音、CAF 和 meetingMix。全桌面/多窗口/真实会议应用仍需真实桌面覆盖验收。完整 Swift 回归已执行 144 项并通过；login Keychain 的真实用户密码/解锁状态不作为自动化门禁的隐式前置条件。
 
 | 工作包 | 当前状态 | 证据/剩余边界 |
 |---|---|---|
 | M2-08a 契约与迁移 | 代码与自动测试完成，跨版本真实迁移与发行验收待完成 | ModelPackManifest/DistributionManifest、路径与 SHA-256 校验、ProcessingTask 等待模型语义、用户选择的模型版本、`AudioTrackKind/sourceTrack`、`MeetingTranscriptionMode`、`RecordingMaterialStatus`、统一 `ASRProviderConfiguration`、`TranscriptionLanguageOption`、`TranscriptArtifact`、不含 API Key 的 `sha256-v1` 配置摘要和旧数据兼容已落地；数据库迁移与真实跨版本数据矩阵仍待发布验收 |
-| M2-08b Registry/Router | 代码与自动门禁完成，真实会议 UI 矩阵待验收 | macOS on-device Speech、downloaded/bundled WhisperKit Adapter 可按用户选择版本路由并保留模型快照；有限可信 ASR Registry、能力/数据位置/健康状态和设置页状态投影已接入；meetingMix 准备、默认单次 Router、来源分离确认队列和系统 CAF -> WAV 准备层已接入；本机/局域网模型发现与四个 loopback 本机服务预设已接入；系统音频有显示器时全桌面、无显示器时窗口级目标回退已实现，QuickTime 可见播放源下最新 `make acceptance-meeting` 通过；全桌面、多窗口与真实会议应用 UI 矩阵仍待完成 |
+| M2-08b Registry/Router | 代码与自动门禁完成，真实会议 UI 矩阵待验收 | macOS on-device Speech、downloaded/bundled WhisperKit Adapter 可按用户选择版本路由并保留模型快照；有限可信 ASR Registry、能力/数据位置/健康状态和设置页状态投影已接入；meetingMix 准备、默认来源分离 Router、`standardMix` 显式兼容路由、来源分离确认队列和系统 CAF -> WAV 准备层已接入；本机/局域网模型发现与四个 loopback 本机服务预设已接入；系统音频有显示器时全桌面、无显示器时窗口级目标回退已实现，QuickTime 可见播放源下最新 `make acceptance-meeting` 通过；全桌面、多窗口与真实会议应用 UI 矩阵仍待完成 |
 | M2-08c WhisperKit | Tiny/Large 真实本机转写和五类性能门禁已验证 | `argmax-oss-swift` 1.0.0 精确 revision、Tiny 与 Large-v3 候选目录/Tokenizer revision 已固定；Tiny 真实麦克风闭环、Large 已安装 WAV 重转写、五类各 300 秒严格矩阵和默认 Large-v3 路由冻结通过；turbo/small 候选、真实会议/人工语料准确率和睡眠唤醒/内存压力仍待完成 |
 | M2-08d 模型包存储 | 代码与本机门禁完成，生产 Catalog 服务验收待完成 | bundled/downloaded inventory、原子 current、路径/符号链接/SHA-256 门禁、流式哈希、显式 Range 续传/空间检查、SQLite durable download task、官方 WhisperKit 显式下载/打包、活动任务取消/暂停和非当前版本删除已实现；Catalog schema、条目唯一性、Ed25519 验签、签名历史重放、版本回滚、密钥轮换/撤销、HTTPS host allowlist、响应边界、设置页显式更新入口、签名条目下载根地址校验、逐文件下载和原子安装已落地；生产 Catalog host/key 配置、真实发行服务上的多文件下载仍待完成 |
-| M2-08e-i | 核心代码与本机发行切片完成，外部发布与真实桌面验收待完成 | Core/Offline ad hoc App、发行清单、本地 DMG 与 Offline bundled 路由已实现；本机/局域网 `/v1/models` 主动发现、四个 OpenAI-compatible 本机服务预设、设置页模型选择、语言 Picker、三步可跳过首启引导、显式 Catalog 更新入口、五类 300 秒严格性能报告和默认 Large-v3 路由已接入；生产 Catalog host/key 配置、真实服务连接、Developer ID/公证、干净账户覆盖安装、真实会议/人工语料准确率和六条真实 UI Journey 仍待完成 |
+| M2-08e-i | 核心代码与本机发行切片完成，外部发布与真实桌面验收待完成 | Core/Offline ad hoc App、发行清单、本地 DMG 与 Offline bundled 路由已实现；本机/局域网 `/v1/models` 主动发现、四个 OpenAI-compatible 本机服务预设、设置页模型选择、语言 Picker、三步可跳过首启引导、显式 Catalog 更新入口、五类 300 秒严格性能报告和默认 Large-v3 路由已接入；生产 Catalog host/key 配置、真实服务连接、Developer ID/公证、Store 签名 Archive、干净账户覆盖安装、真实会议/人工语料准确率和六条真实 UI Journey 仍待完成 |
 
 ## 1. 计划目标
 
@@ -204,7 +207,7 @@
 
 验收：Domain/Runtime 新增代码行覆盖率 ≥ 90%；无 `@unchecked Sendable`。
 
-预计：7-10 个工程日，已包含 meetingMix 准备、默认单次路由、可选来源分离和外部确认增量。
+预计：7-10 个工程日，已包含 meetingMix 准备、默认来源分离路由、`standardMix` 兼容模式和外部确认增量；仅作历史估算。
 
 ### M2-08c：WhisperKit Spike 与默认模型冻结
 
@@ -391,7 +394,7 @@ make acceptance-local-provider
 - M1 16 GB/macOS 14：默认模型基准和 60 分钟录音后转录。
 - 至少一台 8 GB Apple Silicon：低资源模型/无模型录音体验。
 - macOS 15：覆盖安装、系统 TTS、会议能力不回归。
-- 真实会议：同时播放电脑声音和本机说话，验证双原轨、meetingMix 单次转写、来源分离双轨转写、时间线合并和单轨重试；本机契约门禁 `make acceptance-meeting-transcription` 已通过，但真实会议应用和桌面 Journey 仍未完成。
+- 真实会议：同时播放电脑声音和本机说话，验证双原轨、默认来源分离转写、`standardMix` 兼容单次转写、时间线合并和单轨重试；本机契约门禁 `make acceptance-meeting-transcription` 已通过，但真实会议应用和桌面 Journey 仍未完成。
 - 断网、睡眠唤醒、磁盘不足、模型损坏、Provider 崩溃、App 强退。
 - Core/Offline 两个公证产物在干净用户账户打开，无隔离属性异常。
 
@@ -404,7 +407,7 @@ make acceptance-local-provider
 
 退出：规格 AC-MI-001 至 AC-MI-012 全部有证据；任何未完成真实 Mac/签名项保留为未完成，不以 Mock 替代。
 
-预计：6-8 个工程日，已包含双原轨、meetingMix 单次转写、可选来源分离和真实会议 Journey。
+预计：6-8 个工程日，已包含双原轨、默认来源分离转写、`standardMix` 兼容单次转写和真实会议 Journey；仅作历史估算。
 
 ## 8. 依赖与执行顺序
 

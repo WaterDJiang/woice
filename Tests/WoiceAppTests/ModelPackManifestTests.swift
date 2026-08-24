@@ -76,6 +76,12 @@ func distributionManifestValidatesFlavor() throws {
     buildVersion: "1",
     bundledModelPackIDs: ["com.woice.whisper.large-v3"])
   #expect(offline.bundledModelPackIDs.count == 1)
+  let store = try DistributionManifest(
+    flavor: .store,
+    appVersion: "1.0.0",
+    buildVersion: "1",
+    bundledModelPackIDs: ["com.woice.whisper.large-v3"])
+  #expect(store.flavor == .store)
 }
 
 @Test("旧任务解码时新增模型能力和配置快照保持可选")

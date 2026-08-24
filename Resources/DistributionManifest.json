@@ -1,0 +1,16 @@
+{
+  "appVersion": "0.1.2",
+  "buildVersion": "1",
+  "bundledModelPackIDs": [],
+  "capabilityProfile": {
+    "allowsAutomaticPaste": false,
+    "allowsExternalAgentConnector": false,
+    "allowsHTTPProviders": true,
+    "allowsModelImport": true,
+    "allowsProcessProviders": false,
+    "allowsSelfUpdater": false,
+    "allowsUserProvidedExecutables": false
+  },
+  "flavor": "store",
+  "schemaVersion": 1
+}

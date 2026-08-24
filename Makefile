@@ -4,7 +4,7 @@ APP_NAME := Woice
 BUILD_DIR := .build/release
 APP_BUNDLE := build/Woice.app
 
-.PHONY: docs-check harness-check connectors-check mcp-check project build test package package-core package-offline package-dmg-core package-dmg-offline release-adhoc model-benchmark-fixture model-benchmark model-benchmark-strict install format lint acceptance-core acceptance-whisperkit acceptance-meeting acceptance-meeting-transcription acceptance-settings acceptance-material acceptance-recovery acceptance-catalog acceptance-interruption acceptance-offline-model acceptance-local-provider acceptance-agent-outbound acceptance-agent-inbound acceptance-agent-external-inbound acceptance-workspace-sidebar acceptance-media-import-transcription acceptance-media-import-desktop acceptance-permission-continuity acceptance-stable-upgrade acceptance-launch-window acceptance-accessibility-runtime verify verify-core verify-offline
+.PHONY: docs-check harness-check appicon-check release-manifest-check model-package-check release-verify-remote store-capability-check connectors-check mcp-check project xcode-project xcode-list xcode-build-store build test package package-core package-offline package-store package-dmg-core package-dmg-offline release-adhoc release-developer-id model-benchmark-fixture model-benchmark model-benchmark-strict install format lint acceptance-core acceptance-whisperkit acceptance-meeting acceptance-meeting-transcription acceptance-settings acceptance-material acceptance-recovery acceptance-catalog acceptance-interruption acceptance-offline-model acceptance-local-provider acceptance-agent-outbound acceptance-agent-inbound acceptance-agent-external-inbound acceptance-workspace-sidebar acceptance-media-import-transcription acceptance-media-import-desktop acceptance-permission-continuity acceptance-stable-upgrade acceptance-launch-window acceptance-accessibility-runtime verify verify-core verify-offline verify-app-store archive-app-store acceptance-app-store-sandbox acceptance-app-store-clean-user
 
 docs-check:
 	@test -f doc/INDEX.md
@@ -28,6 +28,39 @@ docs-check:
 	@test -f doc/design/2026-08-22-voice-context-agent-collaboration.md
 	@test -f scripts/package_distribution.py
 	@test -f scripts/package_dmg.py
+	@test -f scripts/check_appicon_source.sh
+	@test -x scripts/check_appicon_source.sh
+	@test -f scripts/release_developer_id.sh
+	@test -x scripts/release_developer_id.sh
+	@test -f scripts/release_artifact_manifest.py
+	@test -x scripts/release_artifact_manifest.py
+	@test -f scripts/test_release_artifact_manifest.py
+	@test -f scripts/test_package_distribution.py
+	@test -f Resources/Woice.entitlements
+	@test -f Resources/Woice-Store.entitlements
+	@test -f Resources/PrivacyInfo.xcprivacy
+	@test -f Resources/DistributionManifest.json
+	@test -f Resources/SBOM.json
+	@test -f assets/app-store/README.md
+	@test -f assets/app-store/privacy-policy-draft.md
+	@test -f assets/app-store/app-privacy-draft.md
+	@test -f assets/app-store/apple-submission-reference.md
+	@test -f App/WoiceApp/README.md
+	@test -f scripts/verify_app_store.py
+	@test -x scripts/verify_app_store.py
+	@test -f scripts/verify_xcode_store_bundle.py
+	@test -f scripts/test_verify_xcode_store_bundle.py
+	@test -f scripts/archive_app_store.sh
+	@test -x scripts/archive_app_store.sh
+	@test -f project.yml
+	@test -f Woice.xcodeproj/project.pbxproj
+	@test -f scripts/acceptance_app_store_clean_user.sh
+	@test -x scripts/acceptance_app_store_clean_user.sh
+	@test -f specs/2026-08-24-technical-development-closure.md
+	@test -f specs/2026-08-24-mas-capability-slice.md
+	@test -f specs/2026-08-24-mas-release-gates.md
+	@test -f specs/2026-08-24-microphone-capture-readiness.md
+	@test -f doc/plan/2026-08-24-current-technical-development-closure.md
 	@test -f scripts/acceptance_agent_external_inbound.mjs
 	@test -x scripts/acceptance_workspace_sidebar.sh
 	@test -x scripts/acceptance_media_import.sh
@@ -119,6 +152,30 @@ harness-check:
 	@test $$(( $$(rg -o '```' CLAUDE.md | wc -l) % 2 )) -eq 0
 	@echo "harness-check: ok"
 
+appicon-check: docs-check harness-check
+	@./scripts/check_appicon_source.sh
+
+release-manifest-check: docs-check harness-check
+	@python3 scripts/test_release_artifact_manifest.py
+
+model-package-check: docs-check harness-check
+	@python3 scripts/test_package_distribution.py
+
+release-verify-remote: docs-check harness-check release-manifest-check
+	@test -n "$(WOICE_LOCAL_RELEASE_MANIFEST)" || { echo "WOICE_LOCAL_RELEASE_MANIFEST 未设置；不会伪造远程发行读回。"; exit 1; }
+	@test -n "$(WOICE_RELEASE_MANIFEST_URL)" || { echo "WOICE_RELEASE_MANIFEST_URL 未设置；不会伪造远程发行读回。"; exit 1; }
+	@set -euo pipefail; \
+		manifest_verify_cmd=(python3 scripts/release_artifact_manifest.py verify \
+			--local-manifest "$(WOICE_LOCAL_RELEASE_MANIFEST)" \
+			--remote-manifest-url "$(WOICE_RELEASE_MANIFEST_URL)"); \
+		if [[ -n "$(WOICE_REMOTE_EVIDENCE_OUTPUT)" ]]; then \
+			manifest_verify_cmd+=(--output "$(WOICE_REMOTE_EVIDENCE_OUTPUT)"); \
+		fi; \
+		"$${manifest_verify_cmd[@]}"
+
+store-capability-check: docs-check harness-check
+	@WOICE_DISTRIBUTION=app-store swift test --no-parallel
+
 connectors-check:
 	@npm test --prefix Connectors/PiWoice
 	@$(MAKE) mcp-check
@@ -129,6 +186,17 @@ mcp-check:
 project:
 	@test -f Package.swift || { echo "Package.swift 尚未创建；先完成 M0-00"; exit 1; }
 	@echo "project: SwiftPM package ready"
+
+xcode-project:
+	@command -v xcodegen >/dev/null || { echo "xcodegen 未安装；无法从 project.yml 生成正式 Xcode 工程。"; exit 1; }
+	@xcodegen generate --spec project.yml
+
+xcode-list: xcode-project
+	@xcodebuild -list -project Woice.xcodeproj
+
+xcode-build-store: xcode-project
+	@xcodebuild -project Woice.xcodeproj -scheme Woice-Store -configuration Release-AppStore -sdk macosx -derivedDataPath .build/xcode-derived CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
+	@python3 scripts/verify_xcode_store_bundle.py --app .build/xcode-derived/Build/Products/Release-AppStore/Woice.app
 
 build: project
 	@swift build -c release
@@ -145,6 +213,20 @@ package-core: build
 package-offline: build
 	@test -n "$(WOICE_OFFLINE_MODEL_ROOT)" || { echo "WOICE_OFFLINE_MODEL_ROOT 未设置；请显式提供已验证模型目录。"; exit 1; }
 	@python3 scripts/package_distribution.py --flavor offline --binary "$(BUILD_DIR)/Woice" --info-plist Resources/Info.plist --model-root "$(WOICE_OFFLINE_MODEL_ROOT)" --output build/Woice-Offline.app
+
+package-store: project appicon-check model-package-check
+	@set -euo pipefail; \
+		WOICE_DISTRIBUTION=app-store swift build -c release; \
+		package_args=( \
+			--flavor store \
+			--binary "$(BUILD_DIR)/Woice" \
+			--info-plist Resources/Info.plist \
+			--output build/Woice-Store.app \
+			--entitlements Resources/Woice-Store.entitlements \
+			--privacy-manifest Resources/PrivacyInfo.xcprivacy \
+		); \
+		if [[ -n "$(WOICE_STORE_MODEL_ROOT)" ]]; then package_args+=(--model-root "$(WOICE_STORE_MODEL_ROOT)"); fi; \
+		WOICE_CODESIGN_IDENTITY=- python3 scripts/package_distribution.py "$${package_args[@]}"
 
 package-dmg-core: package-core
 	@python3 scripts/package_dmg.py --app build/Woice-Core.app --output build/Woice-Core.dmg --volume-name Woice-Core
@@ -174,6 +256,23 @@ release-adhoc: docs-check harness-check build
 		(cd "$$release_path" && shasum -a 256 *.dmg > SHA256SUMS.txt); \
 		echo "release-adhoc: $$release_path"
 
+release-developer-id: docs-check harness-check appicon-check release-manifest-check
+	@./scripts/release_developer_id.sh
+
+verify-app-store: docs-check harness-check appicon-check package-store
+	@python3 scripts/verify_app_store.py --app build/Woice-Store.app
+
+archive-app-store: docs-check harness-check xcode-project
+	@./scripts/archive_app_store.sh
+
+acceptance-app-store-sandbox: verify-app-store
+	@codesign --verify --deep --strict build/Woice-Store.app
+	@python3 scripts/verify_app_store.py --app build/Woice-Store.app
+	@echo "acceptance-app-store-sandbox: passed (local signed bundle and entitlement checks; no TCC/TestFlight claim)"
+
+acceptance-app-store-clean-user: docs-check harness-check
+	@./scripts/acceptance_app_store_clean_user.sh
+
 model-benchmark: docs-check harness-check
 	@test -n "$(WOICE_BENCHMARK_AUDIO_DIR)" || { echo "WOICE_BENCHMARK_AUDIO_DIR 尚未设置；不会伪造模型基准。"; exit 1; }
 	@./scripts/run_model_benchmark.sh "$(WOICE_BENCHMARK_AUDIO_DIR)" "$(WOICE_BENCHMARK_OUTPUT)"
@@ -199,6 +298,7 @@ lint:
 
 acceptance-core: docs-check harness-check
 	@WOICE_REQUIRE_MIC_AUDIO=1 swift test --no-parallel --filter microphoneInputCheckReportsCapturedFrames
+	@WOICE_RUN_APPSTATE_CAPTURE=1 swift test --no-parallel --filter appStateTerminationFinalizesRecordingAndRetainsJournal
 	@WOICE_RUN_APPSTATE_LOOPBACK=1 swift test --no-parallel --filter appStateRecordingTranscribesWithRealLoopbackHTTP
 	@WOICE_RUN_APPSTATE_TRANSCRIPTION=1 swift test --no-parallel --filter appStateRecordingTranscribesWithCustomASR
 	@swift test --no-parallel --filter localASRClosedLoopPersistsTranscriptAndModelSnapshot
@@ -309,7 +409,7 @@ acceptance-catalog: docs-check harness-check
 	@swift test --no-parallel --filter ModelCatalogDownloadTests
 	@echo "acceptance-catalog: passed (signature, trust root, rollback, rotation, bounded transport and multi-file download contracts)"
 
-verify: docs-check harness-check connectors-check lint test package
+verify: docs-check harness-check appicon-check release-manifest-check model-package-check connectors-check lint test package
 
 verify-core: docs-check harness-check package-dmg-core
 	@codesign --verify --deep --strict build/Woice-Core.app

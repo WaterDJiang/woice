@@ -16,11 +16,13 @@ from pathlib import Path
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--flavor", choices=("core", "offline"), required=True)
+    parser.add_argument("--flavor", choices=("core", "offline", "store"), required=True)
     parser.add_argument("--binary", type=Path, required=True)
     parser.add_argument("--info-plist", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--model-root", type=Path)
+    parser.add_argument("--entitlements", type=Path)
+    parser.add_argument("--privacy-manifest", type=Path)
     return parser.parse_args()
 
 
@@ -48,6 +50,32 @@ def find_model_version(root: Path) -> tuple[Path, dict]:
             files = manifest.get("files")
             if not isinstance(files, list) or not files:
                 continue
+            license_info = manifest.get("license")
+            if not isinstance(license_info, dict):
+                raise SystemExit("模型清单缺少 license 对象，拒绝进入发行包。")
+            identifier = license_info.get("identifier")
+            source_url = license_info.get("sourceURL")
+            notice_path = license_info.get("noticePath")
+            if (
+                not isinstance(identifier, str)
+                or not identifier.strip()
+                or identifier.strip().upper() in {"UNKNOWN", "TBD", "PROPRIETARY"}
+                or not isinstance(source_url, str)
+                or not source_url.startswith("https://")
+                or not isinstance(notice_path, str)
+                or not notice_path
+            ):
+                raise SystemExit("模型清单的许可证标识、来源或 NOTICE 路径不完整，拒绝进入发行包。")
+            notice_relative = Path(notice_path)
+            if (
+                notice_relative.is_absolute()
+                or ".." in notice_relative.parts
+                or "." in notice_relative.parts
+            ):
+                raise SystemExit("模型清单的 NOTICE 路径不安全，拒绝进入发行包。")
+            notice_file = version_dir / notice_relative
+            if not notice_file.is_file() or notice_file.is_symlink():
+                raise SystemExit(f"模型 NOTICE 文件缺失或为符号链接：{notice_path}")
             for entry in files:
                 relative = entry.get("relativePath")
                 relative_path = Path(relative) if isinstance(relative, str) else Path()
@@ -130,8 +158,47 @@ def compile_app_icon(brand_exports: Path, resources: Path) -> dict[str, str]:
     return metadata
 
 
+def apply_runtime_release_configuration(plist: dict) -> None:
+    """Apply explicit release-only catalog/build metadata without guessing."""
+
+    build_version = os.environ.get("WOICE_BUILD_VERSION")
+    if build_version:
+        if not build_version.isdigit():
+            raise SystemExit("WOICE_BUILD_VERSION 必须是数字。")
+        plist["CFBundleVersion"] = build_version
+
+    catalog_values = {
+        "WOICEModelCatalogURL": os.environ.get("WOICE_CATALOG_URL", ""),
+        "WOICEModelCatalogID": os.environ.get("WOICE_CATALOG_ID", ""),
+    }
+    trusted_keys_json = os.environ.get("WOICE_CATALOG_TRUSTED_KEYS_JSON", "")
+    if any(catalog_values.values()) or trusted_keys_json:
+        if not all(catalog_values.values()) or not trusted_keys_json:
+            raise SystemExit("生产 Catalog 配置必须同时提供 URL、ID 和可信公钥 JSON。")
+        try:
+            trusted_keys = json.loads(trusted_keys_json)
+        except json.JSONDecodeError as error:
+            raise SystemExit("WOICE_CATALOG_TRUSTED_KEYS_JSON 不是有效 JSON。") from error
+        if not isinstance(trusted_keys, dict) or not trusted_keys:
+            raise SystemExit("生产 Catalog 可信公钥 JSON 必须是非空对象。")
+        plist["WOICEModelCatalogURL"] = catalog_values["WOICEModelCatalogURL"]
+        plist["WOICEModelCatalogID"] = catalog_values["WOICEModelCatalogID"]
+        plist["WOICEModelCatalogTrustedKeys"] = trusted_keys
+        allowed_hosts = os.environ.get("WOICE_CATALOG_ALLOWED_HOSTS", "")
+        download_hosts = os.environ.get("WOICE_CATALOG_DOWNLOAD_ALLOWED_HOSTS", "")
+        if allowed_hosts:
+            plist["WOICEModelCatalogAllowedHosts"] = [
+                host.strip().lower() for host in allowed_hosts.split(",") if host.strip()
+            ]
+        if download_hosts:
+            plist["WOICEModelDownloadAllowedHosts"] = [
+                host.strip().lower() for host in download_hosts.split(",") if host.strip()
+            ]
+
+
 def main() -> None:
     args = parse_args()
+    project_root = Path(__file__).resolve().parents[1]
     binary = args.binary.resolve()
     info_plist = args.info_plist.resolve()
     output = args.output.resolve()
@@ -152,8 +219,8 @@ def main() -> None:
     shutil.copy2(binary, macos / "Woice")
     with info_plist.open("rb") as handle:
         plist = plistlib.load(handle)
+    apply_runtime_release_configuration(plist)
 
-    project_root = Path(__file__).resolve().parents[1]
     brand_exports = project_root / "assets" / "brand" / "exports"
     for asset_name in ("woice-app-icon-64.png", "woice-app-icon-1024.png"):
         asset = brand_exports / asset_name
@@ -172,15 +239,13 @@ def main() -> None:
             "licenses": ["MIT"],
         }
     ]
-    if args.flavor == "offline":
-        if args.model_root is None:
-            raise SystemExit("Offline 打包必须显式提供 --model-root。")
+    if args.flavor in ("offline", "store") and args.model_root is not None:
         model_root = args.model_root.expanduser().resolve()
         version_dir, manifest = find_model_version(model_root)
         pack_id = manifest.get("packID")
         version = manifest.get("version")
         if not isinstance(pack_id, str) or not isinstance(version, str):
-            raise SystemExit("Offline 模型清单缺少 packID/version。")
+            raise SystemExit("随包模型清单缺少 packID/version。")
         destination = resources / "Models" / pack_id / version
         shutil.copytree(version_dir, destination)
         bundled_ids.append(pack_id)
@@ -193,6 +258,10 @@ def main() -> None:
                 "licenses": [manifest.get("license", {}).get("identifier", "UNKNOWN")],
             }
         )
+    elif args.flavor == "offline":
+        if args.model_root is None:
+            raise SystemExit("Offline 打包必须显式提供 --model-root。")
+        raise SystemExit("Offline 打包需要显式提供 --model-root。")
 
     distribution = {
         "schemaVersion": 1,
@@ -201,10 +270,28 @@ def main() -> None:
         "buildVersion": str(plist.get("CFBundleVersion", "1")),
         "bundledModelPackIDs": bundled_ids,
     }
+    if args.flavor == "store":
+        distribution["capabilityProfile"] = {
+            "allowsProcessProviders": False,
+            "allowsExternalAgentConnector": False,
+            "allowsSelfUpdater": False,
+            "allowsAutomaticPaste": False,
+            "allowsUserProvidedExecutables": False,
+            "allowsModelImport": True,
+            "allowsHTTPProviders": True,
+        }
     (resources / "DistributionManifest.json").write_text(
         json.dumps(distribution, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
+    privacy_manifest = args.privacy_manifest
+    if privacy_manifest is None and args.flavor == "store":
+        privacy_manifest = project_root / "Resources" / "PrivacyInfo.xcprivacy"
+    if privacy_manifest is not None:
+        privacy_manifest = privacy_manifest.expanduser().resolve()
+        if not privacy_manifest.is_file():
+            raise SystemExit(f"缺少 PrivacyInfo.xcprivacy：{privacy_manifest}")
+        shutil.copy2(privacy_manifest, resources / "PrivacyInfo.xcprivacy")
     notices_source = info_plist.parent / "NOTICES.md"
     if not notices_source.is_file():
         raise SystemExit(f"缺少第三方 Notices：{notices_source}")
@@ -233,10 +320,19 @@ def main() -> None:
     signing_identity = os.environ.get("WOICE_CODESIGN_IDENTITY", "-")
     if not signing_identity:
         raise SystemExit("WOICE_CODESIGN_IDENTITY 不能为空；默认使用 - 生成 ad hoc 包。")
-    subprocess.run(
-        ["codesign", "--force", "--deep", "--sign", signing_identity, str(output)],
-        check=True,
-    )
+    codesign_args = ["codesign", "--force", "--deep", "--sign", signing_identity]
+    if os.environ.get("WOICE_HARDENED_RUNTIME") == "1":
+        codesign_args.extend(["--options", "runtime", "--timestamp"])
+    entitlements = args.entitlements or os.environ.get("WOICE_CODESIGN_ENTITLEMENTS")
+    if entitlements:
+        entitlements_path = Path(entitlements).expanduser().resolve()
+        if not entitlements_path.is_file():
+            raise SystemExit(f"代码签名需要有效的 Entitlements：{entitlements_path}")
+        codesign_args.extend(["--entitlements", str(entitlements_path)])
+    elif os.environ.get("WOICE_HARDENED_RUNTIME") == "1":
+        raise SystemExit("Hardened Runtime 需要有效的 WOICE_CODESIGN_ENTITLEMENTS。")
+    codesign_args.append(str(output))
+    subprocess.run(codesign_args, check=True)
     subprocess.run(["codesign", "--verify", "--deep", "--strict", str(output)], check=True)
     print(f"package-{args.flavor}: {output}")
 

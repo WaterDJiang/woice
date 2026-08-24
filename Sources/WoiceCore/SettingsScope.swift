@@ -8,6 +8,7 @@ public enum AppSettingsScope: String, CaseIterable, Equatable, Sendable {
   case recording
   case services
   case files
+  case agents
 
   /// Applies only this scope from `draft` to an already committed settings value.
   public func applying(_ draft: AppSettings, to base: AppSettings) -> AppSettings {
@@ -20,6 +21,7 @@ public enum AppSettingsScope: String, CaseIterable, Equatable, Sendable {
       result.includeTranscriptTimestamps = draft.includeTranscriptTimestamps
       result.enableLiveTranscription = draft.enableLiveTranscription
       result.recordingShortcut = draft.recordingShortcut
+      result.captureMicrophone = draft.captureMicrophone
       result.captureSystemAudio = draft.captureSystemAudio
       result.meetingTranscriptionMode = draft.meetingTranscriptionMode
     case .services:
@@ -31,6 +33,8 @@ public enum AppSettingsScope: String, CaseIterable, Equatable, Sendable {
       result.llmAPIKey = draft.llmAPIKey
     case .files:
       result.exportDirectory = draft.exportDirectory
+    case .agents:
+      result.agentPermissions = draft.agentPermissions
     }
     return result
   }

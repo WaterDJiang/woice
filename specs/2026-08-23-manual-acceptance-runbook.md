@@ -2,7 +2,7 @@
 
 ## 使用范围
 
-本手册用于补齐自动化不能安全代替的 macOS 权限、视觉和真实素材验收。当前安装包为稳定签名 Build `2026082406`；双轨合并、原文/来源分离、CLI 文字默认和素材废纸篓交互已修复，仍需重新确认真实会议原文同时包含两路内容。
+本手册用于补齐自动化不能安全代替的 macOS 权限、视觉和真实素材验收。当前安装包为稳定签名 Build `2026082408`；双轨合并、原文/来源分离、CLI 文字默认、素材废纸篓交互和 Markdown 导出目录快捷键已修复，仍需重新确认真实会议原文同时包含两路内容。
 
 当前证据目录：
 
@@ -12,7 +12,7 @@
 
 其中包含本轮 `Woice-Stable-A.app`（Build `2026082331`）、`Woice-Stable-B.app`（Build `2026082332`）以及 `task-a11y-projection` 标签的覆盖前备份；更早的导入失败语义包仍见 `media-import-failure`，任务投影包仍见 `resumable-projection`、`task-projection`，导入页修复包仍见 `media-sheet-fix`。不要删除 `~/Library/Application Support/Woice`，不要调用 `tccutil reset`。
 
-CLI 文字默认与素材废纸篓修复已覆盖安装 A/B（Build `2026082405` → `2026082406`），证据目录为 `/private/tmp/woice-stable-ab-20260824-text-only-trash`；当前手册以已安装 Build `2026082406` 为验收对象。此前可靠双轨、原文来源分离、导入、任务投影、转写路线和 VoiceOver 的稳定签名证据仍保留。
+Markdown 导出目录快捷键修复已覆盖安装 A/B（Build `2026082407` → `2026082408`），证据目录为 `/private/tmp/woice-stable-ab-20260824-markdown-edit`；当前手册以已安装 Build `2026082408` 为验收对象。此前 CLI 文字默认与素材废纸篓修复（`2026082405` → `2026082406`）、可靠双轨、原文来源分离、导入、任务投影、转写路线和 VoiceOver 的稳定签名证据仍保留。
 
 ## 0. 记录规则
 

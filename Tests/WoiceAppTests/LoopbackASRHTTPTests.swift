@@ -235,7 +235,7 @@ func appStateRecordingTranscribesWithRealLoopbackHTTP() async throws {
   let request = try #require(server.waitForRequest())
   #expect(request.requestLine.hasPrefix("POST /v1/audio/transcriptions HTTP/1.1"))
   #expect(request.headers.lowercased().contains("authorization: bearer loopback-key"))
-  #expect(request.body.range(of: Data("RIFF".utf8)) != nil)
+  #expect(request.body.range(of: Data("ftyp".utf8)) != nil)
   #expect(request.body.range(of: Data("whisper-loopback".utf8)) != nil)
   #expect(request.body.range(of: Data("zh".utf8)) != nil)
 }

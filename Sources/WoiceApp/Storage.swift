@@ -6,8 +6,45 @@ struct RecordingSessionJournal: Codable, Equatable, Sendable {
   let createdAt: Date
   let audioFileName: String
   let systemAudioFileName: String?
+  let captureMicrophone: Bool
   let captureSystemAudio: Bool
   let meetingTranscriptionMode: MeetingTranscriptionMode
+
+  init(
+    id: UUID,
+    createdAt: Date,
+    audioFileName: String,
+    systemAudioFileName: String?,
+    captureMicrophone: Bool = true,
+    captureSystemAudio: Bool,
+    meetingTranscriptionMode: MeetingTranscriptionMode
+  ) {
+    self.id = id
+    self.createdAt = createdAt
+    self.audioFileName = audioFileName
+    self.systemAudioFileName = systemAudioFileName
+    self.captureMicrophone = captureMicrophone
+    self.captureSystemAudio = captureSystemAudio
+    self.meetingTranscriptionMode = meetingTranscriptionMode
+  }
+
+  private enum CodingKeys: String, CodingKey {
+    case id, createdAt, audioFileName, systemAudioFileName, captureMicrophone,
+      captureSystemAudio, meetingTranscriptionMode
+  }
+
+  init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    id = try container.decode(UUID.self, forKey: .id)
+    createdAt = try container.decode(Date.self, forKey: .createdAt)
+    audioFileName = try container.decode(String.self, forKey: .audioFileName)
+    systemAudioFileName = try container.decodeIfPresent(String.self, forKey: .systemAudioFileName)
+    captureMicrophone =
+      try container.decodeIfPresent(Bool.self, forKey: .captureMicrophone) ?? true
+    captureSystemAudio = try container.decode(Bool.self, forKey: .captureSystemAudio)
+    meetingTranscriptionMode = try container.decode(
+      MeetingTranscriptionMode.self, forKey: .meetingTranscriptionMode)
+  }
 }
 
 /// Durable results from VAD-closed microphone segments. This is a derived

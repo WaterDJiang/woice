@@ -32,6 +32,41 @@ public enum AgentPermissionLevel: String, Codable, Equatable, Hashable, Sendable
   }
 }
 
+/// Persisted grants for the local Agent boundary. The three capabilities are
+/// independent switches rather than one inferred "connected" state. Read
+/// access remains available by default for the local material source; creating
+/// follow-up tasks is explicit but kept enabled for backwards-compatible
+/// protocol behavior; active recording control is always off by default.
+public struct AgentPermissionSet: Codable, Equatable, Hashable, Sendable {
+  public var canReadMaterials: Bool
+  public var canCreateTasks: Bool
+  public var canControlActiveRecording: Bool
+
+  public init(
+    canReadMaterials: Bool = true,
+    canCreateTasks: Bool = true,
+    canControlActiveRecording: Bool = false
+  ) {
+    self.canReadMaterials = canReadMaterials
+    self.canCreateTasks = canCreateTasks
+    self.canControlActiveRecording = canControlActiveRecording
+  }
+
+  public static let `default` = AgentPermissionSet()
+
+  public func allows(_ level: AgentPermissionLevel) -> Bool {
+    switch level {
+    case .readOnlyMaterials: canReadMaterials
+    case .createTasks: canCreateTasks
+    case .controlActiveRecording: canControlActiveRecording
+    }
+  }
+
+  public var enabledLevels: Set<AgentPermissionLevel> {
+    Set(AgentPermissionLevel.allCases.filter(allows))
+  }
+}
+
 public enum ContextArtifactKind: String, Codable, Equatable, Hashable, Sendable {
   case audio
   case transcript

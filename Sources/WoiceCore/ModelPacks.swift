@@ -279,11 +279,13 @@ public struct ModelDownloadTask: Codable, Equatable, Hashable, Sendable {
 public enum DistributionFlavor: String, Codable, Equatable, Hashable, Sendable {
   case core
   case offline
+  case store
 
   public var label: String {
     switch self {
     case .core: "轻量版"
     case .offline: "离线版"
+    case .store: "App Store 版"
     }
   }
 }

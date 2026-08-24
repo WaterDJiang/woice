@@ -46,9 +46,22 @@ private final class SystemAudioFileWriter: @unchecked Sendable {
     }
     if file == nil {
       do {
-        var settings = format.settings
-        settings[AVLinearPCMIsNonInterleaved] = false
-        file = try AVAudioFile(forWriting: url, settings: settings)
+        var settings =
+          url.pathExtension.lowercased() == "m4a"
+          ? RecordingAudioFormat.aacSettings(
+            sampleRate: format.sampleRate, channelCount: Int(format.channelCount), bitRate: 128_000)
+          : format.settings
+        if url.pathExtension.lowercased() != "m4a" {
+          settings[AVLinearPCMIsNonInterleaved] = false
+        }
+        file =
+          if url.pathExtension.lowercased() == "m4a" {
+            try AVAudioFile(
+              forWriting: url, settings: settings, commonFormat: format.commonFormat,
+              interleaved: format.isInterleaved)
+          } else {
+            try AVAudioFile(forWriting: url, settings: settings)
+          }
       } catch {
         writeError = error.localizedDescription
         return

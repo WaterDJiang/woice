@@ -8,7 +8,8 @@ import WoiceCore
 func legacyModelsDecodeWithoutDualTrackFields() throws {
   let settingsJSON = Data(#"{"asrModel":"whisper-1","language":"zh"}"#.utf8)
   let settings = try JSONDecoder.woice.decode(AppSettings.self, from: settingsJSON)
-  #expect(settings.captureSystemAudio == false)
+  #expect(settings.captureMicrophone)
+  #expect(settings.captureSystemAudio)
   #expect(settings.meetingTranscriptionMode == .sourceSeparated)
   #expect(settings.includeTranscriptTimestamps == false)
   #expect(settings.autoPasteTranscript == false)

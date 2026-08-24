@@ -6,16 +6,16 @@
 > 作用：只裁决计划状态、重叠边界和实施顺序，不新建重复工作包
 > 替代：旧 `m0-mvp` 作为跨计划排期来源的地位  
 > 保留：所有被矩阵标为继续或已有基础的原工作包与验收证据；专项规格的验收编号可继续使用  
-> 迁移：双轨采集事实和时钟对齐到 M2-01/M2-03，meetingMix 默认单次 ASR 与可选来源分离到 M2-08a/b/h/i，统一回放与原文版本到 M1-04/M2-03，Agent/MCP/PI 剩余工作到 M2-09  
+> 迁移：双轨采集事实和时钟对齐到 M2-01/M2-03，默认双轨分别转写合并与兼容 `meetingMix` 单次 ASR 到 M2-08a/b/h/i，统一回放与原文版本到 M1-04/M2-03，Agent/MCP/PI 剩余工作到 M2-09  
 > 停止：内置 LLM/TTS Provider 扩展和旧 M3 插件生态  
 > 顺序：R0 核心收口 -> M2-08 -> R2 素材库收口 -> M2-09
 
-> 最新复跑（2026-08-23）：稳定签名 Apple Development A `2026082329` → B `2026082330` 已覆盖安装；`make verify` 通过 183 项 Swift 测试 / 11 个 Suite、PI 6 项和 MCP 2 项。正常音频导入、损坏视频和无音轨视频的隔离桌面 Journey 已通过；真实用户长文件、Provider 失败重试、TCC 逐项重授权、视觉/长时稳定性和正式发行仍未关闭。
+> 最新复核（2026-08-24）：当前安装包为源码构建 `0.1.0 (Build 1)`，此前稳定包 Build `2026082408` 保留为历史证据；最新官网版 `make verify` 通过 201 项 Swift 测试 / 13 个 Suite，Store 条件通过 179 个测试 / 10 个 Suite，PI/MCP、构建、模型门禁和本机 Store Bundle/Entitlements/能力裁剪预检通过。旧 WPC 的技术开发缺口已迁入[当前技术开发收口计划](2026-08-24-current-technical-development-closure.md)；Store 签名 Archive、Apple 账号/签名和真实用户人工体验仍只作后续条件。
 
 ## 1. 使用规则
 
 - 开发前先读本文件，再进入对应专项计划；旧计划中的状态与本文件冲突时，以本文件为准。
-- 本文件不替代功能规格、设计和专项验收条件；实施仍使用原工作包 ID，不能从本文件另起一套 ID。
+- 本文件不替代功能规格、设计和专项验收条件；WCL 编号只编排跨专项收口，底层实施与证据仍回写原工作包/规格，不复制领域任务。
 - `继续`：仍可按原工作包实施。
 - `迁移`：原目标仍有效，但只能在新的权威工作包中实施。
 - `冻结`：保留当前兼容行为，不增加新能力。
@@ -32,6 +32,8 @@ R0 录音与素材核心收口
 ```
 
 严格按上图执行。M2-09a 也必须等 M2-08 和 R2 退出检查通过后开始，避免“先做 Agent 契约”挤占录音、模型或素材库收口。
+
+[当前技术开发收口计划](2026-08-24-current-technical-development-closure.md)是跨现有产品阶段的技术收口入口，不新增产品能力阶段，也不改变 R0 -> R1 -> R2 -> R3 的架构顺序。WCL-01～04 收口核心代码与发行工程；WCL-05 保持 Agent 后置；WCL-06 已按用户启动完成本机 MAS-03/Store 工程切片，正式商店外部工作仍按上架计划推进。真实用户与人工体验验收不进入开发工作包。
 
 Mac App Store 上架是独立发行轨，当前状态为“待实施”，不插入上述产品实施顺序。用户明确启动后，账号、Bundle ID、隐私和素材准备可以独立进行；Store 工程改造与提交必须遵守[Mac App Store 上架计划](2026-08-23-mac-app-store-launch.md)的退出条件。该计划不替代 M1-07 的官网 Developer ID/公证，也不替代 M2-08i 的 Core/Offline 发行门禁。
 
@@ -56,7 +58,7 @@ R0 不包含新的 LLM 摘要、Prompt 模板、Agent 工具或插件生态。
 
 - 唯一实施文件：[M2-08 模型接入与双版本发布](2026-08-22-model-integration.md)；当前已先落本机 ASR 最小闭环，未替代后续 WhisperKit/模型包工作。
 - 负责 WhisperKit、ASR Provider Registry、模型包/下载、连接向导、Core/Offline 和无模型补转写。
-- 会议双轨不新建模型阶段：M2-08a 承接轨道/转写模式 Schema，M2-08b 承接 meetingMix 准备、默认单次路由和可选来源分离，M2-08h 承接原文版本的“素材可用”状态，M2-08i 承接两种模式的真实会议门禁。
+- 会议双轨不新建模型阶段：M2-08a 承接轨道/转写模式 Schema，M2-08b 承接 meetingMix 回放准备与默认双轨分别转写路由，兼容 `standardMix` 单次路由只保留为显式模式，M2-08h 承接原文版本的“素材可用”状态，M2-08i 承接两种模式的真实会议门禁。
 - 不负责通用 LLM、Agent CLI、Agent 结果处理或 TTS Provider 扩展。
 
 ### R2：素材库收口
@@ -82,26 +84,27 @@ R2 是已有核心工作的退出检查，不是新建的并行项目：
 |---|---|---|---|
 | 产品调研与需求初稿 | 历史 | 当前定位规格 | 与“AI 工具入口/网关”相近的表述全部失效 |
 | M0 风险验证 | 历史/按需复核 | 旧总计划与日志证据 | 不重新执行已完成 Spike；选型被推翻时单独复核 |
-| M1-01 App Shell/首启 | 继续收口 | 旧总计划 R0 范围 | 保留录音优先信息架构；模型首启体验迁入 M2-08g；识别语言已改为原生选择并保留旧代码兼容 |
-| M1-02 录音主链路 | 核心真实麦克风 UI Journey 已通过，可靠性矩阵继续收口 | 旧总计划 R0 范围 | `make acceptance-core`、`make acceptance-interruption` 和已安装 App 的真实开始/计时/停止/WAV/本机 Large-v3 转写 Journey 已通过；录音前 Journal、启动恢复、低容量 fail-closed 已落地；真实崩溃/长录音/睡眠、设备移除和磁盘异常 Journey 仍待验收 |
+| M1-01 App Shell/首启 | 代码与自动门禁已收口，真实 Mac Journey 仅作提醒 | 旧总计划 R0 范围 | 保留录音优先信息架构；模型首启体验迁入 M2-08g；识别语言已改为原生选择并保留旧代码兼容 |
+| WPC 剩余范围 | 分流 | WCL-01～05 + 非开发提醒 | 代码、自动测试、发行工程和 Agent 安全迁入 WCL；真实用户、真实会议、真实素材、TCC 手动操作和视觉体验只作提醒 |
+| M1-02 录音主链路 | 代码与自动门禁已收口，真实 Mac 矩阵仅作提醒 | 旧总计划 R0 范围 | `make acceptance-core`、`make acceptance-interruption` 和已安装 App 的真实开始/计时/停止/WAV/本机 Large-v3 转写 Journey 已通过；录音前 Journal、启动恢复、低容量 fail-closed 已落地；真实崩溃/长录音/睡眠、设备移除和磁盘异常只保留为人工提醒 |
 | M1-03 ASR 部分 | 迁移 | M2-08b/c/h | WhisperKit、路由和原始 Transcript 只在 M2-08 实施 |
 | M1-03 LLM 摘要/修订/待办 | 冻结 | M2-09d/f | 现有 Markdown 兼容保留；不再扩展内置 LLM 工作流 |
-| M1-04 历史/搜索/导出 | 进行中，开放导出、素材状态、只读 RPC、外部打开、共享搜索投影和转写 Artifact 版本链已落地 | R2 退出检查 | 详情页已支持原始音频、TXT、时间戳 JSON、Markdown 导出，JSON 包含版本链与模型快照，列表/详情共享素材就绪状态，`woice.read_material`、`woice.search_materials`、`woice.read_material_page` 提供稳定只读引用，详情可交给 Finder/默认播放器，搜索覆盖原文/日期/状态/音轨；真实桌面 Journey 仍待验收 |
+| M1-04 历史/搜索/导出 | 代码与自动门禁已收口，真实桌面 Journey 仅作提醒 | R2 退出检查 | 详情页已支持原始音频、TXT、时间戳 JSON、Markdown 导出，JSON 包含版本链与模型快照，列表/详情共享素材就绪状态，`woice.read_material`、`woice.search_materials`、`woice.read_material_page` 提供稳定只读引用，详情可交给 Finder/默认播放器，搜索覆盖原文/日期/状态/音轨；真实桌面 Journey 不计入开发阻塞 |
 | M1-05 模型/ASR 设置 | 迁移 | M2-08a/f/g | 旧“服务”页不再扩展，改为“模型与转写” |
 | M1-05 LLM 设置 | 冻结 | 兼容路径 | 可读旧配置，不作为新设置架构主线 |
 | M1-06 MCP Bridge | 迁移 | M2-09e | 不再是 M1 核心发布阻塞项 |
-| M1-07 通用质量/发布 | 继续收口 | R0 | Developer ID、公证、隐私继续有效 |
+| M1-07 通用质量/发布 | Developer ID/公证发行验证阻塞 | WCL-04 | 签名、公证、Staple、本地/远程 ReleaseManifest 门禁已实现；真实证书、公证 profile、生产 Catalog 和远程产物仍待 |
 | M1-07 双发行验收 | 迁移 | M2-08i | Core/Offline 构建、覆盖安装和模型缓存门禁只在 M2-08 |
-| M2-01 双轨 | 采集与会议路由基础已实现；自动 QuickTime 声源验收通过，双轨系统会议转写已按用户手动验收记为通过 | M2-01 + M2-03 + M2-08a/b/h/i + M1-04 | `make acceptance-meeting-transcription` 已确认标准模式单请求、来源分离双请求和系统轨 WAV 标准化；可见 QuickTime 播放源下 `make acceptance-meeting` 已验证可听系统声音、CAF 与 meetingMix；双轨系统会议转写由用户完成手动验收，不再作为 Codex 待执行项；逐项 TCC 重新授权、休眠/输入变化/长录音、全桌面与真实会议应用矩阵仍需 Mac Journey |
-| M2-02 VAD/分段/实时预览 | 继续收口，后台片段 sidecar 耐久化已实现 | 原 M2-02 规格与 `specs/2026-08-23-background-transcription-durability.md` | 录音期间已关闭声音片段可串行本机转写并在异常退出后恢复部分原文；实时增量 ASR、真实长会 Journey 和说话人分离后置 |
-| M2-03 Artifact/转写/恢复 | 继续收口，录音 Journal、素材恢复和转写 Artifact 版本链已落地 | 原 M2-03 规格与 `specs/2026-08-23-transcript-artifact-lineage.md` | 原始素材和 durable Job 继续有效；重转写保留旧原文并可切换版本；真实进程崩溃和磁盘异常矩阵仍待验收 |
+| M2-01 双轨 | 采集与会议路由基础已实现；自动 QuickTime 声源验收通过，双轨系统会议转写已按用户手动验收记为通过 | M2-01 + M2-03 + M2-08a/b/h/i + M1-04 | `make acceptance-meeting-transcription` 已确认默认来源分离双请求、兼容标准模式单请求和系统轨 WAV 标准化；可见 QuickTime 播放源下 `make acceptance-meeting` 已验证可听系统声音、CAF 与 meetingMix；双轨系统会议转写由用户完成手动验收，不再作为 Codex 待执行项；逐项 TCC 重新授权、休眠/输入变化/长录音、全桌面与真实会议应用矩阵仍需 Mac Journey |
+| M2-02 VAD/分段/实时预览 | 代码与自动门禁完成，实时增量 ASR/说话人分离后置 | 原 M2-02 规格与 `specs/2026-08-23-background-transcription-durability.md` | 录音期间已关闭声音片段可串行本机转写并在异常退出后恢复部分原文；实时增量 ASR、说话人分离和真实长会体验属于后续增强/人工提醒 |
+| M2-03 Artifact/转写/恢复 | 代码与自动门禁完成，真实异常矩阵仅作提醒 | 原 M2-03 规格与 `specs/2026-08-23-transcript-artifact-lineage.md` | 原始素材和 durable Job 继续有效；重转写保留旧原文并可切换版本；真实进程崩溃和磁盘异常矩阵不计入当前开发完成阻塞 |
 | M2-03b 内置 LLM 结构化扩展 | 冻结 | M2-09 Agent 结果 UI | 现有只读展示保留，新的语义处理交给 Agent |
-| M2-04 粘贴/快捷键 | 继续收口 | 原 M2-04 规格 | 属于素材使用效率，不是 Agent 能力 |
+| M2-04 粘贴/快捷键 | 代码与自动门禁完成 | 原 M2-04 规格 | 属于素材使用效率，不是 Agent 能力；真实桌面快捷键体验仅作提醒 |
 | M2-05 PI Connector 基础 | 已有基础/迁移验收 | M2-09e | 保留薄适配；真实安装和外部读取统一在 M2-09 验收 |
-| M2-06 系统 TTS | 独立入口已实现，待人工验收 | 现有系统能力与独立 TTS 规格 | 保留 AVSpeechSynthesizer，但从录音详情迁移到文字/文件独立窗口；云端/本地 TTS Provider 扩展停止 |
-| M2-07 受控进程基础 | 继续作为基础 | M2-08 ASR、M2-09c CLI | 共享安全原语；不得扩展成通用插件平台 |
-| M2-08 | 核心代码与本机发行切片已完成，外部发布验收进行中 | M2-08 专项计划与本机闭环规格 | 本机 ASR、统一 Provider 配置/Registry、会议路由、模型库存控制、Catalog 信任/回滚/轮换校验、受限 HTTPS 传输、多文件下载编排、显式设置页更新入口、Core/Offline 本地 DMG、Large 已安装 WAV 重转写、无显示器窗口级系统音频目标回退、Keychain 状态诊断和延迟读取已实现；Tiny/Large-v3 五类各 300 秒严格性能门禁、默认本机路由冻结为 Large-v3、QuickTime 可见播放源下 `make acceptance-meeting`、正常/失败音视频导入边界、183 项 Swift 完整 `make verify`、最新安装和 Core/Offline DMG 校验均通过；生产 Catalog host/key、公证、真实会议准确率、真实全桌面/多窗口 UI 矩阵、真实长文件/Provider 失败重试、干净账户覆盖安装和长录音/睡眠/崩溃/设备变化矩阵仍待完成 |
-| M2-09 | 协作切片进行中；M2-09a/b/c 契约、Codex/Claude 两个真实出站 Journey、结果 Artifact、审计、M2-09f 用户派发 UI、本机 MCP/RPC 与 Claude 合成入站 Smoke 已落地 | M2-09 专项计划 | Codex 外部入站交互批准、真实素材入站、三级权限/二次确认矩阵、正式签名/公证仍待；不改变录音核心发布顺序 |
+| M2-06 系统 TTS | 独立入口代码完成，人工体验仅作提醒 | 现有系统能力与独立 TTS 规格 | 保留 AVSpeechSynthesizer，但从录音详情迁移到文字/文件独立窗口；云端/本地 TTS Provider 扩展停止 |
+| M2-07 受控进程基础 | 安全基础已完成，作为依赖保留 | M2-08 ASR、M2-09c CLI | 共享安全原语；不得扩展成通用插件平台 |
+| M2-08 | 核心代码与本机发行切片已完成，正式发行验证进行中 | M2-08 专项计划与当前技术开发收口计划 | 本机 ASR、统一 Provider 配置/Registry、会议路由、模型库存控制、Catalog 信任/回滚/轮换校验、受限 HTTPS 传输、多文件下载编排、显式设置页更新入口、Core/Offline 本地 DMG、Large 已安装 WAV 重转写、无显示器窗口级系统音频目标回退、Keychain 状态诊断和延迟读取已实现；最新官网版 201 项 Swift / 13 个 Suite，Store 条件 179 项 / 10 个 Suite，正式 `Woice.xcodeproj` Store 无签名构建、模型发行门禁和本机 Store Bundle 预检通过，默认本机路由冻结为 Large-v3、QuickTime 可见播放源下 `make acceptance-meeting`、正常/失败音视频导入边界均有证据；Developer ID/公证/生产 Catalog/远程产物读回、Store 签名 Archive 和真实人工矩阵仍待外部条件 |
+| M2-09 | Agent Beta 源码与契约门禁已完成，保持核心发布后置 | M2-09 专项计划与 WCL-05 | 真实 CLI 登录、批准、素材入站和外部 Agent Journey 仍是人工提醒；不改变录音核心发布顺序 |
 | 旧 M3 DeepSeek Harness/插件生态 | 停止 | M2-09 P1（仅经验证的专用适配） | 旧 M3 作为阶段整体失效，不得创建插件市场或网关 |
 
 ## 4. 已解决的重叠与矛盾
@@ -114,11 +117,12 @@ R2 是已有核心工作的退出检查，不是新建的并行项目：
 | PI 时间点 | M2-05 独立继续扩展 | 已有基础保留，剩余真实验收与权限统一进入 M2-09e |
 | CLI Runner | M2-07 Provider Runner 与 M2-09 Runner 都可扩展 | M2-07 提供安全原语；Agent 输入输出契约和适配只在 M2-09c/d |
 | UI 导航 | 旧“服务”同时放 ASR/LLM | M2-08 改为“模型与转写”；M2-09 才新增“Agent 与连接” |
+| WPC 未完成项 | 分散保留在 WPC 与临时 WSL 编号 | 停止重复编号；WCL 只承接技术开发，人工体验不再作为开发工作包或关闭门槛 |
 | 生态阶段 | M3 插件生态继续排期 | 旧 M3 停止；只按 M2-09 已验证适配列表接入 |
 | 会议实施编号 | 新规格中出现 `DT-01...DT-06` | 取消 `DT-*` 实施编号；分别并入 M2-01、M2-03、M2-08a/b/h/i 和 M1-04；`AC-DT-*` 只是验收编号 |
 | 升级计划编号 | 竞品升级文档出现 `UP-01...UP-05` 与独立工期 | 取消 `UP-*` 作为可排期工作包；文档只保留五类验收门禁，状态和工期以现有权威工作包为准 |
 | 会议音频文件 | “最终只留一个文件”与“双轨分存”可能冲突 | 两条原轨是不可变真相源；`meetingMix` 只是 M1-04 可重建的回放/导出派生物 |
-| 会议转写次数 | 双轨一律分别 ASR 会使处理时长接近两倍 | 默认对 meetingMix 只转写一次；仅用户显式选择“来源分离”时执行两轨 ASR，不静默自动切换 |
+| 会议转写次数 | 双轨一律分别 ASR 会使处理时长接近两倍 | 默认对麦克风/系统音轨分别转写并按时间线合并；`standardMix` 只作为用户显式选择的兼容模式，对 meetingMix 转写一次，不静默切换 |
 
 ## 5. 当前禁止实施清单
 

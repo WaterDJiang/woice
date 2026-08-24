@@ -18,13 +18,27 @@ struct AgentContractsTests {
     #expect(try JSONDecoder.woice.decode(AgentPermissionLevel.self, from: data) == .createTasks)
   }
 
-  @Test("CLI 用户可见名称保留稳定 ID 并明确标注 Beta")
-  func cliUserFacingNamesKeepStableIDs() {
-    #expect(AgentCLIAdapterCatalog.userFacingDisplayName(for: "codex-cli") == "Codex CLI · Beta")
-    #expect(
-      AgentCLIAdapterCatalog.userFacingDisplayName(for: "claude-cli") == "Claude Code CLI · Beta")
-    #expect(AgentCLIAdapterCatalog.userFacingDisplayName(for: "fixture-cli") == "fixture-cli")
-  }
+  #if !WOICE_APP_STORE
+    @Test("Agent 权限开关独立且 CLI 诊断不伪造登录状态")
+    func permissionSetAndCLIDiagnosticsStayExplicit() {
+      let permissions = AgentPermissionSet(
+        canReadMaterials: false, canCreateTasks: true, canControlActiveRecording: false)
+      #expect(!permissions.allows(.readOnlyMaterials))
+      #expect(permissions.allows(.createTasks))
+      #expect(!permissions.allows(.controlActiveRecording))
+      #expect(AgentCLIAdapterCatalog.semanticVersion(in: "codex-cli 1.2.3 (beta)") == "1.2.3")
+      #expect(AgentCLIAdapterCatalog.semanticVersion(in: "logged in") == nil)
+      #expect(AgentCLIConnectionStatus.versionDetected("1.2.3").label == "版本 1.2.3；登录状态未检查")
+    }
+
+    @Test("CLI 用户可见名称保留稳定 ID 并明确标注 Beta")
+    func cliUserFacingNamesKeepStableIDs() {
+      #expect(AgentCLIAdapterCatalog.userFacingDisplayName(for: "codex-cli") == "Codex CLI · Beta")
+      #expect(
+        AgentCLIAdapterCatalog.userFacingDisplayName(for: "claude-cli") == "Claude Code CLI · Beta")
+      #expect(AgentCLIAdapterCatalog.userFacingDisplayName(for: "fixture-cli") == "fixture-cli")
+    }
+  #endif
 
   private func package() -> ContextPackage {
     let recordingID = UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")!

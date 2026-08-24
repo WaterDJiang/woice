@@ -8,11 +8,11 @@
 
 ## 发布前必须完成
 
-- [ ] 在 Xcode Asset Catalog 或 Icon Composer 中接入最终 App Icon。
-- [ ] 使用最终签名 Build 采集 1–5 张 Mac 16:10 截图，导出为不透明 PNG/JPEG。
+- [x] 已在正式 Xcode Target 接入 `assets/brand/exports/AppIcon.xcassets`，并通过 `make xcode-build-store` 与 AppIcon 资源门禁。
+- [ ] 使用最终签名 Build 采集 1–10 张 Mac 16:10 截图，导出为不透明 PNG/JPEG；当前推荐 `2560×1600`。
 - [ ] 确认 App Name、Subtitle、描述、关键词、分类、版权信息。
 - [ ] 补齐隐私政策 URL、支持 URL、营销 URL（如使用）。
-- [ ] 隐私清单与产品行为一致：麦克风、系统音频、转录文本、模型下载、云端 ASR、外部 Agent。
+- [x] 本机 Bundle 已包含 `PrivacyInfo.xcprivacy`；[Apple 上架资料快照](apple-submission-reference.md)已记录待法律/最终 SDK 审计的项目。
 - [ ] 完成 Developer ID / App Store 签名、公证和上传 Build；确认版本号、Build 号与 Bundle ID 关联正确。
 - [ ] 完成年龄分级、出口合规、内容权利和审核测试步骤。
 - [ ] 从干净用户环境复验：无 Agent 时仍可录音、转写、复听、搜索和导出；失败时原始素材仍安全。

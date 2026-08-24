@@ -8,6 +8,15 @@ public enum PiConnectorMethod: String, Codable, Equatable, Hashable, Sendable {
   case searchMaterials = "woice.search_materials"
   case readMaterialPage = "woice.read_material_page"
   case requestTransform = "woice.request_transform"
+
+  public var requiredPermission: AgentPermissionLevel? {
+    switch self {
+    case .status: nil
+    case .listRecordings, .readTranscript, .readMaterial, .searchMaterials, .readMaterialPage:
+      .readOnlyMaterials
+    case .requestTransform: .createTasks
+    }
+  }
 }
 
 public struct PiConnectorRequest: Codable, Equatable, Sendable {

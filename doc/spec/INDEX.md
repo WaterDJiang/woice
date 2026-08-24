@@ -2,7 +2,10 @@
 
 | 功能域 | 状态 | 一句话定义 | 文件 |
 |---|---|---|---|
-| 会议双音轨、统一回放与合并转写 | 实现进行中，真实会议验收待完成 | 保留双原轨，默认对 meetingMix 只转写一次；用户可选来源分离获得带原轨标签的高精度原文 | [2026-08-22-dual-track-meeting-transcription.md](2026-08-22-dual-track-meeting-transcription.md) |
+| 录音控制区视觉层级 | 按用户复核移除工作台顶部动作，代码、自动门禁与覆盖安装完成 | 菜单栏音源使用中性状态按钮、录音是唯一主动作；工作台顶部不再复制导入和录音控制 | [../specs/2026-08-25-recording-control-visual-hierarchy.md](../specs/2026-08-25-recording-control-visual-hierarchy.md) |
+| 双音源、压缩存储与长素材详情 | 代码与自动门禁完成，当前安装包待用户真实双轨复验 | 工作台顶部独立控制麦克风/电脑声音，默认双开；新录音使用 AAC/M4A，双开生成会议合成；详情只保留一个按需播放器及固定滚动原文/时间轴 | [../specs/2026-08-25-dual-source-storage-and-long-detail.md](../specs/2026-08-25-dual-source-storage-and-long-detail.md) |
+| Large 模型启动校验内存 | 已修复并完成安装包实测 | 所有模型与素材 SHA-256 校验统一使用 1 MiB 固定缓冲；Large-v3 用户数据启动 RSS 从 1,785,056 KiB 降至约 135 MiB，仍保持完整哈希和 fail-closed | [../specs/2026-08-24-model-validation-startup-memory.md](../specs/2026-08-24-model-validation-startup-memory.md) |
+| 会议双音轨、统一回放与合并转写 | 代码与自动门禁完成，真实会议验收仅作提醒 | 保留双原轨，默认按麦克风/系统音频分别转写并按时间线合并；`standardMix` 仅为显式兼容模式，`meetingMix` 主要用于统一回放 | [2026-08-22-dual-track-meeting-transcription.md](2026-08-22-dual-track-meeting-transcription.md) |
 | 真实会议录音验收声源 | 可见 QuickTime 声源验收已通过；当前安装包 TCC/真实会议应用 Journey 待复验 | 窗口级 ScreenCaptureKit 只能用可捕获窗口归属的播放应用；QuickTime 无法启动或会话锁定时必须失败，不把静音 buffer 当作成功 | [../specs/2026-08-23-real-meeting-acceptance.md](../specs/2026-08-23-real-meeting-acceptance.md) |
 | 系统音频权限状态与真实采集可靠性 | 权限/无显示器错误分层已实现，当前安装包需真实桌面确认 | 修复已授权仍显示需要授权的误报，并以 ScreenCaptureKit 实际能力验证视频/会议声音；无采集目标时不伪造成功 | [2026-08-22-system-audio-permission-reliability.md](2026-08-22-system-audio-permission-reliability.md) |
 | 系统声音来源与采集事实可见性 | 本轮实现，麦克风 UI Journey 已通过；系统声音仍待当前安装包 TCC 复验 | 明确系统声音是获取后独立保存的 CAF，详情页展示可复听音轨、时长、buffer 和峰值，设置区合并权限与能力 | [2026-08-22-system-audio-source-observability.md](2026-08-22-system-audio-source-observability.md) |
@@ -26,6 +29,7 @@
 | Context Package 与受控 CLI 契约 | M2-09a/b/c 本机基础已实现，真实 CLI/外部结果链待后续 | 冻结多素材/时间范围/指令/文件哈希、CLI 适配器元数据、受控 Runner 和 Agent Job 状态；不自动启动真实 CLI | [../specs/2026-08-23-agent-context-package-contract.md](../specs/2026-08-23-agent-context-package-contract.md) |
 | Agent 任务与连接状态 UI | M2-09f 三步派发/结果入口已实现，真实外部 Journey 待后续 | 在设置、录音详情与处理工作区展示目标、durable 任务状态和结果来源链；不自动发现或执行 CLI | [../specs/2026-08-23-agent-job-ui-status.md](../specs/2026-08-23-agent-job-ui-status.md) |
 | Agent 出站派发与结果 Artifact | fixture 闭环已实现，真实 CLI/外部 Agent Journey 待执行 | 三步用户确认、Codex/Claude 受控派发、结果落盘、不可变来源链和元数据审计；不执行返回内容 | [../specs/2026-08-23-agent-dispatch-and-results.md](../specs/2026-08-23-agent-dispatch-and-results.md) |
+| MAS 本机发行门禁补强 | 本机资源与 Archive 前置门禁已完成；正式签名/上传/审核待外部条件 | 正式 Xcode Store Bundle 资源、签名参数 fail-closed 和 Apple 上架资料快照 | [../specs/2026-08-24-mas-release-gates.md](../specs/2026-08-24-mas-release-gates.md) |
 | 音视频导入连续转写 | 代码与失败边界测试已实现；正常/损坏/无音轨隔离桌面 Journey 已通过，真实用户文件/长文件/Provider 仍待验收 | 受控复制原件、提取视频音轨、原件 SHA-256 不变、同一 Sheet 立即转文字，并复用现有任务/Artifact 链；空文件、损坏容器和无音轨视频 fail-closed | [../specs/2026-08-23-media-import-continuity.md](../specs/2026-08-23-media-import-continuity.md) |
 | Finder/Dock 启动与工作台窗口连续性 | 代码与已安装包实测通过 | 双击或 `open -a` 后显示统一工作台，重复启动保持单进程和单菜单栏入口 | [../specs/2026-08-23-launch-window-continuity.md](../specs/2026-08-23-launch-window-continuity.md) |
 | 设置分区独立保存 | 本轮实现，桌面视觉 Journey 待确认 | 录音、模型与转写、文件与隐私分别提交；无关草稿和 Keychain 不互相污染 | [../specs/2026-08-23-settings-section-save.md](../specs/2026-08-23-settings-section-save.md) |
@@ -67,9 +71,11 @@
 | 设置页草稿隔离 | 已实现，Keychain 按字段隔离，待真实桌面 Journey | 编辑期间只改草稿；普通设置保存不访问 Keychain，ASR/LLM 密钥仅在各自变更时独立提交 | [2026-08-22-settings-draft-isolation.md](2026-08-22-settings-draft-isolation.md) |
 | 自定义转写 API 健康检查 | 本轮实现，待真实桌面按钮验收 | 用本机生成短测试音频验证地址、模型和授权，不发送历史录音 | [2026-08-22-asr-provider-health-check.md](2026-08-22-asr-provider-health-check.md) |
 | 麦克风输入自检 | 基础实现完成；待真实桌面按钮验收 | 设置页短暂采样临时 WAV，展示帧数、时长和峰值，不进入历史或外发 | [2026-08-22-microphone-input-check.md](2026-08-22-microphone-input-check.md) |
+| 麦克风采集就绪门禁 | 代码、核心/Store 自动门禁完成，真实 TCC/VoiceOver 仅作提醒 | 录音进入“正在录音”前必须收到首个 PCM 缓冲；无回调时 fail-closed 清理空文件并提示可执行错误 | [../specs/2026-08-24-microphone-capture-readiness.md](../specs/2026-08-24-microphone-capture-readiness.md) |
+| 音频资源生命周期与状态探测 | 代码与核心/Store 自动门禁完成，真实 TCC/VoiceOver 仅作提醒 | 设置页不再同步创建输入 Engine；麦克风状态异步探测并有界返回，退出时先固化录音并释放音频/Connector 资源 | [../specs/2026-08-24-audio-resource-lifecycle.md](../specs/2026-08-24-audio-resource-lifecycle.md) |
 | 原文显示清理与品牌资产接入 | 已实现，待桌面 UI 人工验收 | 清理 Whisper 控制/时间 token，保留独立时间戳片段，并将已确认 PNG 品牌资产接入菜单栏、Popover 和 App 资源 | [2026-08-22-transcript-display-and-brand-assets.md](2026-08-22-transcript-display-and-brand-assets.md) |
 | 菜单栏 Popover 前端优化 | 本轮实现，待安装包人工验收 | 菜单栏回到快速录音控制器定位：状态自适应、真实时长与输入电平、低频动作收进更多菜单、空闲图标单色化 | [2026-08-22-menubar-popover-optimization.md](2026-08-22-menubar-popover-optimization.md) |
 | App Bundle Logo 正式打包 | 本轮实现，待 Finder/LaunchServices 人工验收 | 通过 actool 编译 Assets.car/AppIcon.icns，补齐 Bundle 图标元数据并刷新安装后的系统图标缓存 | [2026-08-22-app-icon-bundle-packaging.md](2026-08-22-app-icon-bundle-packaging.md) |
-| Woice 统一工作台 | 基础已实现；导入音视频连续转写待实施 | 以一个主窗口承载素材、任务、工具和设置；导入完成后原位转写，成功自动打开新素材 | [2026-08-22-unified-workspace.md](2026-08-22-unified-workspace.md) |
+| Woice 统一工作台 | 主体已实现；侧栏顶底固定布局迁入 WCL-01 | 以一个主窗口承载素材、任务、工具和设置；三个主功能固定顶部、设置固定底部、中部上下文独立滚动，导入完成后原位转写 | [2026-08-22-unified-workspace.md](2026-08-22-unified-workspace.md) |
 
 规则：当前产品定位以“语音上下文来源”规格为最高优先级，初稿保留历史背景；需求变化先更新规格，再更新计划。

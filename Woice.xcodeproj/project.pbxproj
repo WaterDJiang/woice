@@ -1,0 +1,878 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0160695126853C4E421184D2 /* TextInsertionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F63EF6348A7AD5FF8E78EABE /* TextInsertionService.swift */; };
+		08F65C5FDD555C900BA65678 /* FileSHA256.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2894CC33CF67F7DA41CB96FF /* FileSHA256.swift */; };
+		18A0D99EE51ED809D00E12E0 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5350EEB848F01FA93C05F538 /* KeychainStore.swift */; };
+		1D48AD4969B87F2132FB9ED7 /* ProviderTrustVerifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64E2268020F0E10B0B6CA077 /* ProviderTrustVerifier.swift */; };
+		1D571A5A8F9F2E374B9BF6C8 /* SettingsScope.swift in Sources */ = {isa = PBXBuildFile; fileRef = 451BFA4FD4AFC5CB919621E9 /* SettingsScope.swift */; };
+		2459B5F7EB1C1AFB8979D144 /* PiConnectorServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D2CE095134D6FFF07FD1F99 /* PiConnectorServer.swift */; };
+		2E434B2E17C6D6212CC01FC7 /* ModelPacks.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF3AC5018703629AA30E2D64 /* ModelPacks.swift */; };
+		35496E95CBEB0D5750CA2AB2 /* AudioSegmentExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D7ACEAE880F665243163282 /* AudioSegmentExtractor.swift */; };
+		43B4CC0021EB4D63F0612C7A /* SystemAudioCapabilityService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F41202B58A3D31238B79E359 /* SystemAudioCapabilityService.swift */; };
+		44D880A23C9F05C515AF5D19 /* AudioActivityMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = F167516CF0F5D92C16C1B9CE /* AudioActivityMonitor.swift */; };
+		4881C3301B4E589CC6DB820D /* MarkdownRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7EEBAE38BBE4AA97CBDAC068 /* MarkdownRenderer.swift */; };
+		49C70EA0010491F9C94380EE /* RecordingDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AB4183E00641829650039A5 /* RecordingDetailView.swift */; };
+		4B10A062878BB4D0314EF1E2 /* RecordingSourceControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C97478508143E652935ED5C /* RecordingSourceControl.swift */; };
+		4CCE224BD5E3927901396E6A /* WoiceTestRuntimeConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88256FC4E3C0023D54ADB3CE /* WoiceTestRuntimeConfiguration.swift */; };
+		4E405DFBED9DBB0837F7B232 /* TranscriptTextNormalizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB3C830E3F2961AF091D145C /* TranscriptTextNormalizer.swift */; };
+		5B6E7B24C8442B0D19B11C6C /* SpeechPlaybackService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F40A0CC21AEF60544370646 /* SpeechPlaybackService.swift */; };
+		6A6538F74F4C85962C561F71 /* SBOM.json in Resources */ = {isa = PBXBuildFile; fileRef = 04C090C41BFB000A85C1CD29 /* SBOM.json */; };
+		6D920A233819D1E115997169 /* DistributionCapabilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F84D5C1502355745A737E1D /* DistributionCapabilities.swift */; };
+		6EB57C957B821FB2F648CE4B /* WhisperKit in Frameworks */ = {isa = PBXBuildFile; productRef = 560E61020AE46D9FCEAC4456 /* WhisperKit */; };
+		70FD70F49D39BCFBB89D8A78 /* ProviderSDK.swift in Sources */ = {isa = PBXBuildFile; fileRef = D73DDDDE5085725E06621D7D /* ProviderSDK.swift */; };
+		731D13BF98229CF2FA72E403 /* WoiceBrandAssets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2705543F051F7AECC067D397 /* WoiceBrandAssets.swift */; };
+		733C01784A02C3F641593352 /* woice-app-icon-64.png in Resources */ = {isa = PBXBuildFile; fileRef = A7EF90FFC1B2BBCB2295F0DB /* woice-app-icon-64.png */; };
+		7531C27C412C1C62ECC3837B /* GlobalShortcutService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89240531404F292439542EE4 /* GlobalShortcutService.swift */; };
+		7542EB1BE74AE863B5FC7D05 /* AgentContracts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35470207BFBD0E1261BFCA00 /* AgentContracts.swift */; };
+		7909F9EBB8ED3A886B3FA6A9 /* SQLiteMetadataStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D863FD00B3057E28DFD15578 /* SQLiteMetadataStore.swift */; };
+		7DEF8326DA5BC31F57DECB26 /* WoiceApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AF9996EF239C2E5317402D9 /* WoiceApp.swift */; };
+		7F46819F24BAF3F928EE92FA /* WhisperKitASRService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D0BAAACB21905B89A132253 /* WhisperKitASRService.swift */; };
+		7FD44821122E140F6A1FA1A5 /* LiveTranscriptionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFCA937D8F30BE5144922D7E /* LiveTranscriptionService.swift */; };
+		839F25CABD31850EF5E404D5 /* ActionFeedback.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7A75FE1765699ECE18EC8D4 /* ActionFeedback.swift */; };
+		8656BC61F9915731037FF4C7 /* ContextPackageBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDFB9356964C5E833D8AD128 /* ContextPackageBuilder.swift */; };
+		8C3D54931812B4DD65FBC757 /* ModelCatalogRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60859C375E0ED404D1CCEC23 /* ModelCatalogRuntime.swift */; };
+		8FAA5D87ACCB26E07495C140 /* ControlledCLIRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 686968A695D17E4F2C2D7DAD /* ControlledCLIRunner.swift */; };
+		94055D7F57FA6CA9950720A6 /* DistributionManifest.json in Resources */ = {isa = PBXBuildFile; fileRef = 3EDC9C8EAE63D08EA669E656 /* DistributionManifest.json */; };
+		9677C93DA970F44ECCCBCE0A /* AudioChunkingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDC709EC3064445BD2CAD677 /* AudioChunkingService.swift */; };
+		97BF9CE3CE02C5D506EE8A2B /* ProcessProviderRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 058E27EF77E34FFB30B836E8 /* ProcessProviderRunner.swift */; };
+		9A7DEBF7311172AA11A0C8E8 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAEE9045FAE66E75FD5665DF /* AppState.swift */; };
+		9EEE05E8A7904D8E40418652 /* AgentDispatchSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3EE25E96FD81C7B4575F3F5 /* AgentDispatchSheet.swift */; };
+		A160E6FF501724A21B6FCCF6 /* AppIcon.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1AECB3E7C65E46F86B09E3DD /* AppIcon.xcassets */; };
+		A759C97C0CF14A5CE7506471 /* WhisperKitModelInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76F60A831731726FE6BEDF85 /* WhisperKitModelInstaller.swift */; };
+		A7E236E63A42A93F1CC08F0F /* ProcessingTaskProjection.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F52484D0E7CC14C8386CF4 /* ProcessingTaskProjection.swift */; };
+		AB6577E24A9E58CED2AD83C9 /* LocalASRService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E18E58155B38AB90AA23E15 /* LocalASRService.swift */; };
+		AC0691DD091FC582EF1BA39D /* ModelPackDownloadCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96679625CF51E75669945673 /* ModelPackDownloadCoordinator.swift */; };
+		ADDDE6EBCDD02CE031EC0D4E /* APIClients.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDA509E6D5E17520A7235589 /* APIClients.swift */; };
+		B1367ED598E4C623DEBE8B83 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 5B99CFC0A982839C8A9F575C /* PrivacyInfo.xcprivacy */; };
+		B3200C70F838383AFE742329 /* AgentDispatchService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A9F0E93D156C2D7F76DEE39 /* AgentDispatchService.swift */; };
+		B5EEF0DAFC9C9EBEFFF5A242 /* SingleInstanceGuard.swift in Sources */ = {isa = PBXBuildFile; fileRef = F69901F609E6F3F9C4798344 /* SingleInstanceGuard.swift */; };
+		B947FDF5DAD546D917479A69 /* Views.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C6D95D9E76B036D8BCB569C /* Views.swift */; };
+		C145FE207F4C5591AF2480C2 /* NOTICES.md in Resources */ = {isa = PBXBuildFile; fileRef = 6E1BB0AA59798A426A6F8974 /* NOTICES.md */; };
+		CAE48A1F3D4E28F94A5BA440 /* PiConnectorRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 223EB37FC471537D21BA82F2 /* PiConnectorRouter.swift */; };
+		CB2CD47487099C1BBC9A4F48 /* AudioPlaybackService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99E468D0793D3E4924C8002F /* AudioPlaybackService.swift */; };
+		CE7531C685B20E7DFD068418 /* PiConnectorProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A4835B64393800B81047CF0 /* PiConnectorProtocol.swift */; };
+		CF8F1E401036F53FC64D310F /* Storage.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3935DFBCDFB78EFB4C0A099 /* Storage.swift */; };
+		CFE6B2E5852FE2B3BC84ADD5 /* WorkspaceSidebarLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFBFE88DB135A9BACCC458EB /* WorkspaceSidebarLayout.swift */; };
+		D02FC52B494A66C6F0296426 /* MediaImportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F86432DE25176C9ABFA23D35 /* MediaImportService.swift */; };
+		D5DF7A2B5D8FF1827FA2867D /* ShortcutRecorderField.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CC8A4BBB361C63A7F2E383C /* ShortcutRecorderField.swift */; };
+		DA754834D6C4CAFF83B26699 /* MenuBarPopover.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7EADB082E854C6A5D516989A /* MenuBarPopover.swift */; };
+		DAFDEDBF869037D4432A0388 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 323674C6BB376830D76604D5 /* Models.swift */; };
+		DCBD33FE2A24E6E3A942F19E /* RecordingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F045C4DA614C574B97BFAFEC /* RecordingService.swift */; };
+		DFA5E380F325344035F33A5C /* AudioPreparationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C73115B5B0806BA8F102C784 /* AudioPreparationService.swift */; };
+		DFA6F535BE7610DB776C2DAB /* MediaImportSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A3C0D640481119C983AFFBC /* MediaImportSheet.swift */; };
+		E0BEBE42D60FCFFAD6C205E6 /* ModelPackStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A88B0127AA8A5593A05D1C6 /* ModelPackStore.swift */; };
+		E1C3237562F82884516A3D09 /* libWoiceCore.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 81C05F16168CD9436BD372A4 /* libWoiceCore.a */; };
+		E81D40819BAA61E727E27978 /* WoiceMenuBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 309D74789CE29CBCBBE5922E /* WoiceMenuBarController.swift */; };
+		E84B6A5FF34E9AEC2D08C7C9 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 420F29A48CF0D87EEBA692A0 /* SettingsView.swift */; };
+		E9F4D5F25AC08BDF0A782539 /* WoiceWorkspaceWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9E3EBFCBE668ED0F4692869 /* WoiceWorkspaceWindowController.swift */; };
+		EC00D90A4B4E13C7BE0F11A1 /* AgentCLIAdapterCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 123FBB3F75A839486261B109 /* AgentCLIAdapterCatalog.swift */; };
+		EDFE71C3ADCDCE4052C01533 /* RecordingAudioFormat.swift in Sources */ = {isa = PBXBuildFile; fileRef = 880B4FA5A7336E6AC37A6EDD /* RecordingAudioFormat.swift */; };
+		EECF0153C68CA86F14E411DC /* SystemAudioCaptureService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCBDEAFF11D75DDD64A3B477 /* SystemAudioCaptureService.swift */; };
+		F2E3812E6A1C52B3CF776221 /* WorkspaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28228095C777128298B20C0A /* WorkspaceView.swift */; };
+		F4D192132CF58BCC4177E265 /* TextToAudioView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D3467747EB68A1AC85F8AE4 /* TextToAudioView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		EE9F3CA99A92F5ACC9881F23 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 636B2A21877C55E267D8C44D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 84D1C0BDE52B8EFEECF51EC9;
+			remoteInfo = WoiceCore;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		04C090C41BFB000A85C1CD29 /* SBOM.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = SBOM.json; sourceTree = "<group>"; };
+		058E27EF77E34FFB30B836E8 /* ProcessProviderRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessProviderRunner.swift; sourceTree = "<group>"; };
+		0D3467747EB68A1AC85F8AE4 /* TextToAudioView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextToAudioView.swift; sourceTree = "<group>"; };
+		0F40A0CC21AEF60544370646 /* SpeechPlaybackService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechPlaybackService.swift; sourceTree = "<group>"; };
+		123FBB3F75A839486261B109 /* AgentCLIAdapterCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentCLIAdapterCatalog.swift; sourceTree = "<group>"; };
+		1A88B0127AA8A5593A05D1C6 /* ModelPackStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelPackStore.swift; sourceTree = "<group>"; };
+		1AECB3E7C65E46F86B09E3DD /* AppIcon.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = AppIcon.xcassets; sourceTree = "<group>"; };
+		223EB37FC471537D21BA82F2 /* PiConnectorRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PiConnectorRouter.swift; sourceTree = "<group>"; };
+		2705543F051F7AECC067D397 /* WoiceBrandAssets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WoiceBrandAssets.swift; sourceTree = "<group>"; };
+		28228095C777128298B20C0A /* WorkspaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceView.swift; sourceTree = "<group>"; };
+		2894CC33CF67F7DA41CB96FF /* FileSHA256.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileSHA256.swift; sourceTree = "<group>"; };
+		2C6D95D9E76B036D8BCB569C /* Views.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views.swift; sourceTree = "<group>"; };
+		309D74789CE29CBCBBE5922E /* WoiceMenuBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WoiceMenuBarController.swift; sourceTree = "<group>"; };
+		323674C6BB376830D76604D5 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		35470207BFBD0E1261BFCA00 /* AgentContracts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentContracts.swift; sourceTree = "<group>"; };
+		3A3C0D640481119C983AFFBC /* MediaImportSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaImportSheet.swift; sourceTree = "<group>"; };
+		3A4835B64393800B81047CF0 /* PiConnectorProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PiConnectorProtocol.swift; sourceTree = "<group>"; };
+		3A9F0E93D156C2D7F76DEE39 /* AgentDispatchService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentDispatchService.swift; sourceTree = "<group>"; };
+		3EDC9C8EAE63D08EA669E656 /* DistributionManifest.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = DistributionManifest.json; sourceTree = "<group>"; };
+		420F29A48CF0D87EEBA692A0 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		451BFA4FD4AFC5CB919621E9 /* SettingsScope.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsScope.swift; sourceTree = "<group>"; };
+		4E18E58155B38AB90AA23E15 /* LocalASRService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalASRService.swift; sourceTree = "<group>"; };
+		5350EEB848F01FA93C05F538 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
+		5AF9996EF239C2E5317402D9 /* WoiceApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WoiceApp.swift; sourceTree = "<group>"; };
+		5B99CFC0A982839C8A9F575C /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		60859C375E0ED404D1CCEC23 /* ModelCatalogRuntime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelCatalogRuntime.swift; sourceTree = "<group>"; };
+		64E2268020F0E10B0B6CA077 /* ProviderTrustVerifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderTrustVerifier.swift; sourceTree = "<group>"; };
+		686968A695D17E4F2C2D7DAD /* ControlledCLIRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ControlledCLIRunner.swift; sourceTree = "<group>"; };
+		6D0BAAACB21905B89A132253 /* WhisperKitASRService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhisperKitASRService.swift; sourceTree = "<group>"; };
+		6E1BB0AA59798A426A6F8974 /* NOTICES.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = NOTICES.md; sourceTree = "<group>"; };
+		76F60A831731726FE6BEDF85 /* WhisperKitModelInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhisperKitModelInstaller.swift; sourceTree = "<group>"; };
+		7CC8A4BBB361C63A7F2E383C /* ShortcutRecorderField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutRecorderField.swift; sourceTree = "<group>"; };
+		7D7ACEAE880F665243163282 /* AudioSegmentExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioSegmentExtractor.swift; sourceTree = "<group>"; };
+		7EADB082E854C6A5D516989A /* MenuBarPopover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarPopover.swift; sourceTree = "<group>"; };
+		7EEBAE38BBE4AA97CBDAC068 /* MarkdownRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownRenderer.swift; sourceTree = "<group>"; };
+		7F84D5C1502355745A737E1D /* DistributionCapabilities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DistributionCapabilities.swift; sourceTree = "<group>"; };
+		81C05F16168CD9436BD372A4 /* libWoiceCore.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libWoiceCore.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		880B4FA5A7336E6AC37A6EDD /* RecordingAudioFormat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingAudioFormat.swift; sourceTree = "<group>"; };
+		88256FC4E3C0023D54ADB3CE /* WoiceTestRuntimeConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WoiceTestRuntimeConfiguration.swift; sourceTree = "<group>"; };
+		89240531404F292439542EE4 /* GlobalShortcutService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalShortcutService.swift; sourceTree = "<group>"; };
+		8AB4183E00641829650039A5 /* RecordingDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingDetailView.swift; sourceTree = "<group>"; };
+		8D2CE095134D6FFF07FD1F99 /* PiConnectorServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PiConnectorServer.swift; sourceTree = "<group>"; };
+		96679625CF51E75669945673 /* ModelPackDownloadCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelPackDownloadCoordinator.swift; sourceTree = "<group>"; };
+		99E468D0793D3E4924C8002F /* AudioPlaybackService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlaybackService.swift; sourceTree = "<group>"; };
+		9C97478508143E652935ED5C /* RecordingSourceControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingSourceControl.swift; sourceTree = "<group>"; };
+		A7EF90FFC1B2BBCB2295F0DB /* woice-app-icon-64.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "woice-app-icon-64.png"; sourceTree = "<group>"; };
+		A9FA139C7F96801EA601CC1D /* Woice.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Woice.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AF3AC5018703629AA30E2D64 /* ModelPacks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelPacks.swift; sourceTree = "<group>"; };
+		B3EE25E96FD81C7B4575F3F5 /* AgentDispatchSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentDispatchSheet.swift; sourceTree = "<group>"; };
+		BB3C830E3F2961AF091D145C /* TranscriptTextNormalizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptTextNormalizer.swift; sourceTree = "<group>"; };
+		BFBFE88DB135A9BACCC458EB /* WorkspaceSidebarLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceSidebarLayout.swift; sourceTree = "<group>"; };
+		C73115B5B0806BA8F102C784 /* AudioPreparationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPreparationService.swift; sourceTree = "<group>"; };
+		C7A75FE1765699ECE18EC8D4 /* ActionFeedback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionFeedback.swift; sourceTree = "<group>"; };
+		C9E3EBFCBE668ED0F4692869 /* WoiceWorkspaceWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WoiceWorkspaceWindowController.swift; sourceTree = "<group>"; };
+		CAEE9045FAE66E75FD5665DF /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		D73DDDDE5085725E06621D7D /* ProviderSDK.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderSDK.swift; sourceTree = "<group>"; };
+		D863FD00B3057E28DFD15578 /* SQLiteMetadataStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SQLiteMetadataStore.swift; sourceTree = "<group>"; };
+		DDA509E6D5E17520A7235589 /* APIClients.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClients.swift; sourceTree = "<group>"; };
+		E3935DFBCDFB78EFB4C0A099 /* Storage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Storage.swift; sourceTree = "<group>"; };
+		E9F52484D0E7CC14C8386CF4 /* ProcessingTaskProjection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessingTaskProjection.swift; sourceTree = "<group>"; };
+		EDC709EC3064445BD2CAD677 /* AudioChunkingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioChunkingService.swift; sourceTree = "<group>"; };
+		EDFB9356964C5E833D8AD128 /* ContextPackageBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContextPackageBuilder.swift; sourceTree = "<group>"; };
+		F045C4DA614C574B97BFAFEC /* RecordingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingService.swift; sourceTree = "<group>"; };
+		F167516CF0F5D92C16C1B9CE /* AudioActivityMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioActivityMonitor.swift; sourceTree = "<group>"; };
+		F41202B58A3D31238B79E359 /* SystemAudioCapabilityService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemAudioCapabilityService.swift; sourceTree = "<group>"; };
+		F63EF6348A7AD5FF8E78EABE /* TextInsertionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextInsertionService.swift; sourceTree = "<group>"; };
+		F69901F609E6F3F9C4798344 /* SingleInstanceGuard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SingleInstanceGuard.swift; sourceTree = "<group>"; };
+		F86432DE25176C9ABFA23D35 /* MediaImportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaImportService.swift; sourceTree = "<group>"; };
+		FCBDEAFF11D75DDD64A3B477 /* SystemAudioCaptureService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemAudioCaptureService.swift; sourceTree = "<group>"; };
+		FFCA937D8F30BE5144922D7E /* LiveTranscriptionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveTranscriptionService.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		DFDDF1E1CF68D388D638ACF3 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E1C3237562F82884516A3D09 /* libWoiceCore.a in Frameworks */,
+				6EB57C957B821FB2F648CE4B /* WhisperKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		05F41284EC12487C14E2C5C4 /* assets */ = {
+			isa = PBXGroup;
+			children = (
+				8C158CC1177E0A0EC97FF67B /* brand */,
+			);
+			path = assets;
+			sourceTree = "<group>";
+		};
+		1D14B3EE2D69F9CDF7BE86C4 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				3EDC9C8EAE63D08EA669E656 /* DistributionManifest.json */,
+				6E1BB0AA59798A426A6F8974 /* NOTICES.md */,
+				5B99CFC0A982839C8A9F575C /* PrivacyInfo.xcprivacy */,
+				04C090C41BFB000A85C1CD29 /* SBOM.json */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		221270D851B08D6BD654F9F6 = {
+			isa = PBXGroup;
+			children = (
+				05F41284EC12487C14E2C5C4 /* assets */,
+				1D14B3EE2D69F9CDF7BE86C4 /* Resources */,
+				96465EC1E236CCC0F668D60B /* Sources */,
+				6F87B08F0237079B025E24B3 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		6F87B08F0237079B025E24B3 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				81C05F16168CD9436BD372A4 /* libWoiceCore.a */,
+				A9FA139C7F96801EA601CC1D /* Woice.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		8C158CC1177E0A0EC97FF67B /* brand */ = {
+			isa = PBXGroup;
+			children = (
+				BBE0901D14BF2CD2BFBC7B82 /* exports */,
+			);
+			path = brand;
+			sourceTree = "<group>";
+		};
+		96465EC1E236CCC0F668D60B /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				99482038D73D31A33A100A73 /* WoiceApp */,
+				AAEDED31D0185F4A42C3B554 /* WoiceCore */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		99482038D73D31A33A100A73 /* WoiceApp */ = {
+			isa = PBXGroup;
+			children = (
+				C7A75FE1765699ECE18EC8D4 /* ActionFeedback.swift */,
+				123FBB3F75A839486261B109 /* AgentCLIAdapterCatalog.swift */,
+				3A9F0E93D156C2D7F76DEE39 /* AgentDispatchService.swift */,
+				B3EE25E96FD81C7B4575F3F5 /* AgentDispatchSheet.swift */,
+				CAEE9045FAE66E75FD5665DF /* AppState.swift */,
+				F167516CF0F5D92C16C1B9CE /* AudioActivityMonitor.swift */,
+				EDC709EC3064445BD2CAD677 /* AudioChunkingService.swift */,
+				99E468D0793D3E4924C8002F /* AudioPlaybackService.swift */,
+				C73115B5B0806BA8F102C784 /* AudioPreparationService.swift */,
+				7D7ACEAE880F665243163282 /* AudioSegmentExtractor.swift */,
+				EDFB9356964C5E833D8AD128 /* ContextPackageBuilder.swift */,
+				686968A695D17E4F2C2D7DAD /* ControlledCLIRunner.swift */,
+				7F84D5C1502355745A737E1D /* DistributionCapabilities.swift */,
+				2894CC33CF67F7DA41CB96FF /* FileSHA256.swift */,
+				89240531404F292439542EE4 /* GlobalShortcutService.swift */,
+				5350EEB848F01FA93C05F538 /* KeychainStore.swift */,
+				FFCA937D8F30BE5144922D7E /* LiveTranscriptionService.swift */,
+				4E18E58155B38AB90AA23E15 /* LocalASRService.swift */,
+				F86432DE25176C9ABFA23D35 /* MediaImportService.swift */,
+				3A3C0D640481119C983AFFBC /* MediaImportSheet.swift */,
+				7EADB082E854C6A5D516989A /* MenuBarPopover.swift */,
+				60859C375E0ED404D1CCEC23 /* ModelCatalogRuntime.swift */,
+				96679625CF51E75669945673 /* ModelPackDownloadCoordinator.swift */,
+				1A88B0127AA8A5593A05D1C6 /* ModelPackStore.swift */,
+				223EB37FC471537D21BA82F2 /* PiConnectorRouter.swift */,
+				8D2CE095134D6FFF07FD1F99 /* PiConnectorServer.swift */,
+				058E27EF77E34FFB30B836E8 /* ProcessProviderRunner.swift */,
+				64E2268020F0E10B0B6CA077 /* ProviderTrustVerifier.swift */,
+				880B4FA5A7336E6AC37A6EDD /* RecordingAudioFormat.swift */,
+				8AB4183E00641829650039A5 /* RecordingDetailView.swift */,
+				F045C4DA614C574B97BFAFEC /* RecordingService.swift */,
+				9C97478508143E652935ED5C /* RecordingSourceControl.swift */,
+				420F29A48CF0D87EEBA692A0 /* SettingsView.swift */,
+				7CC8A4BBB361C63A7F2E383C /* ShortcutRecorderField.swift */,
+				F69901F609E6F3F9C4798344 /* SingleInstanceGuard.swift */,
+				0F40A0CC21AEF60544370646 /* SpeechPlaybackService.swift */,
+				D863FD00B3057E28DFD15578 /* SQLiteMetadataStore.swift */,
+				E3935DFBCDFB78EFB4C0A099 /* Storage.swift */,
+				F41202B58A3D31238B79E359 /* SystemAudioCapabilityService.swift */,
+				FCBDEAFF11D75DDD64A3B477 /* SystemAudioCaptureService.swift */,
+				F63EF6348A7AD5FF8E78EABE /* TextInsertionService.swift */,
+				0D3467747EB68A1AC85F8AE4 /* TextToAudioView.swift */,
+				2C6D95D9E76B036D8BCB569C /* Views.swift */,
+				6D0BAAACB21905B89A132253 /* WhisperKitASRService.swift */,
+				76F60A831731726FE6BEDF85 /* WhisperKitModelInstaller.swift */,
+				5AF9996EF239C2E5317402D9 /* WoiceApp.swift */,
+				2705543F051F7AECC067D397 /* WoiceBrandAssets.swift */,
+				309D74789CE29CBCBBE5922E /* WoiceMenuBarController.swift */,
+				88256FC4E3C0023D54ADB3CE /* WoiceTestRuntimeConfiguration.swift */,
+				C9E3EBFCBE668ED0F4692869 /* WoiceWorkspaceWindowController.swift */,
+				28228095C777128298B20C0A /* WorkspaceView.swift */,
+				F87E7BDC618347884E89DC8A /* Resources */,
+			);
+			path = WoiceApp;
+			sourceTree = "<group>";
+		};
+		AAEDED31D0185F4A42C3B554 /* WoiceCore */ = {
+			isa = PBXGroup;
+			children = (
+				35470207BFBD0E1261BFCA00 /* AgentContracts.swift */,
+				DDA509E6D5E17520A7235589 /* APIClients.swift */,
+				7EEBAE38BBE4AA97CBDAC068 /* MarkdownRenderer.swift */,
+				AF3AC5018703629AA30E2D64 /* ModelPacks.swift */,
+				323674C6BB376830D76604D5 /* Models.swift */,
+				3A4835B64393800B81047CF0 /* PiConnectorProtocol.swift */,
+				E9F52484D0E7CC14C8386CF4 /* ProcessingTaskProjection.swift */,
+				D73DDDDE5085725E06621D7D /* ProviderSDK.swift */,
+				451BFA4FD4AFC5CB919621E9 /* SettingsScope.swift */,
+				BB3C830E3F2961AF091D145C /* TranscriptTextNormalizer.swift */,
+				BFBFE88DB135A9BACCC458EB /* WorkspaceSidebarLayout.swift */,
+			);
+			path = WoiceCore;
+			sourceTree = "<group>";
+		};
+		BBE0901D14BF2CD2BFBC7B82 /* exports */ = {
+			isa = PBXGroup;
+			children = (
+				1AECB3E7C65E46F86B09E3DD /* AppIcon.xcassets */,
+			);
+			path = exports;
+			sourceTree = "<group>";
+		};
+		F87E7BDC618347884E89DC8A /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				A7EF90FFC1B2BBCB2295F0DB /* woice-app-icon-64.png */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		352356D8B74518BECE421EC7 /* Woice */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 33BD5849AE950DBFBCED0442 /* Build configuration list for PBXNativeTarget "Woice" */;
+			buildPhases = (
+				5FF1FAAA60AAC1B40F8FD319 /* Sources */,
+				C85348BDC95C18AA5FDFC48F /* Resources */,
+				DFDDF1E1CF68D388D638ACF3 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				083BC075EF4AEE11919DE0C7 /* PBXTargetDependency */,
+			);
+			name = Woice;
+			packageProductDependencies = (
+				560E61020AE46D9FCEAC4456 /* WhisperKit */,
+			);
+			productName = Woice;
+			productReference = A9FA139C7F96801EA601CC1D /* Woice.app */;
+			productType = "com.apple.product-type.application";
+		};
+		84D1C0BDE52B8EFEECF51EC9 /* WoiceCore */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2313FC2686BB4637CE4D7B5E /* Build configuration list for PBXNativeTarget "WoiceCore" */;
+			buildPhases = (
+				621C14345EC6EFB8F24BD920 /* Sources */,
+				9D41E9F8F1E1554BC2990E54 /* Copy Swift Objective-C Interface Header */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = WoiceCore;
+			packageProductDependencies = (
+			);
+			productName = WoiceCore;
+			productReference = 81C05F16168CD9436BD372A4 /* libWoiceCore.a */;
+			productType = "com.apple.product-type.library.static";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		636B2A21877C55E267D8C44D /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 2600;
+				TargetAttributes = {
+					352356D8B74518BECE421EC7 = {
+						ProvisioningStyle = Manual;
+					};
+				};
+			};
+			buildConfigurationList = B14395FDF80DAE82B115BF9B /* Build configuration list for PBXProject "Woice" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 221270D851B08D6BD654F9F6;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				6E3F49A90FAAD334E4F2C544 /* XCRemoteSwiftPackageReference "argmax-oss-swift" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 6F87B08F0237079B025E24B3 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				84D1C0BDE52B8EFEECF51EC9 /* WoiceCore */,
+				352356D8B74518BECE421EC7 /* Woice */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		C85348BDC95C18AA5FDFC48F /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A160E6FF501724A21B6FCCF6 /* AppIcon.xcassets in Resources */,
+				94055D7F57FA6CA9950720A6 /* DistributionManifest.json in Resources */,
+				C145FE207F4C5591AF2480C2 /* NOTICES.md in Resources */,
+				B1367ED598E4C623DEBE8B83 /* PrivacyInfo.xcprivacy in Resources */,
+				6A6538F74F4C85962C561F71 /* SBOM.json in Resources */,
+				733C01784A02C3F641593352 /* woice-app-icon-64.png in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		9D41E9F8F1E1554BC2990E54 /* Copy Swift Objective-C Interface Header */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"$(DERIVED_SOURCES_DIR)/$(SWIFT_OBJC_INTERFACE_HEADER_NAME)",
+			);
+			name = "Copy Swift Objective-C Interface Header";
+			outputPaths = (
+				"$(BUILT_PRODUCTS_DIR)/include/$(PRODUCT_MODULE_NAME)/$(SWIFT_OBJC_INTERFACE_HEADER_NAME)",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "ditto \"${SCRIPT_INPUT_FILE_0}\" \"${SCRIPT_OUTPUT_FILE_0}\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		5FF1FAAA60AAC1B40F8FD319 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				839F25CABD31850EF5E404D5 /* ActionFeedback.swift in Sources */,
+				EC00D90A4B4E13C7BE0F11A1 /* AgentCLIAdapterCatalog.swift in Sources */,
+				B3200C70F838383AFE742329 /* AgentDispatchService.swift in Sources */,
+				9EEE05E8A7904D8E40418652 /* AgentDispatchSheet.swift in Sources */,
+				9A7DEBF7311172AA11A0C8E8 /* AppState.swift in Sources */,
+				44D880A23C9F05C515AF5D19 /* AudioActivityMonitor.swift in Sources */,
+				9677C93DA970F44ECCCBCE0A /* AudioChunkingService.swift in Sources */,
+				CB2CD47487099C1BBC9A4F48 /* AudioPlaybackService.swift in Sources */,
+				DFA5E380F325344035F33A5C /* AudioPreparationService.swift in Sources */,
+				35496E95CBEB0D5750CA2AB2 /* AudioSegmentExtractor.swift in Sources */,
+				8656BC61F9915731037FF4C7 /* ContextPackageBuilder.swift in Sources */,
+				8FAA5D87ACCB26E07495C140 /* ControlledCLIRunner.swift in Sources */,
+				6D920A233819D1E115997169 /* DistributionCapabilities.swift in Sources */,
+				08F65C5FDD555C900BA65678 /* FileSHA256.swift in Sources */,
+				7531C27C412C1C62ECC3837B /* GlobalShortcutService.swift in Sources */,
+				18A0D99EE51ED809D00E12E0 /* KeychainStore.swift in Sources */,
+				7FD44821122E140F6A1FA1A5 /* LiveTranscriptionService.swift in Sources */,
+				AB6577E24A9E58CED2AD83C9 /* LocalASRService.swift in Sources */,
+				D02FC52B494A66C6F0296426 /* MediaImportService.swift in Sources */,
+				DFA6F535BE7610DB776C2DAB /* MediaImportSheet.swift in Sources */,
+				DA754834D6C4CAFF83B26699 /* MenuBarPopover.swift in Sources */,
+				8C3D54931812B4DD65FBC757 /* ModelCatalogRuntime.swift in Sources */,
+				AC0691DD091FC582EF1BA39D /* ModelPackDownloadCoordinator.swift in Sources */,
+				E0BEBE42D60FCFFAD6C205E6 /* ModelPackStore.swift in Sources */,
+				CAE48A1F3D4E28F94A5BA440 /* PiConnectorRouter.swift in Sources */,
+				2459B5F7EB1C1AFB8979D144 /* PiConnectorServer.swift in Sources */,
+				97BF9CE3CE02C5D506EE8A2B /* ProcessProviderRunner.swift in Sources */,
+				1D48AD4969B87F2132FB9ED7 /* ProviderTrustVerifier.swift in Sources */,
+				EDFE71C3ADCDCE4052C01533 /* RecordingAudioFormat.swift in Sources */,
+				49C70EA0010491F9C94380EE /* RecordingDetailView.swift in Sources */,
+				DCBD33FE2A24E6E3A942F19E /* RecordingService.swift in Sources */,
+				4B10A062878BB4D0314EF1E2 /* RecordingSourceControl.swift in Sources */,
+				7909F9EBB8ED3A886B3FA6A9 /* SQLiteMetadataStore.swift in Sources */,
+				E84B6A5FF34E9AEC2D08C7C9 /* SettingsView.swift in Sources */,
+				D5DF7A2B5D8FF1827FA2867D /* ShortcutRecorderField.swift in Sources */,
+				B5EEF0DAFC9C9EBEFFF5A242 /* SingleInstanceGuard.swift in Sources */,
+				5B6E7B24C8442B0D19B11C6C /* SpeechPlaybackService.swift in Sources */,
+				CF8F1E401036F53FC64D310F /* Storage.swift in Sources */,
+				43B4CC0021EB4D63F0612C7A /* SystemAudioCapabilityService.swift in Sources */,
+				EECF0153C68CA86F14E411DC /* SystemAudioCaptureService.swift in Sources */,
+				0160695126853C4E421184D2 /* TextInsertionService.swift in Sources */,
+				F4D192132CF58BCC4177E265 /* TextToAudioView.swift in Sources */,
+				B947FDF5DAD546D917479A69 /* Views.swift in Sources */,
+				7F46819F24BAF3F928EE92FA /* WhisperKitASRService.swift in Sources */,
+				A759C97C0CF14A5CE7506471 /* WhisperKitModelInstaller.swift in Sources */,
+				7DEF8326DA5BC31F57DECB26 /* WoiceApp.swift in Sources */,
+				731D13BF98229CF2FA72E403 /* WoiceBrandAssets.swift in Sources */,
+				E81D40819BAA61E727E27978 /* WoiceMenuBarController.swift in Sources */,
+				4CCE224BD5E3927901396E6A /* WoiceTestRuntimeConfiguration.swift in Sources */,
+				E9F4D5F25AC08BDF0A782539 /* WoiceWorkspaceWindowController.swift in Sources */,
+				F2E3812E6A1C52B3CF776221 /* WorkspaceView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		621C14345EC6EFB8F24BD920 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				ADDDE6EBCDD02CE031EC0D4E /* APIClients.swift in Sources */,
+				7542EB1BE74AE863B5FC7D05 /* AgentContracts.swift in Sources */,
+				4881C3301B4E589CC6DB820D /* MarkdownRenderer.swift in Sources */,
+				2E434B2E17C6D6212CC01FC7 /* ModelPacks.swift in Sources */,
+				DAFDEDBF869037D4432A0388 /* Models.swift in Sources */,
+				CE7531C685B20E7DFD068418 /* PiConnectorProtocol.swift in Sources */,
+				A7E236E63A42A93F1CC08F0F /* ProcessingTaskProjection.swift in Sources */,
+				70FD70F49D39BCFBB89D8A78 /* ProviderSDK.swift in Sources */,
+				1D571A5A8F9F2E374B9BF6C8 /* SettingsScope.swift in Sources */,
+				4E405DFBED9DBB0837F7B232 /* TranscriptTextNormalizer.swift in Sources */,
+				CFE6B2E5852FE2B3BC84ADD5 /* WorkspaceSidebarLayout.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		083BC075EF4AEE11919DE0C7 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 84D1C0BDE52B8EFEECF51EC9 /* WoiceCore */;
+			targetProxy = EE9F3CA99A92F5ACC9881F23 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		7673F407C9779B2821398FC3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = "Resources/Woice-Store.entitlements";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.woice.app;
+				PRODUCT_NAME = Woice;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) WOICE_APP_STORE";
+			};
+			name = Debug;
+		};
+		91F3B7B88208E30D8CE770F6 /* Release-Direct */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.woice.core;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+			};
+			name = "Release-Direct";
+		};
+		A25B2799E7892B8092E9CB51 /* Release-Direct */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Resources/Woice.entitlements;
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.woice.app;
+				PRODUCT_NAME = Woice;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited)";
+			};
+			name = "Release-Direct";
+		};
+		B197AF5B0D986B5A8B8AD711 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.woice.core;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+			};
+			name = Debug;
+		};
+		B71B9C3DA860EEF8DF25B800 /* Release-AppStore */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = "Resources/Woice-Store.entitlements";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.woice.app;
+				PRODUCT_NAME = Woice;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) WOICE_APP_STORE";
+			};
+			name = "Release-AppStore";
+		};
+		C8BD3595AF678E0A7EE4657D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_INHIBIT_ALL_WARNINGS = NO;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		CE604FCA743A749B963795B8 /* Release-AppStore */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.woice.core;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+			};
+			name = "Release-AppStore";
+		};
+		CF3E7A044999F817EB607EA8 /* Release-AppStore */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_INHIBIT_ALL_WARNINGS = NO;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
+			};
+			name = "Release-AppStore";
+		};
+		FA4CDC15236DE97B539DE6B0 /* Release-Direct */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_INHIBIT_ALL_WARNINGS = NO;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
+			};
+			name = "Release-Direct";
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		2313FC2686BB4637CE4D7B5E /* Build configuration list for PBXNativeTarget "WoiceCore" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B197AF5B0D986B5A8B8AD711 /* Debug */,
+				CE604FCA743A749B963795B8 /* Release-AppStore */,
+				91F3B7B88208E30D8CE770F6 /* Release-Direct */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		33BD5849AE950DBFBCED0442 /* Build configuration list for PBXNativeTarget "Woice" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7673F407C9779B2821398FC3 /* Debug */,
+				B71B9C3DA860EEF8DF25B800 /* Release-AppStore */,
+				A25B2799E7892B8092E9CB51 /* Release-Direct */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		B14395FDF80DAE82B115BF9B /* Build configuration list for PBXProject "Woice" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C8BD3595AF678E0A7EE4657D /* Debug */,
+				CF3E7A044999F817EB607EA8 /* Release-AppStore */,
+				FA4CDC15236DE97B539DE6B0 /* Release-Direct */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		6E3F49A90FAAD334E4F2C544 /* XCRemoteSwiftPackageReference "argmax-oss-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/argmaxinc/argmax-oss-swift.git";
+			requirement = {
+				kind = exactVersion;
+				version = 1.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		560E61020AE46D9FCEAC4456 /* WhisperKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 6E3F49A90FAAD334E4F2C544 /* XCRemoteSwiftPackageReference "argmax-oss-swift" */;
+			productName = WhisperKit;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 636B2A21877C55E267D8C44D /* Project object */;
+}
