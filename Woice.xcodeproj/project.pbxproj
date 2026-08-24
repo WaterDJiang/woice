@@ -77,6 +77,7 @@
 		EECF0153C68CA86F14E411DC /* SystemAudioCaptureService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCBDEAFF11D75DDD64A3B477 /* SystemAudioCaptureService.swift */; };
 		F2E3812E6A1C52B3CF776221 /* WorkspaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28228095C777128298B20C0A /* WorkspaceView.swift */; };
 		F4D192132CF58BCC4177E265 /* TextToAudioView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D3467747EB68A1AC85F8AE4 /* TextToAudioView.swift */; };
+		F8725499A1BFF4B45583C2AF /* ModelInstallCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 884988E8FF590FCFD4037A41 /* ModelInstallCoordinator.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -129,6 +130,7 @@
 		81C05F16168CD9436BD372A4 /* libWoiceCore.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libWoiceCore.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		880B4FA5A7336E6AC37A6EDD /* RecordingAudioFormat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingAudioFormat.swift; sourceTree = "<group>"; };
 		88256FC4E3C0023D54ADB3CE /* WoiceTestRuntimeConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WoiceTestRuntimeConfiguration.swift; sourceTree = "<group>"; };
+		884988E8FF590FCFD4037A41 /* ModelInstallCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelInstallCoordinator.swift; sourceTree = "<group>"; };
 		89240531404F292439542EE4 /* GlobalShortcutService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalShortcutService.swift; sourceTree = "<group>"; };
 		8AB4183E00641829650039A5 /* RecordingDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingDetailView.swift; sourceTree = "<group>"; };
 		8D2CE095134D6FFF07FD1F99 /* PiConnectorServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PiConnectorServer.swift; sourceTree = "<group>"; };
@@ -255,6 +257,7 @@
 				3A3C0D640481119C983AFFBC /* MediaImportSheet.swift */,
 				7EADB082E854C6A5D516989A /* MenuBarPopover.swift */,
 				60859C375E0ED404D1CCEC23 /* ModelCatalogRuntime.swift */,
+				884988E8FF590FCFD4037A41 /* ModelInstallCoordinator.swift */,
 				96679625CF51E75669945673 /* ModelPackDownloadCoordinator.swift */,
 				1A88B0127AA8A5593A05D1C6 /* ModelPackStore.swift */,
 				223EB37FC471537D21BA82F2 /* PiConnectorRouter.swift */,
@@ -464,6 +467,7 @@
 				DFA6F535BE7610DB776C2DAB /* MediaImportSheet.swift in Sources */,
 				DA754834D6C4CAFF83B26699 /* MenuBarPopover.swift in Sources */,
 				8C3D54931812B4DD65FBC757 /* ModelCatalogRuntime.swift in Sources */,
+				F8725499A1BFF4B45583C2AF /* ModelInstallCoordinator.swift in Sources */,
 				AC0691DD091FC582EF1BA39D /* ModelPackDownloadCoordinator.swift in Sources */,
 				E0BEBE42D60FCFFAD6C205E6 /* ModelPackStore.swift in Sources */,
 				CAE48A1F3D4E28F94A5BA440 /* PiConnectorRouter.swift in Sources */,

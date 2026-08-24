@@ -1,6 +1,6 @@
 # Woice 当前技术开发收口计划
 
-> 状态：WCL-00～03、WCL-05 已完成源码与自动门禁；WCL-04 发行验证待凭据；WCL-06 已完成 MAS-03 本机能力裁剪、正式 Store 工程生成与无签名构建，以及 Store 本机打包/隐私/沙盒静态预检，正式签名 Archive 仍待外部条件  
+> 状态：WCL-00～03、WCL-05 已完成源码与自动门禁；WCL-04 发行验证待凭据；WCL-06 已完成 MAS-03 本机能力裁剪及 Store 本机预检；WCL-07 本机模型一键安装与 Store-compatible Qwen Runtime 待实施  
 > 日期：2026-08-24  
 > 当前基线：双音源选择、AAC/M4A 新录音、会议合成、长素材详情按需加载与录音控制区视觉层级已实现；官网版 `make verify` 通过 208 项 Swift 测试 / 14 个 Suite，Store 条件通过 186 项 Swift 测试 / 11 个 Suite，PI/MCP、构建、Core 打包和本机 Store Bundle 预检均通过；`Woice-Store / Release-AppStore` Xcode 无签名构建通过。  
 > 历史诊断：2026-08-24 早先的原生 macOS 回归曾出现真实麦克风 0 帧/CoreAudio IPC 挂起；后续音频宿主恢复并完成完整回归。该次仅保留为诊断记录，不作为当前产品代码失败结论。  
@@ -28,7 +28,7 @@
 - 保留：保留现有产品规格、WPC 已完成代码、M2-09 安全边界、Developer ID 发行边界和 MAS-00～08 专项细节。
 - 迁移：旧 WPC 中仍需要技术开发的部分迁入 WCL-00～06；纯人工体验与真实环境验收仅迁入第 7 节提醒。
 - 停止：停止 `WPC-01R`、WSL 临时编号，以及把真实用户验收写成开发工作包或计划完成门槛。
-- 顺序：WCL-00 -> WCL-01 -> WCL-02 -> WCL-03 -> WCL-04 -> WCL-05 -> WCL-06。WCL-05 不阻塞无 Agent 核心发行；WCL-06 已先收口可在本机验证的 MAS-03、正式 Xcode 组合根及 Store Bundle 预检，MAS-00～02、MAS-04～08 的正式签名与商店工作仍需按上架计划和外部条件推进。
+- 顺序：已完成工作包保持关闭；新增开发按 WCL-07 -> WCL-04/WCL-06 发行门禁推进。WCL-05 不阻塞无 Agent 核心发行；WCL-07 的 Qwen Runtime 未通过前不进入正式 Catalog。
 
 ## 3. 旧 WPC 未完成项分流
 
@@ -116,6 +116,18 @@
 
 退出条件：MAS 专项计划的技术工作包完成；当前 MAS-03 与本机静态预检通过，正式 Xcode/签名、沙盒运行、模型/隐私审定、TestFlight 和审核仍未完成。
 
+### WCL-07：本机模型一键安装与 Store 兼容（待实施）
+
+- 以[本机模型一键安装与 App Store 兼容规格](../../specs/2026-08-25-one-click-model-installation-and-store-compatibility.md)为唯一体验与技术边界。
+- 工作台、素材待转写状态和设置页共用一个 `ModelInstallCoordinator`；用户只点击一次，系统自动完成预检、下载、校验、安装、激活，并按入口恢复原任务。
+- 模型卡内联显示大小、来源、许可证和本机处理承诺；不增加确认 Sheet、配置 Endpoint、选择文件夹或强制勾选。
+- Qwen3-ASR-0.6B 固定官方 revision；如生成 Apple Silicon 派生格式，必须记录转换链、上游与派生摘要、Apache-2.0、Notice 和 SBOM。
+- Qwen 正式实现使用随 App 构建并签名的 in-process Runtime；官网与 Store 复用同一实现。Python/Transformers 进程只作研发对照，不进入用户下载链。
+- Store 模型包只包含权重、Tokenizer、配置与许可证数据；自动拒绝可执行文件、脚本、dylib、bundle、可执行权限和容器外依赖。
+- 没有模型时仍允许录音和导入；素材持久化后进入 `waitingForModel`，模型就绪再恢复，不覆盖原始 Artifact 或旧 Transcript。
+
+退出条件：WCL-TAC-020～027 通过；Qwen Runtime、许可证或性能任一未通过时，Qwen 条目不进入正式 Catalog，但已批准 WhisperKit/Speech 路径不受阻塞。
+
 ### 4.1 当前关闭状态（2026-08-24）
 
 | 工作包 | 当前状态 | 代码/门禁证据 | 尚需外部条件 |
@@ -127,6 +139,7 @@
 | WCL-04 | 发行验证阻塞 | `make release-developer-id` 具备签名/公证/staple、本地 manifest 和固定身份门禁；`make release-verify-remote` 具备生产 manifest 读回与远程状态/大小/摘要校验，缺凭据或不一致会失败 | Developer ID 身份、公证 profile、生产 Catalog URL/ID/可信公钥、已发布远程 manifest/产物 |
 | WCL-05 | 已完成源码与契约门禁 | Agent 三级独立权限、二次确认、重复派发拒绝、CLI 版本/安装状态诊断和 Beta 文案已接入 | 真实 CLI 登录、批准和素材入站仅作提醒 |
 | WCL-06 | MAS-03、正式 Xcode 组合根与 Store 本机静态预检已完成，其他 MAS 工作包未完成 | `StoreCapabilityProfile`、Store 编译条件、Agent/Socket/自动粘贴入口裁剪、`project.yml`/`Woice.xcodeproj`、`make xcode-build-store`（AppIcon/PrivacyInfo/NOTICES/DistributionManifest/SBOM 入 Bundle）、`verify_xcode_store_bundle.py`、`verify-app-store`、`acceptance-app-store-sandbox` | Apple 账号/签名、Store 签名下 Sandbox/TCC、模型/隐私资料、签名 Archive/TestFlight/审核 |
+| WCL-07 | 待实施 | 规格已冻结一次点击、durable Job、Qwen in-process Runtime 与 Store 不可执行模型包边界 | Runtime/许可证 ADR、实现、自动门禁和正式 Catalog 条目 |
 
 ## 5. 技术验收标准
 
@@ -149,6 +162,14 @@
 - WCL-TAC-017：Agent 三级权限、显式用户确认和“当前协议无再派发入口”的 fail-closed 边界具有契约测试。
 - WCL-TAC-018：循环、路径逃逸、重复派发、超时、崩溃和输出超限全部 fail-closed。
 - WCL-TAC-019：CLI 未批准、未登录或不兼容时不显示已连接或已验证。
+- WCL-TAC-020：工作台无模型状态到下载开始只有一次用户点击，不出现强制二次确认。
+- WCL-TAC-021：素材页点击“下载并转写”后，模型就绪自动恢复原任务，不要求返回素材库。
+- WCL-TAC-022：三个入口附着到同一 durable download Job，下载、校验、安装和激活状态不串线、不重复。
+- WCL-TAC-023：中断、取消、退出、空间不足、损坏和校验失败均可恢复或 fail-closed，旧模型与用户素材不改变。
+- WCL-TAC-024：Store 条件下模型包不含可执行内容，Runtime 不依赖外部进程、Shell、Python 或容器外路径。
+- WCL-TAC-025：Qwen 固定官方 revision，派生链、SHA-256、Apache-2.0、Notice、SBOM 和来源完整。
+- WCL-TAC-026：Qwen 输出进入现有分段、双轨合并、配置快照和 Transcript Artifact 版本链。
+- WCL-TAC-027：未通过 Runtime、许可证或性能门禁的模型不进入正式 Catalog 和用户 UI。
 
 ## 6. 开发门禁与关闭规则
 
@@ -163,7 +184,7 @@
 
 - WCL-03 已关闭：真实麦克风→ASR、首帧门禁、非阻塞输入状态探测、退出音频资源清理、官网完整门禁和 Store 条件门禁均通过。
 - Large-v3 启动内存回归已关闭：安装包使用现有模型数据连续运行 20 秒，RSS 稳定在 135,232～135,424 KiB；用户数据、模型和素材未迁移或删除。
-- 当前仍未完成的开发/发行工作只剩 WCL-04 的真实 Developer ID/公证/Catalog/远程产物，以及 WCL-06 的 MAS-00～02、MAS-04～08 外部工作包；M2-09 真实 CLI Journey 和 M2-02 实时增量 ASR继续后置。
+- 当前新增技术开发为 WCL-07；发行工作仍包括 WCL-04 的 Developer ID/公证/Catalog/远程产物，以及 WCL-06 的 MAS-00～02、MAS-04～08。M2-09 真实 CLI Journey 和 M2-02 实时增量 ASR 继续后置。
 
 ## 7. 非开发验收提醒
 

@@ -2,6 +2,7 @@
 
 | 功能域 | 状态 | 一句话定义 | 文件 |
 |---|---|---|---|
+| 本机模型一键安装与 App Store 兼容 | 待实施 | 无模型时只需一次点击，自动完成下载、校验、安装、切换和等待任务恢复；Store 只下载不可执行模型数据 | [../specs/2026-08-25-one-click-model-installation-and-store-compatibility.md](../specs/2026-08-25-one-click-model-installation-and-store-compatibility.md) |
 | 录音控制区视觉层级 | 按用户复核移除工作台顶部动作，代码、自动门禁与覆盖安装完成 | 菜单栏音源使用中性状态按钮、录音是唯一主动作；工作台顶部不再复制导入和录音控制 | [../specs/2026-08-25-recording-control-visual-hierarchy.md](../specs/2026-08-25-recording-control-visual-hierarchy.md) |
 | 双音源、压缩存储与长素材详情 | 代码与自动门禁完成，当前安装包待用户真实双轨复验 | 工作台顶部独立控制麦克风/电脑声音，默认双开；新录音使用 AAC/M4A，双开生成会议合成；详情只保留一个按需播放器及固定滚动原文/时间轴 | [../specs/2026-08-25-dual-source-storage-and-long-detail.md](../specs/2026-08-25-dual-source-storage-and-long-detail.md) |
 | Large 模型启动校验内存 | 已修复并完成安装包实测 | 所有模型与素材 SHA-256 校验统一使用 1 MiB 固定缓冲；Large-v3 用户数据启动 RSS 从 1,785,056 KiB 降至约 135 MiB，仍保持完整哈希和 fail-closed | [../specs/2026-08-24-model-validation-startup-memory.md](../specs/2026-08-24-model-validation-startup-memory.md) |

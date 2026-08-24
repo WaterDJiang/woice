@@ -203,8 +203,11 @@ public actor ASRProviderRegistry {
 public enum ModelInstallationState: String, Codable, Equatable, Hashable, Sendable {
   case available
   case awaitingConfirmation
+  case preflighting
   case downloading
   case verifying
+  case installing
+  case activating
   case installed
   case paused
   case failed
@@ -214,13 +217,46 @@ public enum ModelInstallationState: String, Codable, Equatable, Hashable, Sendab
     switch self {
     case .available: "可安装"
     case .awaitingConfirmation: "等待确认"
+    case .preflighting: "准备中"
     case .downloading: "下载中"
     case .verifying: "校验中"
+    case .installing: "安装中"
+    case .activating: "启用中"
     case .installed: "已安装"
     case .paused: "已暂停"
     case .failed: "失败"
     case .cancelled: "已取消"
     }
+  }
+}
+
+/// The visible product entry that requested a model installation. The intent
+/// is durable metadata only; it never carries audio bytes or executable paths.
+public enum ModelInstallEntryPoint: String, Codable, Equatable, Hashable, Sendable {
+  case workspace
+  case material
+  case settings
+}
+
+public struct ModelInstallIntent: Codable, Equatable, Hashable, Sendable {
+  public let id: UUID
+  public let entryPoint: ModelInstallEntryPoint
+  public let recordingID: UUID?
+  public let sourceTrack: AudioTrackKind?
+  public let createdAt: Date
+
+  public init(
+    id: UUID = UUID(),
+    entryPoint: ModelInstallEntryPoint,
+    recordingID: UUID? = nil,
+    sourceTrack: AudioTrackKind? = nil,
+    createdAt: Date = Date()
+  ) {
+    self.id = id
+    self.entryPoint = entryPoint
+    self.recordingID = recordingID
+    self.sourceTrack = sourceTrack
+    self.createdAt = createdAt
   }
 }
 
@@ -236,6 +272,7 @@ public struct ModelDownloadTask: Codable, Equatable, Hashable, Sendable {
   public let totalBytes: Int64
   public var stagingPath: String?
   public var lastError: String?
+  public var intents: [ModelInstallIntent]
   public let createdAt: Date
   public var updatedAt: Date
 
@@ -248,6 +285,7 @@ public struct ModelDownloadTask: Codable, Equatable, Hashable, Sendable {
     totalBytes: Int64,
     stagingPath: String? = nil,
     lastError: String? = nil,
+    intents: [ModelInstallIntent] = [],
     createdAt: Date = Date(),
     updatedAt: Date = Date()
   ) throws {
@@ -266,6 +304,7 @@ public struct ModelDownloadTask: Codable, Equatable, Hashable, Sendable {
     self.totalBytes = totalBytes
     self.stagingPath = stagingPath
     self.lastError = lastError
+    self.intents = intents
     self.createdAt = createdAt
     self.updatedAt = updatedAt
   }
@@ -920,6 +959,8 @@ public enum ModelPackValidationError: LocalizedError, Equatable, Sendable {
   case invalidByteCount(String)
   case invalidSHA256(String)
   case invalidLicense
+  case invalidTransportForStore
+  case missingStoreRuntime
   case invalidDownloadBaseURL
   case invalidSignature
   case coreCannotBundleModels
@@ -940,6 +981,8 @@ public enum ModelPackValidationError: LocalizedError, Equatable, Sendable {
     case .invalidByteCount(let path): "模型文件大小无效：\(path)"
     case .invalidSHA256(let path): "模型文件 SHA-256 无效：\(path)"
     case .invalidLicense: "模型清单许可证信息不完整或路径不安全。"
+    case .invalidTransportForStore: "App Store 模型必须使用随 App 签名的内置 Runtime。"
+    case .missingStoreRuntime: "App Store 模型缺少内置 Runtime 标识。"
     case .invalidDownloadBaseURL: "模型清单下载地址必须是无凭据的 HTTPS 地址。"
     case .invalidSignature: "模型清单签名信息不完整。"
     case .coreCannotBundleModels: "Core 发行清单不能声明随包模型。"
@@ -962,6 +1005,12 @@ public struct ModelPackManifest: Codable, Equatable, Hashable, Sendable {
   public let files: [ModelPackFile]
   public let license: ModelPackLicense
   public let size: Int64
+  public let displayName: String?
+  public let isRecommended: Bool
+  public let storeCompatible: Bool
+  /// Stable in-process runtime admission key. It is metadata only and never
+  /// points at a downloaded executable or dynamic library.
+  public let runtimeID: String?
   /// The signed, directory-like root used by the generic multi-file downloader.
   /// It is optional for bundled/imported packs and legacy manifests.
   public let downloadBaseURL: String?
@@ -981,6 +1030,10 @@ public struct ModelPackManifest: Codable, Equatable, Hashable, Sendable {
     files: [ModelPackFile],
     license: ModelPackLicense,
     size: Int64,
+    displayName: String? = nil,
+    isRecommended: Bool = false,
+    storeCompatible: Bool = false,
+    runtimeID: String? = nil,
     downloadBaseURL: String? = nil,
     signature: ModelPackSignature? = nil
   ) throws {
@@ -997,6 +1050,10 @@ public struct ModelPackManifest: Codable, Equatable, Hashable, Sendable {
     self.files = files
     self.license = license
     self.size = size
+    self.displayName = displayName
+    self.isRecommended = isRecommended
+    self.storeCompatible = storeCompatible
+    self.runtimeID = runtimeID
     self.downloadBaseURL = downloadBaseURL
     self.signature = signature
     try validate()
@@ -1004,7 +1061,8 @@ public struct ModelPackManifest: Codable, Equatable, Hashable, Sendable {
 
   private enum CodingKeys: String, CodingKey {
     case schemaVersion, packID, modelID, version, providerID, transport, capabilities, platform
-    case architecture, minimumOS, files, license, size, downloadBaseURL, signature
+    case architecture, minimumOS, files, license, size, displayName, isRecommended,
+      storeCompatible, runtimeID, downloadBaseURL, signature
   }
 
   public init(from decoder: Decoder) throws {
@@ -1022,6 +1080,11 @@ public struct ModelPackManifest: Codable, Equatable, Hashable, Sendable {
     self.files = try container.decode([ModelPackFile].self, forKey: .files)
     self.license = try container.decode(ModelPackLicense.self, forKey: .license)
     self.size = try container.decode(Int64.self, forKey: .size)
+    self.displayName = try container.decodeIfPresent(String.self, forKey: .displayName)
+    self.isRecommended = try container.decodeIfPresent(Bool.self, forKey: .isRecommended) ?? false
+    self.storeCompatible =
+      try container.decodeIfPresent(Bool.self, forKey: .storeCompatible) ?? false
+    self.runtimeID = try container.decodeIfPresent(String.self, forKey: .runtimeID)
     self.downloadBaseURL = try container.decodeIfPresent(String.self, forKey: .downloadBaseURL)
     self.signature = try container.decodeIfPresent(ModelPackSignature.self, forKey: .signature)
     try validate()
@@ -1059,6 +1122,19 @@ public struct ModelPackManifest: Codable, Equatable, Hashable, Sendable {
     guard size > 0 else { throw ModelPackValidationError.invalidByteCount("<pack>") }
     let fileSize = files.reduce(Int64(0)) { $0 + $1.byteCount }
     guard fileSize <= size else { throw ModelPackValidationError.invalidByteCount("<pack>") }
+    if let displayName {
+      guard !displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        throw ModelPackValidationError.invalidIdentifier("<displayName>")
+      }
+    }
+    if storeCompatible {
+      guard transport == .inProcess else {
+        throw ModelPackValidationError.invalidTransportForStore
+      }
+      guard let runtimeID, !runtimeID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        throw ModelPackValidationError.missingStoreRuntime
+      }
+    }
     if let downloadBaseURL {
       guard let url = URL(string: downloadBaseURL), url.scheme?.lowercased() == "https",
         url.user == nil, url.password == nil, url.host?.isEmpty == false,

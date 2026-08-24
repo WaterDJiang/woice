@@ -239,6 +239,7 @@ final class AppState {
   private let modelCatalogConfiguration: ModelCatalogRuntimeConfiguration?
   private let modelCatalogFetcher = ModelCatalogFetcher()
   private let modelCatalogStore: ModelCatalogStore?
+  private let modelInstallCoordinator = ModelInstallCoordinator()
   private let leaseOwner = "woice-app-\(UUID().uuidString)"
   private let globalShortcutService = GlobalShortcutService()
   private var recordingTimerTask: Task<Void, Never>?
@@ -247,7 +248,7 @@ final class AppState {
   /// after the user explicitly runs the health check in Settings.
   private var verifiedLocalASRTrust: LocalASRTrustSnapshot?
   private var activeModelDownloadTaskID: UUID?
-  @ObservationIgnored private var modelDownloadTask: Task<Void, Never>?
+  @ObservationIgnored private var modelDownloadTask: Task<Bool, Never>?
   private var systemAudioStartError: String?
   private(set) var globalShortcutError: String?
   private var activeRecordingID: UUID?
@@ -870,27 +871,84 @@ final class AppState {
   /// The existing async method remains available for acceptance tests and
   /// callers that already own their Task handle.
   func startWhisperKitModelDownload(entry: WhisperKitModelCatalogEntry) {
-    guard modelDownloadTask == nil, !isDownloadingModel else { return }
+    startModelInstall(
+      entry: entry,
+      intent: ModelInstallIntent(entryPoint: .settings))
+  }
+
+  /// One-click continuation used by the workspace and material routes. The
+  /// intent is persisted before the shared task starts, so an app restart can
+  /// still recover the original material from its waiting transcription job.
+  func startModelInstall(
+    entry: WhisperKitModelCatalogEntry,
+    intent: ModelInstallIntent
+  ) {
+    guard
+      !isDownloadingModel
+        || modelInstallCoordinator.isActive(
+          packID: entry.packID, version: entry.modelRevision)
+    else { return }
     modelDownloadTask = Task { @MainActor [weak self] in
-      guard let self else { return }
-      _ = await self.downloadWhisperKitModel(entry: entry)
-      self.modelDownloadTask = nil
+      guard let self else { return false }
+      defer { self.modelDownloadTask = nil }
+      return await self.installWhisperKitModel(entry: entry, intent: intent)
     }
   }
 
   func cancelWhisperKitModelDownload() {
     guard isDownloadingModel else { return }
+    if let active = activeModelDownloadTaskID,
+      let task = modelDownloadTasks.first(where: { $0.id == active })
+    {
+      modelInstallCoordinator.cancel(packID: task.packID, version: task.version)
+    }
     modelDownloadTask?.cancel()
   }
 
-  /// Downloads a catalogued model after an explicit user action. The entry is
-  /// never inferred from a model ID typed into a field.
+  /// Downloads a catalogued model after an explicit user action. All three UI
+  /// entry points call this method, so one pack/revision always has one shared
+  /// in-process operation and one durable SQLite Job.
   func downloadWhisperKitModel(entry: WhisperKitModelCatalogEntry) async -> Bool {
-    if let catalog = await verifiedCatalog(containing: entry) {
-      return await downloadVerifiedCatalogModel(
-        catalog: catalog, packID: entry.packID, version: entry.modelRevision)
+    await installWhisperKitModel(entry: entry, intent: nil)
+  }
+
+  private func installWhisperKitModel(
+    entry: WhisperKitModelCatalogEntry,
+    intent: ModelInstallIntent?
+  ) async -> Bool {
+    if let intent {
+      attachModelInstallIntent(
+        intent, packID: entry.packID, version: entry.modelRevision)
     }
-    guard !isDownloadingModel else { return false }
+    let task = modelInstallCoordinator.enqueue(
+      packID: entry.packID,
+      version: entry.modelRevision
+    ) { [weak self] in
+      guard let self else { return false }
+      if let catalog = await self.verifiedCatalog(containing: entry) {
+        return await self.performVerifiedCatalogModel(
+          catalog: catalog, packID: entry.packID, version: entry.modelRevision,
+          initialIntent: intent)
+      }
+      return await self.performWhisperKitModelDownload(entry: entry, initialIntent: intent)
+    }
+    return await task.value
+  }
+
+  /// Downloads the pinned official model. The Hub path is a website/Core
+  /// fallback only; Store builds must use a signed Catalog entry.
+  private func performWhisperKitModelDownload(
+    entry: WhisperKitModelCatalogEntry,
+    initialIntent: ModelInstallIntent?
+  ) async -> Bool {
+    #if WOICE_APP_STORE
+      errorMessage = "当前 App Store 版本只接受已验证的模型清单；请先检查模型清单。"
+      presentActionFeedback(.failure("模型清单不可用"))
+      return false
+    #endif
+    #if !WOICE_APP_STORE
+      guard !isDownloadingModel else { return false }
+    #endif
     isDownloadingModel = true
     modelDownloadProgress = nil
     errorMessage = nil
@@ -904,23 +962,30 @@ final class AppState {
       } else {
         taskID = UUID()
       }
+      let existingTask = modelDownloadTasks.first(where: {
+        $0.packID == catalog.packID && $0.version == catalog.modelRevision
+      })
       let task =
         try ModelDownloadTask(
           id: taskID,
           packID: catalog.packID,
           version: catalog.modelRevision,
-          state: .downloading,
-          completedBytes: modelDownloadTasks.first(where: { $0.id == taskID })?.completedBytes ?? 0,
+          state: .preflighting,
+          completedBytes: existingTask?.completedBytes ?? 0,
           totalBytes: catalog.estimatedBytes,
           stagingPath: store.rootURL.appendingPathComponent(
             "downloads/\(catalog.packID)-\(catalog.modelRevision).hub-cache"
           ).path,
           lastError: nil,
-          createdAt: modelDownloadTasks.first(where: { $0.id == taskID })?.createdAt ?? Date(),
+          intents: mergedIntents(existingTask?.intents ?? [], adding: initialIntent),
+          createdAt: existingTask?.createdAt ?? Date(),
           updatedAt: Date())
       try store.saveModelDownloadTask(task)
       modelDownloadTasks = store.loadModelDownloadTasks()
       activeModelDownloadTaskID = taskID
+      _ = try? updateModelDownloadTask(
+        id: taskID, state: .downloading, completedBytes: existingTask?.completedBytes ?? 0,
+        lastError: nil)
     } catch {
       isDownloadingModel = false
       errorMessage = "模型下载任务无法保存：\(error.localizedDescription)；当前本机模型和录音未改变。"
@@ -940,8 +1005,14 @@ final class AppState {
             self?.updateModelDownloadProgress(progress, taskID: taskID, entry: catalog)
           }
         })
+      _ = try? updateModelDownloadTask(
+        id: taskID, state: .verifying, completedBytes: catalog.estimatedBytes,
+        lastError: nil)
       let provider = try WhisperKitTranscriptionService(
         manifest: result.manifest, modelFolder: result.installedURL)
+      _ = try? updateModelDownloadTask(
+        id: taskID, state: .activating, completedBytes: catalog.estimatedBytes,
+        lastError: nil)
       var updatedSettings = settings
       updatedSettings.selectedLocalModelPackID = result.manifest.packID
       updatedSettings.selectedLocalModelVersion = result.manifest.version
@@ -992,8 +1063,11 @@ final class AppState {
   /// Downloads one signed Catalog entry through the generic multi-file
   /// coordinator, then activates it only after ModelPackStore commits the
   /// verified directory and current pointer.
-  private func downloadVerifiedCatalogModel(
-    catalog: ModelCatalog, packID: String, version: String? = nil
+  private func performVerifiedCatalogModel(
+    catalog: ModelCatalog,
+    packID: String,
+    version: String? = nil,
+    initialIntent: ModelInstallIntent? = nil
   ) async -> Bool {
     guard let configuration = modelCatalogConfiguration else {
       errorMessage = "当前发行包未配置模型下载策略；当前模型和录音未改变。"
@@ -1027,22 +1101,29 @@ final class AppState {
       } else {
         taskID = UUID()
       }
+      let existingTask = modelDownloadTasks.first(where: {
+        $0.packID == manifest.packID && $0.version == manifest.version
+      })
       let task = try ModelDownloadTask(
         id: taskID,
         packID: manifest.packID,
         version: manifest.version,
-        state: .downloading,
-        completedBytes: modelDownloadTasks.first(where: { $0.id == taskID })?.completedBytes ?? 0,
+        state: .preflighting,
+        completedBytes: existingTask?.completedBytes ?? 0,
         totalBytes: manifest.size,
         stagingPath: store.rootURL.appendingPathComponent(
           "downloads/\(manifest.packID)-\(manifest.version).partial"
         ).path,
         lastError: nil,
-        createdAt: modelDownloadTasks.first(where: { $0.id == taskID })?.createdAt ?? Date(),
+        intents: mergedIntents(existingTask?.intents ?? [], adding: initialIntent),
+        createdAt: existingTask?.createdAt ?? Date(),
         updatedAt: Date())
       try store.saveModelDownloadTask(task)
       modelDownloadTasks = store.loadModelDownloadTasks()
       activeModelDownloadTaskID = taskID
+      _ = try? updateModelDownloadTask(
+        id: taskID, state: .downloading, completedBytes: existingTask?.completedBytes ?? 0,
+        lastError: nil)
     } catch {
       isDownloadingModel = false
       errorMessage = "模型下载任务无法保存：\(error.localizedDescription)；当前模型和录音未改变。"
@@ -1066,8 +1147,12 @@ final class AppState {
               progress, taskID: taskID, totalBytes: manifest.size)
           }
         })
+      _ = try? updateModelDownloadTask(
+        id: taskID, state: .verifying, completedBytes: manifest.size, lastError: nil)
       let provider = try WhisperKitTranscriptionService(
         manifest: manifest, modelFolder: result)
+      _ = try? updateModelDownloadTask(
+        id: taskID, state: .activating, completedBytes: manifest.size, lastError: nil)
       var updatedSettings = settings
       updatedSettings.selectedLocalModelPackID = manifest.packID
       updatedSettings.selectedLocalModelVersion = manifest.version
@@ -1107,8 +1192,13 @@ final class AppState {
       presentActionFeedback(.failure("模型清单不可用"))
       return false
     }
-    return await downloadVerifiedCatalogModel(
-      catalog: catalog, packID: packID, version: version)
+    let task = modelInstallCoordinator.enqueue(packID: packID, version: version) {
+      [weak self] in
+      guard let self else { return false }
+      return await self.performVerifiedCatalogModel(
+        catalog: catalog, packID: packID, version: version)
+    }
+    return await task.value
   }
 
   func isDownloadingModel(packID: String, version: String) -> Bool {
@@ -1163,11 +1253,49 @@ final class AppState {
       totalBytes: old.totalBytes,
       stagingPath: old.stagingPath,
       lastError: lastError,
+      intents: old.intents,
       createdAt: old.createdAt,
       updatedAt: Date())
     try store.saveModelDownloadTask(task)
     modelDownloadTasks = store.loadModelDownloadTasks()
     return task
+  }
+
+  private func mergedIntents(
+    _ existing: [ModelInstallIntent], adding: ModelInstallIntent?
+  ) -> [ModelInstallIntent] {
+    var result = existing
+    if let adding, !result.contains(where: { $0.id == adding.id }) {
+      result.append(adding)
+    }
+    return result
+  }
+
+  private func attachModelInstallIntent(
+    _ intent: ModelInstallIntent, packID: String, version: String
+  ) {
+    guard
+      let old = modelDownloadTasks.first(where: {
+        $0.packID == packID && $0.version == version
+      }), !old.intents.contains(where: { $0.id == intent.id })
+    else { return }
+    let updatedIntents = mergedIntents(old.intents, adding: intent)
+    guard
+      let task = try? ModelDownloadTask(
+        id: old.id,
+        packID: old.packID,
+        version: old.version,
+        state: old.state,
+        completedBytes: old.completedBytes,
+        totalBytes: old.totalBytes,
+        stagingPath: old.stagingPath,
+        lastError: old.lastError,
+        intents: updatedIntents,
+        createdAt: old.createdAt,
+        updatedAt: Date())
+    else { return }
+    try? store.saveModelDownloadTask(task)
+    modelDownloadTasks = store.loadModelDownloadTasks()
   }
 
   /// Installs a user-selected, already downloaded model directory. This is

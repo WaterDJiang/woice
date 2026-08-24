@@ -15,9 +15,9 @@
 
 - 当前实施顺序与旧计划状态只看[当前路线图与计划迁移表](plan/2026-08-22-current-roadmap-and-plan-transition.md)：R0 录音核心收口 -> M2-08 ASR/模型/双版本 -> R2 素材库收口 -> M2-09 Agent 协作。旧 M3 插件生态已停止，旧总计划不能单独作为当前排期来源。
 - [工作区侧栏与权限连续性优化计划](plan/2026-08-23-workspace-sidebar-and-permission-continuity.md)只保留历史实施与证据；全部未完成项已迁出，WPC 无活动待办。
-- [当前技术开发收口计划](plan/2026-08-24-current-technical-development-closure.md)是唯一活动开发源：WCL-00～06 只承接代码、自动门禁、发行工程、Agent 安全和 Mac App Store 工程；真实用户与真实体验仅作提醒。
+- [当前技术开发收口计划](plan/2026-08-24-current-technical-development-closure.md)是唯一活动开发源：新增 WCL-07 承接本机模型一键安装、Qwen3-ASR-0.6B 和 Store-compatible Runtime；WCL-00～07 只列技术工作，真实用户与真实体验仅作提醒。
 - [菜单栏、设置、快捷键与 Dock 图标精简优化计划](plan/2026-08-23-menubar-settings-shortcut-optimization.md)已完成 MSS-07R 代码与自动测试收口：Popover、四动作、设置分层、快捷键、Bundle AppIcon、录音来源命名、loopback 信任持久化、工作台确认、可恢复“稍后处理”、主/片段任务去重和活动转写状态投影已落地；专项证据 Build `2026082332` 保留为历史记录，当前安装包基线是 `2026082408`；云端稍后处理和视觉/TCC Journey 仍按[进度复核](plan/2026-08-23-plan-progress-review.md)及手册验收。
-- [当前计划进度复核](plan/2026-08-23-plan-progress-review.md)是当前进度真相源：双音源选择、AAC/M4A 新录音、会议合成、长素材详情按需加载和录音控制区视觉层级已实现；官网版 208 项 / 14 个 Suite、Store 条件 186 项 / 11 个 Suite 和正式 Xcode Store 无签名构建通过；WCL-04 因发行凭据阻塞，WCL-06 的签名 Archive/上架仍待外部条件。
+- [当前计划进度复核](plan/2026-08-23-plan-progress-review.md)是当前进度真相源：既有录音与模型基线通过；WCL-07 一键模型安装/Qwen Runtime 待开发，WCL-04 因发行凭据阻塞，WCL-06 的签名 Archive/上架仍待外部条件。
 - [Mac App Store 上架计划](plan/2026-08-23-mac-app-store-launch.md)已完成 MAS-03 本机能力裁剪、正式 Xcode Store 组合根生成、无签名构建和 Store 资源/SBOM 门禁；Store Edition 使用单一商店记录，仍单独承接签名 Archive、App Sandbox、隐私/素材、TestFlight 和审核；官网 Core/Offline 的 Developer ID/公证仍留在 M1-07/M2-08i，MAS-00～02、MAS-04～08 待账号与外部条件。
 - [公开 GitHub 仓库与 ad hoc 预发布准备](../specs/2026-08-24-public-github-adhoc-release-preparation.md)已完成并推送到公开 GitHub；随后已发布 [Woice v0.1.2 Core](https://github.com/WaterDJiang/woice/releases/tag/v0.1.2)，仅提供 Apple Silicon 的无模型 Core DMG 与 SHA-256 清单。产物未公证，不替代 Developer ID/Notarization 发行门禁；含模型 Offline 仍不属于本次 Release。
 - [录音与转写产品升级门禁](plan/2026-08-22-recording-product-upgrade.md)已并入当前路线图：文档只保留 1,650 条 App Store 评论、设置页截图与验收门禁；录音、双轨会议 ASR、模型、素材与发布分别由 M1-02/M1-04/M2-01/M2-03/M2-08 承接，不再使用 `UP-*` 工作包或第二套工期。

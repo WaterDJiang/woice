@@ -155,10 +155,13 @@
 
 状态：本机 Store 打包切片与模型许可证字段/NOTICE fail-closed 门禁已完成；模型权重再分发审定和首版默认模型仍待裁决。
 
+体验与实现新增统一遵循[本机模型一键安装与 App Store 兼容规格](../../specs/2026-08-25-one-click-model-installation-and-store-compatibility.md)：工作台、待转写素材和设置页共用一次点击的 durable 安装任务；Qwen3-ASR 只有在 in-process Runtime、许可证 ADR 和性能门禁通过后才进入 Store Catalog。
+
 - 对默认模型执行许可证、revision、SHA-256、SBOM、Notices 和包体门禁。
 - 商店首版候选内置 Large-v3；如许可证或性能门禁失败，显式改为 Tiny + Speech，不自动切云端。
 - 用户模型采用“选择文件夹 -> 校验 -> 复制到容器 -> 原子注册 -> 显式切换”流程。
 - 下载模型仍视为附加数据，不允许下载可执行代码、dylib、Swift bundle 或运行时安装器。
+- Store 下载链不得安装 Python、uv、ffmpeg 或启动模型包内进程；Runtime、Tokenizer 和音频预处理代码必须随 App 构建并签名。
 - Apple-hosted Background Assets 仅作为 macOS 26+ 后续评估，不阻塞当前 macOS 14 最低版本。
 - 本机实现：`make package-store` 可生成不内置模型或显式传入已校验模型的 Store Bundle，并写入 `DistributionManifest.json`、`SBOM.json`、`NOTICES.md` 和 `PrivacyInfo.xcprivacy`；这不是已通过 Apple 模型/许可证审核的结论。
 - 本机门禁：`make model-package-check` 覆盖 HTTPS 许可证来源、有效 NOTICE、缺失许可证和不安全 NOTICE 路径；Tiny 真实模型包已通过打包与 `verify_app_store.py` 预检。

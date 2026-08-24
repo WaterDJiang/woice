@@ -26,7 +26,7 @@ enum SQLiteMetadataStoreError: LocalizedError, Equatable {
 /// and deterministic; no audio or network work is performed here.
 @MainActor
 final class SQLiteMetadataStore {
-  static let schemaVersion = 4
+  static let schemaVersion = 5
 
   let databaseURL: URL
   nonisolated(unsafe) private var database: OpaquePointer?
@@ -85,7 +85,7 @@ final class SQLiteMetadataStore {
     let statement = try prepare(
       """
       SELECT id, pack_id, version, state, completed_bytes, total_bytes,
-             staging_path, last_error, created_at, updated_at
+             staging_path, last_error, intents_json, created_at, updated_at
       FROM model_download_jobs
       ORDER BY updated_at DESC, id DESC
       """
@@ -112,8 +112,9 @@ final class SQLiteMetadataStore {
             totalBytes: sqlite3_column_int64(statement, 5),
             stagingPath: optionalTextColumn(statement, index: 6),
             lastError: optionalTextColumn(statement, index: 7),
-            createdAt: Date(timeIntervalSince1970: sqlite3_column_double(statement, 8)),
-            updatedAt: Date(timeIntervalSince1970: sqlite3_column_double(statement, 9))
+            intents: try decodeModelInstallIntents(from: statement, index: 8),
+            createdAt: Date(timeIntervalSince1970: sqlite3_column_double(statement, 9)),
+            updatedAt: Date(timeIntervalSince1970: sqlite3_column_double(statement, 10))
           )
         )
       } catch {
@@ -240,8 +241,8 @@ final class SQLiteMetadataStore {
       """
       INSERT INTO model_download_jobs(
         id, pack_id, version, state, completed_bytes, total_bytes,
-        staging_path, last_error, created_at, updated_at
-      ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        staging_path, last_error, intents_json, created_at, updated_at
+      ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
         pack_id=excluded.pack_id,
         version=excluded.version,
@@ -250,6 +251,7 @@ final class SQLiteMetadataStore {
         total_bytes=excluded.total_bytes,
         staging_path=excluded.staging_path,
         last_error=excluded.last_error,
+        intents_json=excluded.intents_json,
         updated_at=excluded.updated_at
       """
     )
@@ -262,8 +264,9 @@ final class SQLiteMetadataStore {
     try bindInt64(task.totalBytes, to: statement, index: 6)
     try bindOptionalText(task.stagingPath, to: statement, index: 7)
     try bindOptionalText(task.lastError, to: statement, index: 8)
-    try bindDouble(task.createdAt.timeIntervalSince1970, to: statement, index: 9)
-    try bindDouble(task.updatedAt.timeIntervalSince1970, to: statement, index: 10)
+    try bindBlob(JSONEncoder.woice.encode(task.intents), to: statement, index: 9)
+    try bindDouble(task.createdAt.timeIntervalSince1970, to: statement, index: 10)
+    try bindDouble(task.updatedAt.timeIntervalSince1970, to: statement, index: 11)
     try step(statement)
   }
 
@@ -565,6 +568,13 @@ final class SQLiteMetadataStore {
           "CREATE INDEX IF NOT EXISTS agent_audit_events_occurred_index ON agent_audit_events(occurred_at DESC)"
         )
         try execute("PRAGMA user_version=4")
+        currentVersion = 4
+      }
+      if currentVersion == 4 {
+        try execute(
+          "ALTER TABLE model_download_jobs ADD COLUMN intents_json BLOB NOT NULL DEFAULT '[]'"
+        )
+        try execute("PRAGMA user_version=5")
       }
     } catch {
       throw SQLiteMetadataStoreError.migrationFailed(error.localizedDescription)
@@ -729,6 +739,19 @@ final class SQLiteMetadataStore {
   private func optionalTextColumn(_ statement: OpaquePointer, index: Int32) -> String? {
     guard sqlite3_column_type(statement, index) != SQLITE_NULL else { return nil }
     return textColumn(statement, index: index)
+  }
+
+  private func decodeModelInstallIntents(
+    from statement: OpaquePointer, index: Int32
+  ) throws -> [ModelInstallIntent] {
+    guard sqlite3_column_type(statement, index) != SQLITE_NULL,
+      let bytes = sqlite3_column_blob(statement, index)
+    else { return [] }
+    let data = Data(bytes: bytes, count: Int(sqlite3_column_bytes(statement, index)))
+    guard let intents = try? JSONDecoder.woice.decode([ModelInstallIntent].self, from: data) else {
+      throw SQLiteMetadataStoreError.invalidPayload
+    }
+    return intents
   }
 
   private func message() -> String {

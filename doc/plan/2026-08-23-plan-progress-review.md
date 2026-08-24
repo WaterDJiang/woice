@@ -2,7 +2,7 @@
 
 > 复核日期：2026-08-24  
 > 本轮补充：麦克风首帧门禁、非阻塞输入状态探测与退出音频资源清理代码已实现；`make acceptance-core`、`make verify` 和 Store 条件回归已恢复通过，真实音频宿主不再是当前 P0 阻塞。
-> 结论：双音源选择、AAC/M4A 新录音、会议合成、长素材详情按需加载和录音控制视觉层级已实现。本轮官网版 `make verify` 已通过 208 项 Swift 测试 / 14 个 Suite，Store 条件已通过 186 项 / 11 个 Suite，正式 Xcode Store 无签名构建通过。[当前技术开发收口计划](2026-08-24-current-technical-development-closure.md)是唯一活动开发来源；真实会议声源、50 分钟以上素材和视觉体验仍由用户人工复验。
+> 结论：双音源选择、AAC/M4A 新录音、会议合成、长素材详情按需加载和录音控制视觉层级已实现。本轮官网版 `make verify` 已通过 208 项 Swift 测试 / 14 个 Suite，Store 条件已通过 186 项 / 11 个 Suite，正式 Xcode Store 无签名构建通过。[当前技术开发收口计划](2026-08-24-current-technical-development-closure.md)是唯一活动开发来源；新增 WCL-07 本机模型一键安装与 Store-compatible Qwen Runtime 待实施，真实会议声源、50 分钟以上素材和视觉体验仍只作人工提醒。
 
 > 结论更新（19:20）：以上 197/175 与 0 帧内容是复核开始时的历史边界；之后已完成音频宿主恢复，并新增退出清理集成测试；官网 `make verify` 通过 201 项 / 13 个 Suite，Store 条件通过 179 项 / 10 个 Suite，WCL-03 已关闭。
 
@@ -76,8 +76,9 @@
 
 - WCL-03：四类权限与恢复/稳定性路径、无障碍语义和 AppIcon 单一来源门禁已接入；麦克风首帧门禁、非阻塞输入状态探测和退出音频资源清理已实现并通过定向测试、`make acceptance-core`、`make verify` 与 Store 条件回归；TCC/VoiceOver 体验仅作人工提醒。
 
-### P2：发行与 Agent
+### P2：模型体验、发行与 Agent
 
+- WCL-07：一键模型安装与 Store-compatible Qwen Runtime 已完成规格冻结，代码、ADR、原生 Runtime、自动门禁和正式 Catalog 条目待实施。
 - WCL-04：发行脚本、固定身份门禁、本地 `ReleaseManifest.json` 与远程 manifest 读回门禁已完成；真实 Developer ID、公证 profile、生产 Catalog 和已发布远程产物缺失，保持阻塞。
 - WCL-05：三级独立权限、二次确认、重复派发拒绝、CLI 版本/安装状态诊断和 Beta 文案已完成源码与契约门禁。
 - WCL-06：已完成 MAS-03 本机能力裁剪、`project.yml`/`Woice.xcodeproj` 正式 Store 组合根和 `Woice-Store / Release-AppStore` 无签名构建，以及 Store 本机打包/隐私/沙盒静态预检；MAS-00～02、MAS-04～08 的 Apple 决策、Store 签名下 Sandbox/TCC、模型/隐私资料、签名 Archive、TestFlight 和审核仍待外部条件。
@@ -89,13 +90,15 @@
 
 ## 5. 下一步顺序
 
-1. WCL-04：补齐真实 Developer ID 身份、公证 profile、生产 Catalog 和已发布远程 manifest/产物后，运行 `make release-developer-id`，再运行 `make release-verify-remote`。
-2. WCL-06：在 Apple 账号、Bundle/价格/模型许可证决策明确后，继续 MAS-00～02、MAS-04～08；当前可用 `make xcode-build-store`、`make model-package-check`、`make verify-app-store`、`make acceptance-app-store-sandbox` 和 `make store-capability-check` 回归本机 Store 工程、模型门禁、能力裁剪与 Bundle 预检。
+1. WCL-07：按 MOD-01～06 完成许可证/Runtime 决策、一键安装状态机、三个入口、Store 不可执行模型包门禁和回归矩阵。
+2. WCL-04：补齐真实 Developer ID 身份、公证 profile、生产 Catalog 和已发布远程 manifest/产物后，运行 `make release-developer-id`，再运行 `make release-verify-remote`。
+3. WCL-06：在 Apple 账号、Bundle/价格/模型许可证决策明确后，继续 MAS-00～02、MAS-04～08；当前可用 `make xcode-build-store`、`make model-package-check`、`make verify-app-store`、`make acceptance-app-store-sandbox` 和 `make store-capability-check` 回归本机 Store 工程、模型门禁、能力裁剪与 Bundle 预检。
 
 ## 5.1 当前待开发清单
 
 | 优先级 | 工作包 | 当前状态 | 下一步/阻塞 |
 |---|---|---|---|
+| P0 | WCL-07 一键模型安装与 Qwen Runtime | 规格完成，代码待实施 | 先冻结许可证 ADR、固定 revision、派生格式和 in-process Runtime，再实施 durable Job、三个入口与 Store 数据包门禁 |
 | P0 | WCL-04 官网 Developer ID 发行 | 代码、签名/公证脚本和远程 manifest 门禁已完成，发行验证阻塞 | 提供 Developer ID 身份、公证凭据、生产 Catalog URL/ID/可信公钥并发布远程 manifest/产物；运行 `make release-developer-id` → `make release-verify-remote` |
 | P0 | MAS-00 产品与账号决策 | 未冻结 | 决定开发者主体、最终 Bundle ID/SKU、价格/地区、默认模型和首版是否保留自动粘贴；这些不是本机代码缺口 |
 | P0 | MAS-01 Store 正式签名 Archive | Xcode 工程、Scheme、资源和无签名构建完成；签名 Archive/Validate 未执行 | 提供 Apple Team、Store 签名身份和 Provisioning Profile；运行 `make archive-app-store`，再由 Xcode Organizer Validate |
@@ -112,4 +115,4 @@
 
 这里的“WCL-03 已完成”包含权限、稳定性、无障碍、首帧门禁、非阻塞状态探测、退出清理代码/确定性测试和本轮真实音频门禁；TCC 手动操作与 VoiceOver 体验不计入开发完成率。
 
-当前状态应写为：**当前安装包为源码构建 `0.1.0 (Build 1)`，此前稳定包 Build `2026082408` 仅作历史证据；Large-v3 启动校验内存已修复，安装包携现有用户数据稳定在约 135 MiB RSS；本轮官网版 `make verify` 通过 203 项 Swift 测试 / 13 个 Suite、PI/MCP、构建、lint 和 Core 打包，Store 条件通过 181 项 Swift 测试 / 10 个 Suite；`make acceptance-core`、退出清理集成测试、`make xcode-build-store`、`verify_xcode_store_bundle.py`、`make model-package-check`、`verify-app-store` 与 `acceptance-app-store-sandbox` 均通过。WCL-00～03、WCL-05 已完成源码与自动门禁；WCL-04 因发行凭据阻塞；WCL-06 已完成 MAS-03、正式 Xcode 组合根与本机 Store 预检，签名 Archive、TestFlight、审核和 Apple 决策仍待外部条件。**
+当前状态应写为：**既有录音、WhisperKit、模型下载和 Store 本机工程基线保持已验证；WCL-00～03、WCL-05 已完成源码与自动门禁；WCL-07 一键模型安装与 Store-compatible Qwen Runtime 待开发；WCL-04 因发行凭据阻塞；WCL-06 已完成 MAS-03、正式 Xcode 组合根与本机 Store 预检，签名 Archive、TestFlight、审核和 Apple 决策仍待外部条件。**

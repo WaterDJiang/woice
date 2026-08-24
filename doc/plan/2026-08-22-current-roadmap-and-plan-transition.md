@@ -33,7 +33,7 @@ R0 录音与素材核心收口
 
 严格按上图执行。M2-09a 也必须等 M2-08 和 R2 退出检查通过后开始，避免“先做 Agent 契约”挤占录音、模型或素材库收口。
 
-[当前技术开发收口计划](2026-08-24-current-technical-development-closure.md)是跨现有产品阶段的技术收口入口，不新增产品能力阶段，也不改变 R0 -> R1 -> R2 -> R3 的架构顺序。WCL-01～04 收口核心代码与发行工程；WCL-05 保持 Agent 后置；WCL-06 已按用户启动完成本机 MAS-03/Store 工程切片，正式商店外部工作仍按上架计划推进。真实用户与人工体验验收不进入开发工作包。
+[当前技术开发收口计划](2026-08-24-current-technical-development-closure.md)是跨现有产品阶段的技术收口入口，不新增产品能力阶段，也不改变 R0 -> R1 -> R2 -> R3 的架构顺序。WCL-01～04 收口核心代码与发行工程；WCL-05 保持 Agent 后置；WCL-06 已完成本机 MAS-03/Store 工程切片；WCL-07 新增本机模型一键安装与 Store-compatible Qwen Runtime。真实用户与人工体验验收不进入开发工作包。
 
 Mac App Store 上架是独立发行轨，当前状态为“待实施”，不插入上述产品实施顺序。用户明确启动后，账号、Bundle ID、隐私和素材准备可以独立进行；Store 工程改造与提交必须遵守[Mac App Store 上架计划](2026-08-23-mac-app-store-launch.md)的退出条件。该计划不替代 M1-07 的官网 Developer ID/公证，也不替代 M2-08i 的 Core/Offline 发行门禁。
 
@@ -103,7 +103,7 @@ R2 是已有核心工作的退出检查，不是新建的并行项目：
 | M2-05 PI Connector 基础 | 已有基础/迁移验收 | M2-09e | 保留薄适配；真实安装和外部读取统一在 M2-09 验收 |
 | M2-06 系统 TTS | 独立入口代码完成，人工体验仅作提醒 | 现有系统能力与独立 TTS 规格 | 保留 AVSpeechSynthesizer，但从录音详情迁移到文字/文件独立窗口；云端/本地 TTS Provider 扩展停止 |
 | M2-07 受控进程基础 | 安全基础已完成，作为依赖保留 | M2-08 ASR、M2-09c CLI | 共享安全原语；不得扩展成通用插件平台 |
-| M2-08 | 核心代码与本机发行切片已完成，正式发行验证进行中 | M2-08 专项计划与当前技术开发收口计划 | 本机 ASR、统一 Provider 配置/Registry、会议路由、模型库存控制、Catalog 信任/回滚/轮换校验、受限 HTTPS 传输、多文件下载编排、显式设置页更新入口、Core/Offline 本地 DMG、Large 已安装 WAV 重转写、无显示器窗口级系统音频目标回退、Keychain 状态诊断和延迟读取已实现；最新官网版 201 项 Swift / 13 个 Suite，Store 条件 179 项 / 10 个 Suite，正式 `Woice.xcodeproj` Store 无签名构建、模型发行门禁和本机 Store Bundle 预检通过，默认本机路由冻结为 Large-v3、QuickTime 可见播放源下 `make acceptance-meeting`、正常/失败音视频导入边界均有证据；Developer ID/公证/生产 Catalog/远程产物读回、Store 签名 Archive 和真实人工矩阵仍待外部条件 |
+| M2-08 | 既有模型闭环完成；一键安装与 Qwen Store-compatible Runtime 待实施 | M2-08 专项计划、当前技术开发收口计划 WCL-07 与一键模型安装规格 | 本机 ASR、统一 Provider 配置/Registry、会议路由、模型库存控制、Catalog 信任/回滚/轮换校验、受限 HTTPS 传输、多文件下载编排、Core/Offline 本地 DMG 和默认 Large-v3 路由已实现；新增工作只承接三个入口共用的一键安装状态机、等待任务自动恢复、Qwen 原生 Runtime 及 Store 不可执行模型包门禁；Developer ID/公证/生产 Catalog/Store 签名 Archive 仍待外部条件 |
 | M2-09 | Agent Beta 源码与契约门禁已完成，保持核心发布后置 | M2-09 专项计划与 WCL-05 | 真实 CLI 登录、批准、素材入站和外部 Agent Journey 仍是人工提醒；不改变录音核心发布顺序 |
 | 旧 M3 DeepSeek Harness/插件生态 | 停止 | M2-09 P1（仅经验证的专用适配） | 旧 M3 作为阶段整体失效，不得创建插件市场或网关 |
 
