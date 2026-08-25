@@ -15,6 +15,18 @@ Woice 帮你把主动录下的声音变成可复听、可搜索、可导出的�
 
 两个包使用同一 App、数据目录和功能集；Offline 仅多出一个随包模型。切换安装包不会删除你的录音、已下载模型或设置。
 
+### 可用的语音转文字方式
+
+v0.1.3 不只支持 Qwen。两个下载包里的 App 都可以使用以下模型或服务；区别只是 Offline 预先放入了 Qwen 权重，Core 不带任何第三方权重。
+
+| 转写方式 | v0.1.3 是否支持 | Offline 是否随包 | 如何获取 |
+|---|---|---|---|
+| macOS 本机语音识别 | 是 | 系统提供，无第三方权重 | 无需下载 |
+| WhisperKit Tiny | 是 | 否 | App 内点击下载 |
+| Qwen3-ASR-0.6B 4-bit | 是 | 是 | Offline 直接使用；Core 可在 App 内下载 |
+| WhisperKit Large-v3 | 是 | 否 | App 内按需下载 |
+| OpenAI-compatible ASR | 是 | 否 | 用户主动配置本机、局域网或云端服务 |
+
 当前 GitHub 下载包采用 **ad hoc 签名，未公证**。下载后 macOS 可能提示“无法验证开发者”；请仅从本项目的 GitHub Release 下载，并在 Finder 中按住 Control 点击 App 后选择“打开”。正式 Developer ID 签名和公证尚未完成。
 
 ## 产品边界
