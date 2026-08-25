@@ -1,6 +1,6 @@
 # 本机模型一键安装与 App Store 兼容规格
 
-> 状态：待实施  
+> 状态：开发中；一键安装基础链路、Qwen 原生 Runtime、模型包校验与 Store Bundle 门禁已落地；v0.1.3 GitHub Offline 包内置 Qwen 预览版，正式性能矩阵与签名 Catalog 仍待收口  
 > 日期：2026-08-25  
 > 计划入口：[当前技术开发收口计划](../doc/plan/2026-08-24-current-technical-development-closure.md)  
 > 相关设计：[模型接入、连接向导与双版本架构设计](../doc/design/2026-08-22-model-onboarding-provider-architecture.md)  
@@ -50,7 +50,7 @@
 
 - 已安装且可用的用户当前模型优先。
 - 没有当前模型时，优先发行 Catalog 标记的 `recommended` 条目。
-- Qwen3-ASR-0.6B 只有在原生 Store-compatible Runtime、许可证 ADR、性能门禁和固定模型包全部通过后，才能成为推荐项。
+- Qwen3-ASR-0.6B 已具备原生 Store-compatible Runtime、许可证 ADR 和固定模型包；在固定音频准确率、长文件/双轨性能、峰值内存和签名 Catalog 全部通过前，不成为正式推荐项。
 - 条件未满足时继续推荐已验证的 WhisperKit 模型，不展示点击后无法完成的 Qwen 下载按钮。
 
 ### 3.3 下载前信息内联展示
@@ -185,7 +185,8 @@ verifying/installing/activating
 
 ### 7.3 发行降级
 
-- Qwen Runtime 或许可证未通过 Store 门禁时，Store Catalog 不发布该条目。
+- Qwen 性能、模型包或签名 Catalog 门禁未通过时，Store Catalog 不发布该条目。
+- GitHub v0.1.3 Offline 可以作为明确标注的 Qwen 预览包内置固定模型；该决策不等于进入正式 Catalog、默认推荐或 App Store 发布。
 - UI 自动回到已批准的 WhisperKit/Speech 组合，不显示灰色 Qwen 营销入口。
 - 官网版不得因 Store 未批准而静默改用外部进程；若两版能力不同，必须由发行 Catalog 明确控制并保留相同任务语义。
 

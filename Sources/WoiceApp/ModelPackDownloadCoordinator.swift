@@ -85,6 +85,7 @@ actor ModelPackDownloadCoordinator {
   func download(
     manifest: ModelPackManifest,
     baseURL: URL,
+    policy: ModelPackInstallPolicy = .localImport,
     progress: (@Sendable (ModelPackDownloadProgress) -> Void)? = nil
   ) async throws -> URL {
     try manifest.validate()
@@ -143,7 +144,8 @@ actor ModelPackDownloadCoordinator {
     encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
     try encoder.encode(manifest).write(
       to: try safeChild("manifest.json", of: staging), options: .atomic)
-    let installed = try await modelStore.install(manifest: manifest, from: staging)
+    let installed = try await modelStore.install(
+      manifest: manifest, from: staging, policy: policy)
     try? fileManager.removeItem(at: staging)
     return installed
   }
@@ -314,7 +316,7 @@ actor ModelCatalogDownloadCoordinator {
       throw ModelCatalogDownloadError.disallowedDownloadHost(host)
     }
     return try await coordinator.download(
-      manifest: manifest, baseURL: baseURL, progress: progress)
+      manifest: manifest, baseURL: baseURL, policy: .storeCatalog, progress: progress)
   }
 }
 

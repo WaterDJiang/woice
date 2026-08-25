@@ -20,6 +20,8 @@ final class WoiceMenuBarController: NSObject, Sendable {
   private let statusItem: NSStatusItem
   private let popover: NSPopover
   private var statusTimer: Timer?
+  private var localMouseMonitor: Any?
+  private var appResignObserver: NSObjectProtocol?
 
   init(
     appState: AppState, router: WorkspaceRouter,
@@ -34,6 +36,7 @@ final class WoiceMenuBarController: NSObject, Sendable {
 
     popover.behavior = .transient
     popover.animates = true
+    popover.delegate = self
     // The SwiftUI content reports its fitting height after layout. Keep a
     // small initial size only for the first AppKit presentation; it is
     // replaced immediately by `updatePopoverSize()`.
@@ -64,6 +67,7 @@ final class WoiceMenuBarController: NSObject, Sendable {
     } else {
       popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
       popover.contentViewController?.view.window?.becomeKey()
+      installDismissalMonitors()
       DispatchQueue.main.async { [weak self] in self?.updatePopoverSize() }
     }
   }
@@ -93,7 +97,7 @@ final class WoiceMenuBarController: NSObject, Sendable {
     guard popover.isShown, let view = popover.contentViewController?.view else { return }
     view.layoutSubtreeIfNeeded()
     let fitting = view.fittingSize
-    let height = min(max(fitting.height, 190), 420)
+    let height = min(max(fitting.height, 190), 540)
     guard abs(popover.contentSize.height - height) > 1 else { return }
     popover.contentSize = NSSize(width: 336, height: height)
   }
@@ -102,5 +106,67 @@ final class WoiceMenuBarController: NSObject, Sendable {
     router.route = route
     popover.performClose(nil)
     workspaceWindowController.show(route: route)
+  }
+
+  private func installDismissalMonitors() {
+    removeDismissalMonitors()
+    let mask: NSEvent.EventTypeMask = [.leftMouseDown, .rightMouseDown, .otherMouseDown]
+    localMouseMonitor = NSEvent.addLocalMonitorForEvents(matching: mask) { [weak self] event in
+      self?.closePopoverIfNeeded(for: event)
+      return event
+    }
+    appResignObserver = NotificationCenter.default.addObserver(
+      forName: NSApplication.didResignActiveNotification,
+      object: NSApplication.shared,
+      queue: .main
+    ) { [weak self] _ in
+      Task { @MainActor in self?.popover.performClose(nil) }
+    }
+  }
+
+  private func closePopoverIfNeeded(for event: NSEvent) {
+    guard popover.isShown else { return }
+    let isStatusItemButton: Bool
+    if let button = statusItem.button, event.window === button.window {
+      let point = button.convert(event.locationInWindow, from: nil)
+      isStatusItemButton = button.bounds.contains(point)
+    } else {
+      isStatusItemButton = false
+    }
+    guard
+      PopoverDismissalPolicy.shouldClose(
+        eventWindow: event.window,
+        popoverWindow: popover.contentViewController?.view.window,
+        isStatusItemButton: isStatusItemButton)
+    else { return }
+    popover.performClose(nil)
+  }
+
+  private func removeDismissalMonitors() {
+    if let localMouseMonitor {
+      NSEvent.removeMonitor(localMouseMonitor)
+      self.localMouseMonitor = nil
+    }
+    if let appResignObserver {
+      NotificationCenter.default.removeObserver(appResignObserver)
+      self.appResignObserver = nil
+    }
+  }
+}
+
+extension WoiceMenuBarController: NSPopoverDelegate {
+  func popoverDidClose(_ notification: Notification) {
+    removeDismissalMonitors()
+  }
+}
+
+enum PopoverDismissalPolicy {
+  static func shouldClose(
+    eventWindow: NSWindow?,
+    popoverWindow: NSWindow?,
+    isStatusItemButton: Bool
+  ) -> Bool {
+    guard eventWindow !== popoverWindow else { return false }
+    return !isStatusItemButton
   }
 }

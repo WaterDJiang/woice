@@ -23,6 +23,21 @@ private final class ASRHealthCheckURLProtocol: URLProtocol {
   override func stopLoading() {}
 }
 
+private final class ASRTrustSnapshotURLProtocol: URLProtocol {
+  override class func canInit(with request: URLRequest) -> Bool { true }
+
+  override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+  override func startLoading() {
+    let response = HTTPURLResponse(
+      url: request.url!, statusCode: 204, httpVersion: nil, headerFields: nil)!
+    client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+    client?.urlProtocolDidFinishLoading(self)
+  }
+
+  override func stopLoading() {}
+}
+
 private final class RecordingKeychainStore: KeychainStoring {
   var values: [String: String]
   var reads: [String] = []
@@ -355,7 +370,7 @@ func localASRTrustSnapshotPersistsAndInvalidatesOnConfigurationChange() async th
   defer { try? FileManager.default.removeItem(at: root) }
 
   let configuration = URLSessionConfiguration.ephemeral
-  configuration.protocolClasses = [ASRHealthCheckURLProtocol.self]
+  configuration.protocolClasses = [ASRTrustSnapshotURLProtocol.self]
   let session = URLSession(configuration: configuration)
   let keychain = RecordingKeychainStore()
   let store = WorkspaceStore(storageRootURL: root)

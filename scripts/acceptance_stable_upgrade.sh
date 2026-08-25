@@ -20,6 +20,7 @@ if ! /usr/bin/security find-identity -v -p codesigning 2>/dev/null | rg -F "$sta
 fi
 
 source_binary="${WOICE_STABLE_SOURCE_BINARY:-}"
+mlx_bundle="${WOICE_STABLE_MLX_BUNDLE:-$PWD/.build/xcode-direct-derived/Build/Products/Release-Direct/Woice.app/Contents/Resources/mlx-swift_Cmlx.bundle}"
 
 app_path="${WOICE_STABLE_APP_PATH:-/Applications/Woice.app}"
 phase="${WOICE_STABLE_PHASE:-build}"
@@ -68,6 +69,7 @@ package_one() {
     /usr/bin/python3 scripts/package_distribution.py \
       --flavor core \
       --binary "$source_binary" \
+      --mlx-bundle "$mlx_bundle" \
       --info-plist "$info_plist" \
       --output "$build_app"
   /usr/bin/ditto "$build_app" "$output_root/Woice-Stable-$label.app"
@@ -82,6 +84,13 @@ if [[ "$phase" == "build" || "$reuse_output" != "1" ]]; then
   fi
   [[ -f "$source_binary" ]] || {
     echo "acceptance-stable-upgrade: release binary not found: $source_binary" >&2
+    exit 1
+  }
+  if [[ ! -d "$mlx_bundle" ]]; then
+    make xcode-build-direct
+  fi
+  [[ -f "$mlx_bundle/Contents/Resources/default.metallib" ]] || {
+    echo "acceptance-stable-upgrade: MLX Metal Bundle not found: $mlx_bundle" >&2
     exit 1
   }
   package_one A "$build_version_a"

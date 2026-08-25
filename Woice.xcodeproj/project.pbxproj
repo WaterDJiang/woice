@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		0160695126853C4E421184D2 /* TextInsertionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F63EF6348A7AD5FF8E78EABE /* TextInsertionService.swift */; };
+		06827B3C9E6F844A7465A039 /* Qwen3ASR in Frameworks */ = {isa = PBXBuildFile; productRef = 175E1CEAD62A2AAF9619A012 /* Qwen3ASR */; };
 		08F65C5FDD555C900BA65678 /* FileSHA256.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2894CC33CF67F7DA41CB96FF /* FileSHA256.swift */; };
 		18A0D99EE51ED809D00E12E0 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5350EEB848F01FA93C05F538 /* KeychainStore.swift */; };
 		1D48AD4969B87F2132FB9ED7 /* ProviderTrustVerifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64E2268020F0E10B0B6CA077 /* ProviderTrustVerifier.swift */; };
@@ -35,8 +36,11 @@
 		7DEF8326DA5BC31F57DECB26 /* WoiceApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AF9996EF239C2E5317402D9 /* WoiceApp.swift */; };
 		7F46819F24BAF3F928EE92FA /* WhisperKitASRService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D0BAAACB21905B89A132253 /* WhisperKitASRService.swift */; };
 		7FD44821122E140F6A1FA1A5 /* LiveTranscriptionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFCA937D8F30BE5144922D7E /* LiveTranscriptionService.swift */; };
+		819A6CD053CACD43D0D6980F /* Qwen3Common in Frameworks */ = {isa = PBXBuildFile; productRef = 654F853FFA37EBA3632D1F91 /* Qwen3Common */; };
 		839F25CABD31850EF5E404D5 /* ActionFeedback.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7A75FE1765699ECE18EC8D4 /* ActionFeedback.swift */; };
 		8656BC61F9915731037FF4C7 /* ContextPackageBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDFB9356964C5E833D8AD128 /* ContextPackageBuilder.swift */; };
+		8AD7832FBF75FF8C9B894D40 /* ModelInstallCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9004F82776918DEAB92DCF12 /* ModelInstallCard.swift */; };
+		8AFF96BADA21226EB000C5C7 /* ModelRuntimeRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48D3F1CEEF358B9EFEF4DD9C /* ModelRuntimeRegistry.swift */; };
 		8C3D54931812B4DD65FBC757 /* ModelCatalogRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60859C375E0ED404D1CCEC23 /* ModelCatalogRuntime.swift */; };
 		8FAA5D87ACCB26E07495C140 /* ControlledCLIRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 686968A695D17E4F2C2D7DAD /* ControlledCLIRunner.swift */; };
 		94055D7F57FA6CA9950720A6 /* DistributionManifest.json in Resources */ = {isa = PBXBuildFile; fileRef = 3EDC9C8EAE63D08EA669E656 /* DistributionManifest.json */; };
@@ -71,11 +75,14 @@
 		E1C3237562F82884516A3D09 /* libWoiceCore.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 81C05F16168CD9436BD372A4 /* libWoiceCore.a */; };
 		E81D40819BAA61E727E27978 /* WoiceMenuBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 309D74789CE29CBCBBE5922E /* WoiceMenuBarController.swift */; };
 		E84B6A5FF34E9AEC2D08C7C9 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 420F29A48CF0D87EEBA692A0 /* SettingsView.swift */; };
+		E8C93C2C3CCB863C6877FA8C /* Qwen3ASRService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9A0C4578B60FEC5F095CDF2 /* Qwen3ASRService.swift */; };
 		E9F4D5F25AC08BDF0A782539 /* WoiceWorkspaceWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9E3EBFCBE668ED0F4692869 /* WoiceWorkspaceWindowController.swift */; };
 		EC00D90A4B4E13C7BE0F11A1 /* AgentCLIAdapterCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 123FBB3F75A839486261B109 /* AgentCLIAdapterCatalog.swift */; };
 		EDFE71C3ADCDCE4052C01533 /* RecordingAudioFormat.swift in Sources */ = {isa = PBXBuildFile; fileRef = 880B4FA5A7336E6AC37A6EDD /* RecordingAudioFormat.swift */; };
+		EE77B86E2BB5482932147581 /* Qwen3ASRModelCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E390ABC5ECFC6ED2AF4984D /* Qwen3ASRModelCatalog.swift */; };
 		EECF0153C68CA86F14E411DC /* SystemAudioCaptureService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCBDEAFF11D75DDD64A3B477 /* SystemAudioCaptureService.swift */; };
 		F2E3812E6A1C52B3CF776221 /* WorkspaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28228095C777128298B20C0A /* WorkspaceView.swift */; };
+		F2E7D01BA159D8B7CF4200F3 /* LiveTranscriptPreviewCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = C344433C14F2CC292AF14DF5 /* LiveTranscriptPreviewCard.swift */; };
 		F4D192132CF58BCC4177E265 /* TextToAudioView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D3467747EB68A1AC85F8AE4 /* TextToAudioView.swift */; };
 		F8725499A1BFF4B45583C2AF /* ModelInstallCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 884988E8FF590FCFD4037A41 /* ModelInstallCoordinator.swift */; };
 /* End PBXBuildFile section */
@@ -98,6 +105,7 @@
 		123FBB3F75A839486261B109 /* AgentCLIAdapterCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentCLIAdapterCatalog.swift; sourceTree = "<group>"; };
 		1A88B0127AA8A5593A05D1C6 /* ModelPackStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelPackStore.swift; sourceTree = "<group>"; };
 		1AECB3E7C65E46F86B09E3DD /* AppIcon.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = AppIcon.xcassets; sourceTree = "<group>"; };
+		1E390ABC5ECFC6ED2AF4984D /* Qwen3ASRModelCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Qwen3ASRModelCatalog.swift; sourceTree = "<group>"; };
 		223EB37FC471537D21BA82F2 /* PiConnectorRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PiConnectorRouter.swift; sourceTree = "<group>"; };
 		2705543F051F7AECC067D397 /* WoiceBrandAssets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WoiceBrandAssets.swift; sourceTree = "<group>"; };
 		28228095C777128298B20C0A /* WorkspaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceView.swift; sourceTree = "<group>"; };
@@ -112,6 +120,7 @@
 		3EDC9C8EAE63D08EA669E656 /* DistributionManifest.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = DistributionManifest.json; sourceTree = "<group>"; };
 		420F29A48CF0D87EEBA692A0 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		451BFA4FD4AFC5CB919621E9 /* SettingsScope.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsScope.swift; sourceTree = "<group>"; };
+		48D3F1CEEF358B9EFEF4DD9C /* ModelRuntimeRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelRuntimeRegistry.swift; sourceTree = "<group>"; };
 		4E18E58155B38AB90AA23E15 /* LocalASRService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalASRService.swift; sourceTree = "<group>"; };
 		5350EEB848F01FA93C05F538 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
 		5AF9996EF239C2E5317402D9 /* WoiceApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WoiceApp.swift; sourceTree = "<group>"; };
@@ -134,6 +143,7 @@
 		89240531404F292439542EE4 /* GlobalShortcutService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalShortcutService.swift; sourceTree = "<group>"; };
 		8AB4183E00641829650039A5 /* RecordingDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingDetailView.swift; sourceTree = "<group>"; };
 		8D2CE095134D6FFF07FD1F99 /* PiConnectorServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PiConnectorServer.swift; sourceTree = "<group>"; };
+		9004F82776918DEAB92DCF12 /* ModelInstallCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelInstallCard.swift; sourceTree = "<group>"; };
 		96679625CF51E75669945673 /* ModelPackDownloadCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelPackDownloadCoordinator.swift; sourceTree = "<group>"; };
 		99E468D0793D3E4924C8002F /* AudioPlaybackService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlaybackService.swift; sourceTree = "<group>"; };
 		9C97478508143E652935ED5C /* RecordingSourceControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingSourceControl.swift; sourceTree = "<group>"; };
@@ -143,6 +153,7 @@
 		B3EE25E96FD81C7B4575F3F5 /* AgentDispatchSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentDispatchSheet.swift; sourceTree = "<group>"; };
 		BB3C830E3F2961AF091D145C /* TranscriptTextNormalizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptTextNormalizer.swift; sourceTree = "<group>"; };
 		BFBFE88DB135A9BACCC458EB /* WorkspaceSidebarLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceSidebarLayout.swift; sourceTree = "<group>"; };
+		C344433C14F2CC292AF14DF5 /* LiveTranscriptPreviewCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveTranscriptPreviewCard.swift; sourceTree = "<group>"; };
 		C73115B5B0806BA8F102C784 /* AudioPreparationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPreparationService.swift; sourceTree = "<group>"; };
 		C7A75FE1765699ECE18EC8D4 /* ActionFeedback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionFeedback.swift; sourceTree = "<group>"; };
 		C9E3EBFCBE668ED0F4692869 /* WoiceWorkspaceWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WoiceWorkspaceWindowController.swift; sourceTree = "<group>"; };
@@ -160,6 +171,7 @@
 		F63EF6348A7AD5FF8E78EABE /* TextInsertionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextInsertionService.swift; sourceTree = "<group>"; };
 		F69901F609E6F3F9C4798344 /* SingleInstanceGuard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SingleInstanceGuard.swift; sourceTree = "<group>"; };
 		F86432DE25176C9ABFA23D35 /* MediaImportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaImportService.swift; sourceTree = "<group>"; };
+		F9A0C4578B60FEC5F095CDF2 /* Qwen3ASRService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Qwen3ASRService.swift; sourceTree = "<group>"; };
 		FCBDEAFF11D75DDD64A3B477 /* SystemAudioCaptureService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemAudioCaptureService.swift; sourceTree = "<group>"; };
 		FFCA937D8F30BE5144922D7E /* LiveTranscriptionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveTranscriptionService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -171,6 +183,8 @@
 			files = (
 				E1C3237562F82884516A3D09 /* libWoiceCore.a in Frameworks */,
 				6EB57C957B821FB2F648CE4B /* WhisperKit in Frameworks */,
+				06827B3C9E6F844A7465A039 /* Qwen3ASR in Frameworks */,
+				819A6CD053CACD43D0D6980F /* Qwen3Common in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -252,18 +266,23 @@
 				89240531404F292439542EE4 /* GlobalShortcutService.swift */,
 				5350EEB848F01FA93C05F538 /* KeychainStore.swift */,
 				FFCA937D8F30BE5144922D7E /* LiveTranscriptionService.swift */,
+				C344433C14F2CC292AF14DF5 /* LiveTranscriptPreviewCard.swift */,
 				4E18E58155B38AB90AA23E15 /* LocalASRService.swift */,
 				F86432DE25176C9ABFA23D35 /* MediaImportService.swift */,
 				3A3C0D640481119C983AFFBC /* MediaImportSheet.swift */,
 				7EADB082E854C6A5D516989A /* MenuBarPopover.swift */,
 				60859C375E0ED404D1CCEC23 /* ModelCatalogRuntime.swift */,
+				9004F82776918DEAB92DCF12 /* ModelInstallCard.swift */,
 				884988E8FF590FCFD4037A41 /* ModelInstallCoordinator.swift */,
 				96679625CF51E75669945673 /* ModelPackDownloadCoordinator.swift */,
 				1A88B0127AA8A5593A05D1C6 /* ModelPackStore.swift */,
+				48D3F1CEEF358B9EFEF4DD9C /* ModelRuntimeRegistry.swift */,
 				223EB37FC471537D21BA82F2 /* PiConnectorRouter.swift */,
 				8D2CE095134D6FFF07FD1F99 /* PiConnectorServer.swift */,
 				058E27EF77E34FFB30B836E8 /* ProcessProviderRunner.swift */,
 				64E2268020F0E10B0B6CA077 /* ProviderTrustVerifier.swift */,
+				1E390ABC5ECFC6ED2AF4984D /* Qwen3ASRModelCatalog.swift */,
+				F9A0C4578B60FEC5F095CDF2 /* Qwen3ASRService.swift */,
 				880B4FA5A7336E6AC37A6EDD /* RecordingAudioFormat.swift */,
 				8AB4183E00641829650039A5 /* RecordingDetailView.swift */,
 				F045C4DA614C574B97BFAFEC /* RecordingService.swift */,
@@ -345,6 +364,8 @@
 			name = Woice;
 			packageProductDependencies = (
 				560E61020AE46D9FCEAC4456 /* WhisperKit */,
+				175E1CEAD62A2AAF9619A012 /* Qwen3ASR */,
+				654F853FFA37EBA3632D1F91 /* Qwen3Common */,
 			);
 			productName = Woice;
 			productReference = A9FA139C7F96801EA601CC1D /* Woice.app */;
@@ -393,6 +414,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				6E3F49A90FAAD334E4F2C544 /* XCRemoteSwiftPackageReference "argmax-oss-swift" */,
+				E3D6E9070FB9F84210A2C11D /* XCRemoteSwiftPackageReference "qwen3-asr-swift" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 6F87B08F0237079B025E24B3 /* Products */;
@@ -461,19 +483,24 @@
 				08F65C5FDD555C900BA65678 /* FileSHA256.swift in Sources */,
 				7531C27C412C1C62ECC3837B /* GlobalShortcutService.swift in Sources */,
 				18A0D99EE51ED809D00E12E0 /* KeychainStore.swift in Sources */,
+				F2E7D01BA159D8B7CF4200F3 /* LiveTranscriptPreviewCard.swift in Sources */,
 				7FD44821122E140F6A1FA1A5 /* LiveTranscriptionService.swift in Sources */,
 				AB6577E24A9E58CED2AD83C9 /* LocalASRService.swift in Sources */,
 				D02FC52B494A66C6F0296426 /* MediaImportService.swift in Sources */,
 				DFA6F535BE7610DB776C2DAB /* MediaImportSheet.swift in Sources */,
 				DA754834D6C4CAFF83B26699 /* MenuBarPopover.swift in Sources */,
 				8C3D54931812B4DD65FBC757 /* ModelCatalogRuntime.swift in Sources */,
+				8AD7832FBF75FF8C9B894D40 /* ModelInstallCard.swift in Sources */,
 				F8725499A1BFF4B45583C2AF /* ModelInstallCoordinator.swift in Sources */,
 				AC0691DD091FC582EF1BA39D /* ModelPackDownloadCoordinator.swift in Sources */,
 				E0BEBE42D60FCFFAD6C205E6 /* ModelPackStore.swift in Sources */,
+				8AFF96BADA21226EB000C5C7 /* ModelRuntimeRegistry.swift in Sources */,
 				CAE48A1F3D4E28F94A5BA440 /* PiConnectorRouter.swift in Sources */,
 				2459B5F7EB1C1AFB8979D144 /* PiConnectorServer.swift in Sources */,
 				97BF9CE3CE02C5D506EE8A2B /* ProcessProviderRunner.swift in Sources */,
 				1D48AD4969B87F2132FB9ED7 /* ProviderTrustVerifier.swift in Sources */,
+				EE77B86E2BB5482932147581 /* Qwen3ASRModelCatalog.swift in Sources */,
+				E8C93C2C3CCB863C6877FA8C /* Qwen3ASRService.swift in Sources */,
 				EDFE71C3ADCDCE4052C01533 /* RecordingAudioFormat.swift in Sources */,
 				49C70EA0010491F9C94380EE /* RecordingDetailView.swift in Sources */,
 				DCBD33FE2A24E6E3A942F19E /* RecordingService.swift in Sources */,
@@ -868,13 +895,31 @@
 				version = 1.0.0;
 			};
 		};
+		E3D6E9070FB9F84210A2C11D /* XCRemoteSwiftPackageReference "qwen3-asr-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/vfasky/qwen3-asr-swift.git";
+			requirement = {
+				kind = revision;
+				revision = 4824c95e1e4624200405d639fb4ebe10f93f1075;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		175E1CEAD62A2AAF9619A012 /* Qwen3ASR */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E3D6E9070FB9F84210A2C11D /* XCRemoteSwiftPackageReference "qwen3-asr-swift" */;
+			productName = Qwen3ASR;
+		};
 		560E61020AE46D9FCEAC4456 /* WhisperKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 6E3F49A90FAAD334E4F2C544 /* XCRemoteSwiftPackageReference "argmax-oss-swift" */;
 			productName = WhisperKit;
+		};
+		654F853FFA37EBA3632D1F91 /* Qwen3Common */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E3D6E9070FB9F84210A2C11D /* XCRemoteSwiftPackageReference "qwen3-asr-swift" */;
+			productName = Qwen3Common;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

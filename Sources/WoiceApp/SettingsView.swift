@@ -703,6 +703,10 @@ private struct RecordingSettingsPane: View {
             .font(.caption)
             .foregroundStyle(.secondary)
         }
+        Toggle("录音时显示实时文字", isOn: $settings.enableLiveTranscription)
+        Text("开始麦克风录音后，文字会显示在工作台和顶部录音面板。只使用本机能力，不会覆盖最终原文。")
+          .font(.caption)
+          .foregroundStyle(.secondary)
       } header: {
         Label("录音与转写", systemImage: "mic")
       } footer: {
@@ -712,8 +716,7 @@ private struct RecordingSettingsPane: View {
       Section {
         DisclosureGroup("高级录音选项") {
           Toggle("保留逐句时间", isOn: $settings.includeTranscriptTimestamps)
-          Toggle("录音时预览文字", isOn: $settings.enableLiveTranscription)
-          Text("实时预览只使用本机能力，不会覆盖最终原文；逐句时间需要当前转写服务支持。")
+          Text("逐句时间需要当前转写服务支持。")
             .font(.caption)
             .foregroundStyle(.secondary)
         }
@@ -1143,6 +1146,105 @@ private struct ProvidersSettingsPane: View {
   @State private var selectingModelKey: String?
   @State private var showAdvanced = false
 
+  private var installedLocalModels: [ModelPackInventoryEntry] {
+    appState.modelPackInventory.filter {
+      ModelRuntimeRegistry.admission(for: $0.manifest).isAdmitted
+    }
+  }
+
+  private var selectedInstalledModel: ModelPackInventoryEntry? {
+    guard appState.settings.asrProviderSelection == .onDevice else { return nil }
+    if let packID = appState.settings.selectedLocalModelPackID,
+      let version = appState.settings.selectedLocalModelVersion
+    {
+      return installedLocalModels.first {
+        $0.manifest.packID == packID && $0.manifest.version == version
+      }
+    }
+    return installedLocalModels.first {
+      $0.manifest.providerID == appState.localASRModel.providerID
+        && $0.manifest.modelID == appState.localASRModel.modelID
+        && $0.manifest.version == appState.localASRModel.version
+    }
+  }
+
+  private func modelKey(_ item: ModelPackInventoryEntry) -> String {
+    "\(item.manifest.packID)/\(item.manifest.version)"
+  }
+
+  private func modelName(_ item: ModelPackInventoryEntry) -> String {
+    item.manifest.displayName ?? item.manifest.modelID
+  }
+
+  private func selectModel(_ item: ModelPackInventoryEntry) {
+    let key = modelKey(item)
+    selectingModelKey = key
+    Task { @MainActor in
+      let didSelect = await appState.selectInstalledModel(
+        packID: item.manifest.packID, version: item.manifest.version)
+      if didSelect {
+        // Keep the settings draft aligned with the immediately committed
+        // runtime choice so saving another services field cannot roll it back.
+        settings.selectedLocalModelPackID = item.manifest.packID
+        settings.selectedLocalModelVersion = item.manifest.version
+        settings.asrProviderSelection = .onDevice
+      }
+      selectingModelKey = nil
+    }
+  }
+
+  @ViewBuilder
+  private var localModelPicker: some View {
+    if installedLocalModels.isEmpty {
+      VStack(alignment: .trailing, spacing: 3) {
+        Text(appState.localASRModel.displayName)
+        Text("尚未安装可切换的本机模型")
+          .font(.caption)
+          .foregroundStyle(.secondary)
+        Button("显示模型下载") {
+          showAdvanced = true
+        }
+        .buttonStyle(.woiceBorderless)
+        .controlSize(.small)
+      }
+    } else {
+      Menu {
+        ForEach(Array(installedLocalModels.enumerated()), id: \.offset) { _, item in
+          Button {
+            selectModel(item)
+          } label: {
+            let location = item.location == .bundled ? "随包" : "已下载"
+            let title = "\(modelName(item)) · \(item.manifest.version) · \(location)"
+            if selectedInstalledModel?.manifest.packID == item.manifest.packID,
+              selectedInstalledModel?.manifest.version == item.manifest.version
+            {
+              Label(title, systemImage: "checkmark")
+            } else {
+              Text(title)
+            }
+          }
+          .disabled(selectingModelKey != nil)
+        }
+      } label: {
+        HStack(spacing: 6) {
+          Text(selectedInstalledModel.map(modelName) ?? appState.localASRModel.displayName)
+            .lineLimit(1)
+          Image(systemName: "chevron.up.chevron.down")
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.secondary)
+        }
+      }
+      .menuStyle(.borderedButton)
+      .disabled(selectingModelKey != nil)
+      if let selectingModelKey {
+        ProgressView()
+          .controlSize(.small)
+          .accessibilityLabel("正在切换本机模型")
+          .id(selectingModelKey)
+      }
+    }
+  }
+
   var body: some View {
     Form {
       Section {
@@ -1159,13 +1261,26 @@ private struct ProvidersSettingsPane: View {
           Text("自定义服务").tag(ASRProviderSelection.external)
         }
         LabeledContent("本机模型") {
-          VStack(alignment: .trailing, spacing: 2) {
-            Text(appState.localASRModel.displayName)
-            Text(
-              "版本 \(appState.localASRModel.version) · \(appState.localASRModel.dataLocation.label)"
-            )
-            .font(.caption)
-            .foregroundStyle(.secondary)
+          VStack(alignment: .trailing, spacing: 3) {
+            localModelPicker
+            if let selectedInstalledModel {
+              Text(
+                "版本 \(selectedInstalledModel.manifest.version) · \(selectedInstalledModel.location == .bundled ? "随包" : "已下载")"
+              )
+              .font(.caption)
+              .foregroundStyle(.secondary)
+            } else {
+              Text(
+                "版本 \(appState.localASRModel.version) · \(appState.localASRModel.dataLocation.label)"
+              )
+              .font(.caption)
+              .foregroundStyle(.secondary)
+            }
+            if !installedLocalModels.isEmpty {
+              Text("已验证 \(installedLocalModels.count) 个本机模型")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            }
           }
         }
         LabeledContent("语音识别权限") {
@@ -1279,74 +1394,10 @@ private struct ProvidersSettingsPane: View {
 
         Section {
           VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .top, spacing: 10) {
-              Image(systemName: "arrow.down.circle")
-                .foregroundStyle(Color.accentColor)
-                .frame(width: 20)
-              VStack(alignment: .leading, spacing: 3) {
-                Text(WhisperKitModelCatalogEntry.recommendedTiny.displayName)
-                  .font(.callout.weight(.medium))
-                Text(
-                  "固定版本 \(WhisperKitModelCatalogEntry.recommendedTiny.modelRevision) · 下载后可断网转写"
-                )
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .textSelection(.enabled)
-              }
-              Spacer()
-              Button {
-                if appState.isDownloadingModel(entry: WhisperKitModelCatalogEntry.recommendedTiny) {
-                  appState.cancelWhisperKitModelDownload()
-                } else {
-                  appState.startWhisperKitModelDownload(
-                    entry: WhisperKitModelCatalogEntry.recommendedTiny)
-                }
-              } label: {
-                if appState.isDownloadingModel(entry: WhisperKitModelCatalogEntry.recommendedTiny) {
-                  ProgressView().controlSize(.small)
-                  Text("取消")
-                } else if appState.isDownloadingModel {
-                  Text("等待当前下载")
-                } else if appState.isRecommendedWhisperKitModelInstalled {
-                  Label("已安装", systemImage: "checkmark")
-                } else {
-                  Label("下载", systemImage: "arrow.down.circle")
-                }
-              }
-              .buttonStyle(.bordered)
-              .controlSize(.small)
-              .disabled(
-                (appState.isDownloadingModel
-                  && !appState.isDownloadingModel(
-                    entry: WhisperKitModelCatalogEntry.recommendedTiny))
-                  || appState.isRecommendedWhisperKitModelInstalled)
-            }
-            downloadProgress(for: WhisperKitModelCatalogEntry.recommendedTiny)
-            if let task = appState.modelDownloadTasks.first(where: {
-              $0.packID == WhisperKitModelCatalogEntry.recommendedTiny.packID
-                && $0.version == WhisperKitModelCatalogEntry.recommendedTiny.modelRevision
-            }), task.state != .installed {
-              Label {
-                VStack(alignment: .leading, spacing: 2) {
-                  Text("下载任务：\(task.state.label)")
-                  if let lastError = task.lastError, !lastError.isEmpty {
-                    Text(lastError)
-                      .font(.caption2)
-                      .foregroundStyle(.secondary)
-                  }
-                }
-              } icon: {
-                Image(systemName: task.state == .failed ? "exclamationmark.triangle" : "clock")
-              }
-              .font(.caption)
-              .foregroundStyle(task.state == .failed ? .red : .secondary)
-            }
-            if let error = appState.errorMessage, error.hasPrefix("模型下载失败：") {
-              Label(error, systemImage: "exclamationmark.triangle.fill")
-                .font(.caption)
-                .foregroundStyle(.red)
-                .fixedSize(horizontal: false, vertical: true)
-            }
+            ModelInstallCard(entryPoint: .settings)
+            #if !WOICE_APP_STORE
+              ModelInstallCard(entryPoint: .settings, model: .qwen3ASR)
+            #endif
             Divider()
             let largeCandidate = WhisperKitModelCatalogEntry.candidateLargeV3
             HStack(alignment: .top, spacing: 10) {
@@ -1391,9 +1442,15 @@ private struct ProvidersSettingsPane: View {
         } header: {
           Label("获取本机模型", systemImage: "arrow.down.circle")
         } footer: {
-          Text(
-            "下载由你显式触发，完成后会校验每个文件并原子安装；下载失败不会替换当前模型。默认使用 Large-v3，也可手动切换 Tiny。"
-          )
+          #if WOICE_APP_STORE
+            Text(
+              "下载由你显式触发，完成后会校验每个文件并原子安装；当前 Store 版本只展示已验证清单中的本机模型，下载失败不会替换当前模型。"
+            )
+          #else
+            Text(
+              "下载由你显式触发，完成后会校验每个文件并原子安装；下载失败不会替换当前模型。Tiny、Qwen3-ASR 和 Large-v3 都可独立安装与切换。"
+            )
+          #endif
         }
 
         Section {
@@ -1558,14 +1615,8 @@ private struct ProvidersSettingsPane: View {
                     .foregroundStyle(.green)
                 } else {
                   HStack(spacing: 8) {
-                    Button(selectingModelKey == modelKey(for: item) ? "切换中…" : "切换") {
-                      let key = modelKey(for: item)
-                      selectingModelKey = key
-                      Task { @MainActor in
-                        _ = await appState.selectInstalledModel(
-                          packID: item.manifest.packID, version: item.manifest.version)
-                        selectingModelKey = nil
-                      }
+                    Button(selectingModelKey == modelKey(item) ? "切换中…" : "切换") {
+                      selectModel(item)
                     }
                     .buttonStyle(.woiceBorderless)
                     .disabled(selectingModelKey != nil)
@@ -1727,10 +1778,6 @@ private struct ProvidersSettingsPane: View {
       _ = await appState.importModelPack(from: url)
       isImportingModel = false
     }
-  }
-
-  private func modelKey(for item: ModelPackInventoryEntry) -> String {
-    "\(item.manifest.packID)/\(item.manifest.version)"
   }
 
   private func applyASRServicePreset(_ preset: ASRServicePreset) {

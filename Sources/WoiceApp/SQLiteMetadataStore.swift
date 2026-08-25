@@ -278,7 +278,7 @@ final class SQLiteMetadataStore {
       SET state='paused',
           last_error='应用上次关闭时下载被暂停；点击继续即可恢复。',
           updated_at=?
-      WHERE state IN ('downloading','verifying')
+      WHERE state IN ('preflighting','downloading','verifying','installing','activating')
       """
     )
     defer { sqlite3_finalize(statement) }

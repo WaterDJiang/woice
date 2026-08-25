@@ -9,6 +9,7 @@ func asrProviderRegistryPublishesTrustedDescriptors() async throws {
     initial.map(\.providerID) == [
       "com.apple.speech.on-device",
       "com.woice.openai-compatible-asr",
+      "com.woice.qwen3-asr",
       "com.woice.whisperkit",
     ])
 

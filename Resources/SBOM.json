@@ -3,14 +3,112 @@
   "components": [
     {
       "bom-ref": "pkg:github/argmaxinc/argmax-oss-swift@1.0.0",
-      "licenses": [
-        "MIT"
-      ],
+      "licenses": ["MIT"],
       "name": "argmax-oss-swift",
       "source": "https://github.com/argmaxinc/argmax-oss-swift",
       "version": "1.0.0"
+    },
+    {
+      "bom-ref": "pkg:github/vfasky/qwen3-asr-swift@4824c95e1e4624200405d639fb4ebe10f93f1075",
+      "licenses": ["Apache-2.0"],
+      "name": "qwen3-asr-swift",
+      "source": "https://github.com/vfasky/qwen3-asr-swift",
+      "version": "4824c95e1e4624200405d639fb4ebe10f93f1075"
+    },
+    {
+      "bom-ref": "pkg:github/ml-explore/mlx-swift@0.31.6",
+      "licenses": ["MIT"],
+      "name": "mlx-swift",
+      "source": "https://github.com/ml-explore/mlx-swift",
+      "version": "0.31.6"
+    },
+    {
+      "bom-ref": "pkg:github/huggingface/swift-transformers@1.3.3",
+      "licenses": ["Apache-2.0"],
+      "name": "swift-transformers",
+      "source": "https://github.com/huggingface/swift-transformers",
+      "version": "1.3.3"
+    },
+    {
+      "bom-ref": "pkg:github/huggingface/swift-huggingface@0.9.0",
+      "licenses": ["Apache-2.0"],
+      "name": "swift-huggingface",
+      "source": "https://github.com/huggingface/swift-huggingface",
+      "version": "0.9.0"
+    },
+    {
+      "bom-ref": "pkg:github/huggingface/swift-jinja@2.4.2",
+      "licenses": ["Apache-2.0"],
+      "name": "swift-jinja",
+      "source": "https://github.com/huggingface/swift-jinja",
+      "version": "2.4.2"
+    },
+    {
+      "bom-ref": "pkg:github/apple/swift-argument-parser@1.8.2",
+      "licenses": ["Apache-2.0"],
+      "name": "swift-argument-parser",
+      "source": "https://github.com/apple/swift-argument-parser",
+      "version": "1.8.2"
+    },
+    {
+      "bom-ref": "pkg:github/apple/swift-collections@1.6.0",
+      "licenses": ["Apache-2.0"],
+      "name": "swift-collections",
+      "source": "https://github.com/apple/swift-collections",
+      "version": "1.6.0"
+    },
+    {
+      "bom-ref": "pkg:github/apple/swift-crypto@4.5.1",
+      "licenses": ["Apache-2.0"],
+      "name": "swift-crypto",
+      "source": "https://github.com/apple/swift-crypto",
+      "version": "4.5.1"
+    },
+    {
+      "bom-ref": "pkg:github/apple/swift-asn1@1.7.1",
+      "licenses": ["Apache-2.0"],
+      "name": "swift-asn1",
+      "source": "https://github.com/apple/swift-asn1",
+      "version": "1.7.1"
+    },
+    {
+      "bom-ref": "pkg:github/apple/swift-numerics@1.1.1",
+      "licenses": ["Apache-2.0"],
+      "name": "swift-numerics",
+      "source": "https://github.com/apple/swift-numerics",
+      "version": "1.1.1"
+    },
+    {
+      "bom-ref": "pkg:github/mattt/EventSource@1.5.1",
+      "licenses": ["MIT"],
+      "name": "EventSource",
+      "source": "https://github.com/mattt/EventSource",
+      "version": "1.5.1"
+    },
+    {
+      "bom-ref": "pkg:github/ibireme/yyjson@0.12.0",
+      "licenses": ["MIT"],
+      "name": "yyjson",
+      "source": "https://github.com/ibireme/yyjson",
+      "version": "0.12.0"
+    },
+    {
+      "bom-ref": "pkg:huggingface/Qwen3-ASR-0.6B-4bit@313d850181767edf09f00a9c289becca70e58cd0",
+      "licenses": ["Apache-2.0"],
+      "name": "Qwen3-ASR-0.6B-4bit",
+      "source": "https://huggingface.co/mlx-community/Qwen3-ASR-0.6B-4bit",
+      "version": "313d850181767edf09f00a9c289becca70e58cd0"
     }
   ],
+  "metadata": {
+    "modelPack": {
+      "packID": "com.woice.qwen3.asr.0.6b.4bit",
+      "modelSHA256": "70c7e67e588062adce4f10796e47ad42ead51c6671eda61a0987eae38ca95ddf",
+      "size": 712699126,
+      "upstreamModel": "Qwen/Qwen3-ASR-0.6B-hf",
+      "upstreamRevision": "7f1569a48a89f3e3f4dc3a5c9d28bddd903bc76c"
+    }
+  },
   "schema": "cyclonedx-json-1.5",
   "specVersion": "1.5"
 }

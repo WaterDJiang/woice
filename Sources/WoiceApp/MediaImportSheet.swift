@@ -8,6 +8,8 @@ struct MediaImportSheet: View {
 
   @Binding var recordID: UUID?
   @State private var isShowingFileImporter = false
+  @State private var isDropTarget = false
+  @State private var isImportingFile = false
 
   private var record: RecordingRecord? {
     guard let recordID else { return nil }
@@ -20,24 +22,12 @@ struct MediaImportSheet: View {
         if let record {
           importedContent(record)
         } else {
-          ContentUnavailableView(
-            "导入音视频",
-            systemImage: "square.and.arrow.down",
-            description: Text("原始文件会保存到 Woice 本机素材目录，并生成可重试的转写任务。不会自动外发。"))
-          Button {
-            isShowingFileImporter = true
-          } label: {
-            Label("选择文件…", systemImage: "folder")
-          }
-          .buttonStyle(.borderedProminent)
-          .accessibilityLabel("选择文件")
-          .help("选择文件")
-          .frame(maxWidth: .infinity)
+          importDropZone
         }
         Spacer(minLength: 0)
       }
       .padding(28)
-      .frame(minWidth: 560, minHeight: 360)
+      .frame(minWidth: 520, minHeight: record == nil ? 300 : 360)
       .navigationTitle("导入音视频")
       .toolbar {
         ToolbarItem(placement: .cancellationAction) {
@@ -61,11 +51,75 @@ struct MediaImportSheet: View {
         }
         return
       }
-      Task { @MainActor in
-        let accessed = url.startAccessingSecurityScopedResource()
-        defer { if accessed { url.stopAccessingSecurityScopedResource() } }
-        recordID = await appState.importMedia(from: url)
+      importMedia(from: url)
+    }
+  }
+
+  private var importDropZone: some View {
+    VStack(spacing: 14) {
+      Image(systemName: isDropTarget ? "arrow.down.doc.fill" : "square.and.arrow.down")
+        .font(.system(size: 34, weight: .medium))
+        .foregroundStyle(isDropTarget ? Color.accentColor : Color.secondary)
+      VStack(spacing: 5) {
+        Text(isDropTarget ? "放开即可导入" : "选择或拖入音视频")
+          .font(.title3.weight(.semibold))
+        Text("原件会保存在 Woice 本机素材目录，不会自动外发。")
+          .font(.callout)
+          .foregroundStyle(.secondary)
+          .multilineTextAlignment(.center)
       }
+      if isImportingFile {
+        ProgressView("正在导入…")
+          .controlSize(.small)
+      } else {
+        Button {
+          isShowingFileImporter = true
+        } label: {
+          Label("选择文件…", systemImage: "folder")
+        }
+        .buttonStyle(.borderedProminent)
+        .accessibilityLabel("选择文件")
+        .help("选择文件")
+      }
+      Text("WAV、MP3、M4A、AAC、AIFF、CAF、FLAC、MP4、MOV、M4V")
+        .font(.caption)
+        .foregroundStyle(.tertiary)
+        .multilineTextAlignment(.center)
+    }
+    .padding(.horizontal, 28)
+    .padding(.vertical, 24)
+    .frame(maxWidth: .infinity, minHeight: 220)
+    .background(
+      isDropTarget ? Color.accentColor.opacity(0.08) : Color.secondary.opacity(0.045),
+      in: RoundedRectangle(cornerRadius: 14)
+    )
+    .overlay {
+      RoundedRectangle(cornerRadius: 14)
+        .strokeBorder(
+          isDropTarget ? Color.accentColor : Color.secondary.opacity(0.28),
+          style: StrokeStyle(lineWidth: isDropTarget ? 2 : 1, dash: [6, 4]))
+    }
+    .contentShape(RoundedRectangle(cornerRadius: 14))
+    .dropDestination(for: URL.self) { urls, _ in
+      guard let url = urls.first, urls.count == 1, !isImportingFile else { return false }
+      importMedia(from: url)
+      return true
+    } isTargeted: { isTargeted in
+      isDropTarget = isTargeted
+    }
+    .accessibilityElement(children: .contain)
+    .accessibilityLabel("导入音视频")
+    .accessibilityHint("可选择文件，也可拖入一个支持的音频或视频文件")
+  }
+
+  private func importMedia(from url: URL) {
+    guard !isImportingFile else { return }
+    isImportingFile = true
+    Task { @MainActor in
+      defer { isImportingFile = false }
+      let accessed = url.startAccessingSecurityScopedResource()
+      defer { if accessed { url.stopAccessingSecurityScopedResource() } }
+      recordID = await appState.importMedia(from: url)
     }
   }
 
@@ -131,6 +185,9 @@ struct MediaImportSheet: View {
         .buttonStyle(.bordered)
         .accessibilityLabel("打开原件")
         .help("打开原件")
+      }
+      if !appState.hasInstalledLocalModelPack {
+        ModelInstallCard(entryPoint: .material, recordingID: record.id)
       }
     }
   }

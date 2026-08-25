@@ -106,6 +106,13 @@ public struct ASRProviderDescriptor: Codable, Equatable, Hashable, Sendable {
       capabilities: [.transcription, .timestamps],
       health: .waitingForModel),
     ASRProviderDescriptor(
+      providerID: "com.woice.qwen3-asr",
+      displayName: "Qwen3-ASR 本机模型",
+      transport: .inProcess,
+      dataLocation: .onDevice,
+      capabilities: [.transcription, .timestamps],
+      health: .waitingForModel),
+    ASRProviderDescriptor(
       providerID: "com.woice.openai-compatible-asr",
       displayName: "OpenAI-compatible ASR",
       transport: .http,
@@ -175,13 +182,14 @@ public actor ASRProviderRegistry {
   public func resolve(
     configuration: ASRProviderConfiguration,
     localModelAvailable: Bool,
-    capability: ASRProviderCapability = .transcription
+    capability: ASRProviderCapability = .transcription,
+    localProviderID: String? = nil
   ) throws -> ASRProviderDescriptor {
     let providerID: String
     if configuration.usesExternalService {
       providerID = "com.woice.openai-compatible-asr"
     } else if localModelAvailable {
-      providerID = "com.woice.whisperkit"
+      providerID = localProviderID ?? "com.woice.whisperkit"
     } else {
       providerID = "com.apple.speech.on-device"
     }
@@ -383,6 +391,67 @@ public struct ModelPackLicense: Codable, Equatable, Hashable, Sendable {
       identifier: container.decode(String.self, forKey: .identifier),
       noticePath: container.decode(String.self, forKey: .noticePath),
       sourceURL: container.decode(String.self, forKey: .sourceURL))
+  }
+}
+
+/// Provenance for a derived model format. Store-compatible packs must retain
+/// this chain so a downloaded data package can be audited without executing a
+/// conversion tool or contacting an untrusted source at runtime.
+public struct ModelPackProvenance: Codable, Equatable, Hashable, Sendable {
+  public let upstreamModelID: String
+  public let upstreamRevision: String
+  public let sourceURL: String
+  public let derivedFormat: String
+  public let conversionTool: String
+  public let conversionRevision: String
+  public let upstreamSHA256: String?
+
+  public init(
+    upstreamModelID: String,
+    upstreamRevision: String,
+    sourceURL: String,
+    derivedFormat: String,
+    conversionTool: String,
+    conversionRevision: String,
+    upstreamSHA256: String? = nil
+  ) throws {
+    let required = [
+      upstreamModelID, upstreamRevision, sourceURL, derivedFormat, conversionTool,
+      conversionRevision,
+    ]
+    guard required.allSatisfy({ !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty })
+    else { throw ModelPackValidationError.invalidProvenance }
+    guard let url = URL(string: sourceURL), url.scheme?.lowercased() == "https",
+      url.user == nil, url.password == nil, url.host?.isEmpty == false
+    else { throw ModelPackValidationError.invalidProvenance }
+    if let upstreamSHA256 {
+      guard upstreamSHA256.range(of: #"^[0-9a-fA-F]{64}$"#, options: .regularExpression) != nil
+      else { throw ModelPackValidationError.invalidProvenance }
+    }
+    self.upstreamModelID = upstreamModelID
+    self.upstreamRevision = upstreamRevision
+    self.sourceURL = sourceURL
+    self.derivedFormat = derivedFormat
+    self.conversionTool = conversionTool
+    self.conversionRevision = conversionRevision
+    self.upstreamSHA256 = upstreamSHA256?.lowercased()
+  }
+
+  private enum CodingKeys: String, CodingKey {
+    case upstreamModelID, upstreamRevision, sourceURL, derivedFormat, conversionTool,
+      conversionRevision, upstreamSHA256
+  }
+
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    try self.init(
+      upstreamModelID: container.decode(String.self, forKey: .upstreamModelID),
+      upstreamRevision: container.decode(String.self, forKey: .upstreamRevision),
+      sourceURL: container.decode(String.self, forKey: .sourceURL),
+      derivedFormat: container.decode(String.self, forKey: .derivedFormat),
+      conversionTool: container.decode(String.self, forKey: .conversionTool),
+      conversionRevision: container.decode(String.self, forKey: .conversionRevision),
+      upstreamSHA256: container.decodeIfPresent(String.self, forKey: .upstreamSHA256))
   }
 }
 
@@ -959,6 +1028,8 @@ public enum ModelPackValidationError: LocalizedError, Equatable, Sendable {
   case invalidByteCount(String)
   case invalidSHA256(String)
   case invalidLicense
+  case invalidProvenance
+  case missingStoreProvenance
   case invalidTransportForStore
   case missingStoreRuntime
   case invalidDownloadBaseURL
@@ -981,6 +1052,8 @@ public enum ModelPackValidationError: LocalizedError, Equatable, Sendable {
     case .invalidByteCount(let path): "模型文件大小无效：\(path)"
     case .invalidSHA256(let path): "模型文件 SHA-256 无效：\(path)"
     case .invalidLicense: "模型清单许可证信息不完整或路径不安全。"
+    case .invalidProvenance: "模型来源与格式转换信息不完整或不安全。"
+    case .missingStoreProvenance: "App Store 模型必须记录上游版本与格式转换链。"
     case .invalidTransportForStore: "App Store 模型必须使用随 App 签名的内置 Runtime。"
     case .missingStoreRuntime: "App Store 模型缺少内置 Runtime 标识。"
     case .invalidDownloadBaseURL: "模型清单下载地址必须是无凭据的 HTTPS 地址。"
@@ -1004,6 +1077,7 @@ public struct ModelPackManifest: Codable, Equatable, Hashable, Sendable {
   public let minimumOS: String
   public let files: [ModelPackFile]
   public let license: ModelPackLicense
+  public let provenance: ModelPackProvenance?
   public let size: Int64
   public let displayName: String?
   public let isRecommended: Bool
@@ -1030,6 +1104,7 @@ public struct ModelPackManifest: Codable, Equatable, Hashable, Sendable {
     files: [ModelPackFile],
     license: ModelPackLicense,
     size: Int64,
+    provenance: ModelPackProvenance? = nil,
     displayName: String? = nil,
     isRecommended: Bool = false,
     storeCompatible: Bool = false,
@@ -1050,6 +1125,7 @@ public struct ModelPackManifest: Codable, Equatable, Hashable, Sendable {
     self.files = files
     self.license = license
     self.size = size
+    self.provenance = provenance
     self.displayName = displayName
     self.isRecommended = isRecommended
     self.storeCompatible = storeCompatible
@@ -1061,7 +1137,7 @@ public struct ModelPackManifest: Codable, Equatable, Hashable, Sendable {
 
   private enum CodingKeys: String, CodingKey {
     case schemaVersion, packID, modelID, version, providerID, transport, capabilities, platform
-    case architecture, minimumOS, files, license, size, displayName, isRecommended,
+    case architecture, minimumOS, files, license, size, provenance, displayName, isRecommended,
       storeCompatible, runtimeID, downloadBaseURL, signature
   }
 
@@ -1080,6 +1156,7 @@ public struct ModelPackManifest: Codable, Equatable, Hashable, Sendable {
     self.files = try container.decode([ModelPackFile].self, forKey: .files)
     self.license = try container.decode(ModelPackLicense.self, forKey: .license)
     self.size = try container.decode(Int64.self, forKey: .size)
+    self.provenance = try container.decodeIfPresent(ModelPackProvenance.self, forKey: .provenance)
     self.displayName = try container.decodeIfPresent(String.self, forKey: .displayName)
     self.isRecommended = try container.decodeIfPresent(Bool.self, forKey: .isRecommended) ?? false
     self.storeCompatible =
@@ -1134,6 +1211,7 @@ public struct ModelPackManifest: Codable, Equatable, Hashable, Sendable {
       guard let runtimeID, !runtimeID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
         throw ModelPackValidationError.missingStoreRuntime
       }
+      guard provenance != nil else { throw ModelPackValidationError.missingStoreProvenance }
     }
     if let downloadBaseURL {
       guard let url = URL(string: downloadBaseURL), url.scheme?.lowercased() == "https",

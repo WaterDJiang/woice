@@ -21,6 +21,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--info-plist", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--model-root", type=Path)
+    parser.add_argument(
+        "--mlx-bundle",
+        type=Path,
+        help="Xcode 构建的 mlx-swift_Cmlx.bundle；原生 MLX 运行时必须随 App 一起分发。",
+    )
     parser.add_argument("--entitlements", type=Path)
     parser.add_argument("--privacy-manifest", type=Path)
     return parser.parse_args()
@@ -46,7 +51,10 @@ def find_model_version(root: Path) -> tuple[Path, dict]:
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             continue
-        if manifest.get("providerID") == "com.woice.whisperkit":
+        if manifest.get("providerID") in {
+            "com.woice.whisperkit",
+            "com.woice.qwen3-asr",
+        }:
             files = manifest.get("files")
             if not isinstance(files, list) or not files:
                 continue
@@ -66,6 +74,20 @@ def find_model_version(root: Path) -> tuple[Path, dict]:
                 or not notice_path
             ):
                 raise SystemExit("模型清单的许可证标识、来源或 NOTICE 路径不完整，拒绝进入发行包。")
+            if manifest.get("storeCompatible"):
+                provenance = manifest.get("provenance")
+                if not isinstance(provenance, dict) or not all(
+                    isinstance(provenance.get(key), str) and provenance[key].strip()
+                    for key in (
+                        "upstreamModelID",
+                        "upstreamRevision",
+                        "sourceURL",
+                        "derivedFormat",
+                        "conversionTool",
+                        "conversionRevision",
+                    )
+                ):
+                    raise SystemExit("Store 模型清单缺少完整 provenance，拒绝进入发行包。")
             notice_relative = Path(notice_path)
             if (
                 notice_relative.is_absolute()
@@ -94,7 +116,7 @@ def find_model_version(root: Path) -> tuple[Path, dict]:
                 if file_path.stat().st_size != entry.get("byteCount") or digest != entry.get("sha256"):
                     raise SystemExit(f"Offline 模型文件校验失败：{relative}")
             return version_dir, manifest
-    raise SystemExit("Offline 打包需要一个已校验的 WhisperKit 模型包目录。")
+    raise SystemExit("Offline 打包需要一个已校验的本机模型包目录。")
 
 
 def compile_app_icon(brand_exports: Path, resources: Path) -> dict[str, str]:
@@ -229,6 +251,18 @@ def main() -> None:
         shutil.copy2(asset, resources / asset_name)
     plist.update(compile_app_icon(brand_exports, resources))
 
+    if args.mlx_bundle is None:
+        raise SystemExit(
+            "缺少 --mlx-bundle；MLX 原生 Runtime 必须携带 Xcode 生成的 mlx-swift_Cmlx.bundle。"
+        )
+    mlx_bundle = args.mlx_bundle.expanduser().resolve()
+    metallib = mlx_bundle / "Contents" / "Resources" / "default.metallib"
+    if not mlx_bundle.is_dir() or not metallib.is_file() or metallib.is_symlink():
+        raise SystemExit(
+            f"MLX Metal 资源不完整：{mlx_bundle}；需要 Contents/Resources/default.metallib。"
+        )
+    shutil.copytree(mlx_bundle, resources / mlx_bundle.name)
+
     bundled_ids: list[str] = []
     sbom_components = [
         {
@@ -239,6 +273,94 @@ def main() -> None:
             "licenses": ["MIT"],
         }
     ]
+    sbom_components.extend(
+        [
+            {
+                "bom-ref": "pkg:github/vfasky/qwen3-asr-swift@4824c95e1e4624200405d639fb4ebe10f93f1075",
+                "name": "qwen3-asr-swift",
+                "version": "4824c95e1e4624200405d639fb4ebe10f93f1075",
+                "source": "https://github.com/vfasky/qwen3-asr-swift",
+                "licenses": ["Apache-2.0"],
+            },
+            {
+                "bom-ref": "pkg:github/ml-explore/mlx-swift@0.31.6",
+                "name": "mlx-swift",
+                "version": "0.31.6",
+                "source": "https://github.com/ml-explore/mlx-swift",
+                "licenses": ["MIT"],
+            },
+            {
+                "bom-ref": "pkg:github/huggingface/swift-transformers@1.3.3",
+                "name": "swift-transformers",
+                "version": "1.3.3",
+                "source": "https://github.com/huggingface/swift-transformers",
+                "licenses": ["Apache-2.0"],
+            },
+            {
+                "bom-ref": "pkg:github/huggingface/swift-huggingface@0.9.0",
+                "name": "swift-huggingface",
+                "version": "0.9.0",
+                "source": "https://github.com/huggingface/swift-huggingface",
+                "licenses": ["Apache-2.0"],
+            },
+            {
+                "bom-ref": "pkg:github/huggingface/swift-jinja@2.4.2",
+                "name": "swift-jinja",
+                "version": "2.4.2",
+                "source": "https://github.com/huggingface/swift-jinja",
+                "licenses": ["Apache-2.0"],
+            },
+            {
+                "bom-ref": "pkg:github/apple/swift-argument-parser@1.8.2",
+                "name": "swift-argument-parser",
+                "version": "1.8.2",
+                "source": "https://github.com/apple/swift-argument-parser",
+                "licenses": ["Apache-2.0"],
+            },
+            {
+                "bom-ref": "pkg:github/apple/swift-collections@1.6.0",
+                "name": "swift-collections",
+                "version": "1.6.0",
+                "source": "https://github.com/apple/swift-collections",
+                "licenses": ["Apache-2.0"],
+            },
+            {
+                "bom-ref": "pkg:github/apple/swift-crypto@4.5.1",
+                "name": "swift-crypto",
+                "version": "4.5.1",
+                "source": "https://github.com/apple/swift-crypto",
+                "licenses": ["Apache-2.0"],
+            },
+            {
+                "bom-ref": "pkg:github/apple/swift-asn1@1.7.1",
+                "name": "swift-asn1",
+                "version": "1.7.1",
+                "source": "https://github.com/apple/swift-asn1",
+                "licenses": ["Apache-2.0"],
+            },
+            {
+                "bom-ref": "pkg:github/apple/swift-numerics@1.1.1",
+                "name": "swift-numerics",
+                "version": "1.1.1",
+                "source": "https://github.com/apple/swift-numerics",
+                "licenses": ["Apache-2.0"],
+            },
+            {
+                "bom-ref": "pkg:github/mattt/EventSource@1.5.1",
+                "name": "EventSource",
+                "version": "1.5.1",
+                "source": "https://github.com/mattt/EventSource",
+                "licenses": ["MIT"],
+            },
+            {
+                "bom-ref": "pkg:github/ibireme/yyjson@0.12.0",
+                "name": "yyjson",
+                "version": "0.12.0",
+                "source": "https://github.com/ibireme/yyjson",
+                "licenses": ["MIT"],
+            },
+        ]
+    )
     if args.flavor in ("offline", "store") and args.model_root is not None:
         model_root = args.model_root.expanduser().resolve()
         version_dir, manifest = find_model_version(model_root)
@@ -296,14 +418,32 @@ def main() -> None:
     if not notices_source.is_file():
         raise SystemExit(f"缺少第三方 Notices：{notices_source}")
     shutil.copy2(notices_source, resources / "NOTICES.md")
-    dependency_notice = Path.cwd() / ".build" / "checkouts" / "argmax-oss-swift"
-    if dependency_notice.is_dir():
-        target_notice = resources / "ThirdParty" / "argmax-oss-swift"
+    dependency_notices = {
+        "argmax-oss-swift": ("LICENSE", "NOTICES"),
+        "qwen3-asr-swift": ("LICENSE",),
+        "mlx-swift": ("LICENSE",),
+        "swift-transformers": ("LICENSE",),
+        "swift-huggingface": ("LICENSE",),
+        "swift-jinja": ("LICENSE",),
+        "swift-argument-parser": ("LICENSE.txt",),
+        "swift-collections": ("LICENSE.txt",),
+        "swift-crypto": ("LICENSE.txt", "NOTICE.txt"),
+        "swift-asn1": ("LICENSE.txt", "NOTICE.txt"),
+        "swift-numerics": ("LICENSE.txt",),
+        "EventSource": ("LICENSE.md",),
+        "yyjson": ("LICENSE",),
+    }
+    for dependency_name, notice_names in dependency_notices.items():
+        dependency_root = Path.cwd() / ".build" / "checkouts" / dependency_name
+        if not dependency_root.is_dir():
+            raise SystemExit(f"缺少已解析依赖源码，无法生成完整许可证包：{dependency_name}")
+        target_notice = resources / "ThirdParty" / dependency_name
         target_notice.mkdir(parents=True)
-        for name in ("LICENSE", "NOTICES"):
-            source = dependency_notice / name
-            if source.is_file():
-                shutil.copy2(source, target_notice / name)
+        for name in notice_names:
+            source = dependency_root / name
+            if not source.is_file() or source.is_symlink():
+                raise SystemExit(f"依赖许可证文件缺失：{dependency_name}/{name}")
+            shutil.copy2(source, target_notice / name)
     sbom = {
         "schema": "cyclonedx-json-1.5",
         "bomFormat": "CycloneDX",

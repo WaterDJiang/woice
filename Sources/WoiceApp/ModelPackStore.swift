@@ -6,6 +6,11 @@ enum ModelPackStoreError: LocalizedError, Equatable, Sendable {
   case missingFile(String)
   case unsafePath(String)
   case symbolicLink(String)
+  case unexpectedFile(String)
+  case nonRegularFile(String)
+  case executableContent(String)
+  case scriptContent(String)
+  case machOContent(String)
   case byteCountMismatch(String)
   case checksumMismatch(String)
   case invalidManifest(String)
@@ -18,6 +23,11 @@ enum ModelPackStoreError: LocalizedError, Equatable, Sendable {
     case .missingFile(let path): "模型包缺少文件：\(path)"
     case .unsafePath(let path): "模型包路径不安全：\(path)"
     case .symbolicLink(let path): "模型包禁止包含符号链接：\(path)"
+    case .unexpectedFile(let path): "模型包包含清单之外的文件：\(path)"
+    case .nonRegularFile(let path): "模型包只能包含普通文件：\(path)"
+    case .executableContent(let path): "App Store 模型包禁止包含可执行权限文件：\(path)"
+    case .scriptContent(let path): "App Store 模型包禁止包含脚本或可执行类型文件：\(path)"
+    case .machOContent(let path): "App Store 模型包禁止包含 Mach-O 内容：\(path)"
     case .byteCountMismatch(let path): "模型包文件大小校验失败：\(path)"
     case .checksumMismatch(let path): "模型包文件 SHA-256 校验失败：\(path)"
     case .invalidManifest(let message): "模型包清单无效：\(message)"
@@ -25,6 +35,14 @@ enum ModelPackStoreError: LocalizedError, Equatable, Sendable {
     case .cannotDeleteCurrent(let packID): "不能删除当前使用的模型版本：\(packID)；请先切换到其他版本。"
     }
   }
+}
+
+/// Controls how strictly a model directory is admitted. User imports retain
+/// the legacy allowance for additional license metadata, while signed Catalog
+/// packages are data-only and are checked again after atomic installation.
+enum ModelPackInstallPolicy: Equatable, Sendable {
+  case localImport
+  case storeCatalog
 }
 
 enum ModelPackLocation: String, Codable, Equatable, Sendable {
@@ -68,7 +86,9 @@ actor ModelPackStore {
     for manifest in resolvedBundledManifests {
       let directory = bundledDirectoryURL(for: manifest)
       guard fileManager.fileExists(atPath: directory.path) else { continue }
-      try validatePackContents(manifest: manifest, directory: directory)
+      try validatePackContents(
+        manifest: manifest, directory: directory,
+        policy: manifest.storeCompatible ? .storeCatalog : .localImport)
       entries.append(
         ModelPackInventoryEntry(
           manifest: manifest, location: .bundled, isCurrent: false, state: .installed))
@@ -95,7 +115,9 @@ actor ModelPackStore {
         guard isDirectory(versionDirectory), isSafeChild(versionDirectory, of: packDirectory),
           let manifest = try? readManifest(at: versionDirectory)
         else { continue }
-        try validatePackContents(manifest: manifest, directory: versionDirectory)
+        try validatePackContents(
+          manifest: manifest, directory: versionDirectory,
+          policy: manifest.storeCompatible ? .storeCatalog : .localImport)
         entries.append(
           ModelPackInventoryEntry(
             manifest: manifest,
@@ -112,7 +134,11 @@ actor ModelPackStore {
   /// Installs a validated pack from a user-selected directory. The installed
   /// version becomes current only after every file hash and byte count pass.
   @discardableResult
-  func install(manifest: ModelPackManifest, from sourceDirectory: URL) throws -> URL {
+  func install(
+    manifest: ModelPackManifest,
+    from sourceDirectory: URL,
+    policy: ModelPackInstallPolicy = .localImport
+  ) throws -> URL {
     guard isDirectory(sourceDirectory) else { throw ModelPackStoreError.invalidSourceDirectory }
     let destination = downloadedDirectory(for: manifest)
     let packDirectory = destination.deletingLastPathComponent()
@@ -142,7 +168,10 @@ actor ModelPackStore {
         try fileManager.copyItem(at: source, to: target)
       }
       try writeManifest(manifest, to: partial)
-      try validatePackContents(manifest: manifest, directory: partial)
+      let effectivePolicy: ModelPackInstallPolicy =
+        manifest.storeCompatible ? .storeCatalog : policy
+      try validatePackContents(
+        manifest: manifest, directory: partial, policy: effectivePolicy)
       try fileManager.moveItem(at: partial, to: destination)
       try writeCurrentPointer(
         CurrentPointer(packID: manifest.packID, version: manifest.version), to: packDirectory)
@@ -160,7 +189,9 @@ actor ModelPackStore {
     guard let pointer = try? readCurrentPointer(packDirectory: packDirectory) else { return nil }
     let directory = packDirectory.appendingPathComponent(pointer.version, isDirectory: true)
     guard let manifest = try? readManifest(at: directory) else { return nil }
-    try validatePackContents(manifest: manifest, directory: directory)
+    try validatePackContents(
+      manifest: manifest, directory: directory,
+      policy: manifest.storeCompatible ? .storeCatalog : .localImport)
     return manifest
   }
 
@@ -173,7 +204,9 @@ actor ModelPackStore {
     guard isDirectory(directory) else {
       throw ModelPackStoreError.missingFile(manifest.packID + "/" + manifest.version)
     }
-    try validatePackContents(manifest: manifest, directory: directory)
+    try validatePackContents(
+      manifest: manifest, directory: directory,
+      policy: manifest.storeCompatible ? .storeCatalog : .localImport)
     return directory
   }
 
@@ -192,7 +225,9 @@ actor ModelPackStore {
     {
       throw ModelPackStoreError.cannotDeleteCurrent(manifest.packID + "/" + manifest.version)
     }
-    try validatePackContents(manifest: manifest, directory: destination)
+    try validatePackContents(
+      manifest: manifest, directory: destination,
+      policy: manifest.storeCompatible ? .storeCatalog : .localImport)
     try fileManager.removeItem(at: destination)
   }
 
@@ -202,7 +237,9 @@ actor ModelPackStore {
     guard isDirectory(directory) else {
       throw ModelPackStoreError.missingFile(manifest.packID + "/" + manifest.version)
     }
-    try validatePackContents(manifest: manifest, directory: directory)
+    try validatePackContents(
+      manifest: manifest, directory: directory,
+      policy: manifest.storeCompatible ? .storeCatalog : .localImport)
     return directory
   }
 
@@ -257,8 +294,13 @@ actor ModelPackStore {
     try encoder.encode(pointer).write(to: url, options: .atomic)
   }
 
-  private func validatePackContents(manifest: ModelPackManifest, directory: URL) throws {
+  private func validatePackContents(
+    manifest: ModelPackManifest,
+    directory: URL,
+    policy: ModelPackInstallPolicy
+  ) throws {
     try manifest.validate()
+    try validateDiscoveredContents(manifest: manifest, directory: directory, policy: policy)
     for file in manifest.files {
       let url = try safeChild(file.relativePath, of: directory)
       guard fileManager.fileExists(atPath: url.path) else {
@@ -266,6 +308,12 @@ actor ModelPackStore {
       }
       guard !isSymbolicLink(url) else {
         throw ModelPackStoreError.symbolicLink(file.relativePath)
+      }
+      guard isRegularFile(url) else {
+        throw ModelPackStoreError.nonRegularFile(file.relativePath)
+      }
+      if policy == .storeCatalog {
+        try validateStoreFile(url, relativePath: file.relativePath)
       }
       guard let attributes = try? fileManager.attributesOfItem(atPath: url.path),
         let size = attributes[.size] as? NSNumber,
@@ -275,6 +323,89 @@ actor ModelPackStore {
         throw ModelPackStoreError.checksumMismatch(file.relativePath)
       }
     }
+  }
+
+  private func validateDiscoveredContents(
+    manifest: ModelPackManifest,
+    directory: URL,
+    policy: ModelPackInstallPolicy
+  ) throws {
+    guard
+      let enumerator = fileManager.enumerator(
+        at: directory,
+        includingPropertiesForKeys: [.isDirectoryKey, .isRegularFileKey],
+        options: [])
+    else { return }
+    let declaredFiles = Set(manifest.files.map(\.relativePath))
+    var allowed = declaredFiles
+    allowed.insert("manifest.json")
+    // Existing packs may keep the notice outside `files`; permit that one
+    // explicitly while still rejecting every other unaccounted-for payload.
+    allowed.insert(manifest.license.noticePath)
+    for case let url as URL in enumerator {
+      let relative = relativePath(of: url, from: directory)
+      guard !relative.isEmpty else { continue }
+      if isSymbolicLink(url) {
+        throw ModelPackStoreError.symbolicLink(relative)
+      }
+      if isDirectory(url) { continue }
+      guard isRegularFile(url) else {
+        throw ModelPackStoreError.nonRegularFile(relative)
+      }
+      guard allowed.contains(relative) else {
+        if policy == .storeCatalog {
+          throw ModelPackStoreError.unexpectedFile(relative)
+        }
+        continue
+      }
+      if policy == .storeCatalog, relative != "manifest.json" {
+        try validateStoreFile(url, relativePath: relative)
+      }
+    }
+  }
+
+  private func validateStoreFile(_ url: URL, relativePath: String) throws {
+    guard
+      let attributes = try? fileManager.attributesOfItem(atPath: url.path),
+      let permissions = attributes[.posixPermissions] as? NSNumber
+    else { throw ModelPackStoreError.nonRegularFile(relativePath) }
+    if permissions.intValue & 0o111 != 0 {
+      throw ModelPackStoreError.executableContent(relativePath)
+    }
+    let lowercased = relativePath.lowercased()
+    let scriptExtensions = [
+      ".app", ".bundle", ".framework", ".dylib", ".so", ".command", ".exe", ".js", ".mjs",
+      ".py", ".rb", ".sh", ".swift", ".bat", ".cmd",
+    ]
+    if scriptExtensions.contains(where: { lowercased.hasSuffix($0) }) {
+      throw ModelPackStoreError.scriptContent(relativePath)
+    }
+    guard let handle = try? FileHandle(forReadingFrom: url) else {
+      throw ModelPackStoreError.nonRegularFile(relativePath)
+    }
+    defer { try? handle.close() }
+    let header = (try? handle.read(upToCount: 8)) ?? Data()
+    guard header.count >= 4 else { return }
+    let magic = header.prefix(4).reduce(UInt32(0)) { ($0 << 8) | UInt32($1) }
+    let machOMagics: Set<UInt32> = [
+      0xfeed_face, 0xcefa_edfe, 0xfeed_facf, 0xcffa_edfe,
+      0xcafe_babe, 0xbeba_feca, 0xcafe_babf, 0xbfba_feca,
+    ]
+    if machOMagics.contains(magic) {
+      throw ModelPackStoreError.machOContent(relativePath)
+    }
+    if header.first == 0x23, header.dropFirst().first == 0x21 {
+      throw ModelPackStoreError.scriptContent(relativePath)
+    }
+  }
+
+  private func relativePath(of url: URL, from directory: URL) -> String {
+    let base =
+      directory.standardizedFileURL.path.hasSuffix("/")
+      ? directory.standardizedFileURL.path
+      : directory.standardizedFileURL.path + "/"
+    guard url.standardizedFileURL.path.hasPrefix(base) else { return "" }
+    return String(url.standardizedFileURL.path.dropFirst(base.count))
   }
 
   private func safeChild(_ relativePath: String, of directory: URL) throws -> URL {
@@ -299,6 +430,10 @@ actor ModelPackStore {
 
   private func isDirectory(_ url: URL) -> Bool {
     (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
+  }
+
+  private func isRegularFile(_ url: URL) -> Bool {
+    (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true
   }
 
   private func isSymbolicLink(_ url: URL) -> Bool {

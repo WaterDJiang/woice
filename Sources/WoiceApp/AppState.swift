@@ -235,6 +235,7 @@ final class AppState {
   private let transcriptionClient: TranscriptionClient
   private let llmClient: LLMClient
   private let whisperKitModelInstaller: WhisperKitModelInstaller
+  private let qwen3ASRModelDownloader: ModelPackDownloadCoordinator
   private let modelCatalogDownloader: ModelCatalogDownloadCoordinator
   private let modelCatalogConfiguration: ModelCatalogRuntimeConfiguration?
   private let modelCatalogFetcher = ModelCatalogFetcher()
@@ -258,6 +259,7 @@ final class AppState {
   private var backgroundSegmentFailures: [UUID: Set<Int>] = [:]
   private var backgroundTranscriptionChain: Task<Void, Never>?
   private var activeLocalTranscriptionIDs: Set<String> = []
+  private var resumingModelWaitingRecordIDs: Set<UUID> = []
   #if !WOICE_APP_STORE
     private var agentDispatchCancellations: [UUID: ControlledCLICancellation] = [:]
   #endif
@@ -296,6 +298,8 @@ final class AppState {
     self.modelPackStore = ModelPackStore(
       rootURL: store.rootURL, bundledRootURL: bundledModelsRoot)
     self.whisperKitModelInstaller = WhisperKitModelInstaller(
+      rootURL: store.rootURL, modelStore: self.modelPackStore)
+    self.qwen3ASRModelDownloader = ModelPackDownloadCoordinator(
       rootURL: store.rootURL, modelStore: self.modelPackStore)
     self.modelCatalogDownloader = ModelCatalogDownloadCoordinator(
       rootURL: store.rootURL, modelStore: self.modelPackStore)
@@ -349,6 +353,7 @@ final class AppState {
     installGlobalShortcut()
     Task { @MainActor [weak self] in
       await self?.refreshModelPackInventory()
+      await self?.activateSelectedLocalModelIfAvailable()
       await self?.refreshASRProviderInventory()
       await self?.loadLocalModelCatalog()
     }
@@ -681,11 +686,27 @@ final class AppState {
   var localASRModel: ASRModelDescriptor { localTranscription.model }
   var isUsingLocalASR: Bool { shouldUseLocalASR }
 
+  var hasInstalledLocalModelPack: Bool {
+    modelPackInventory.contains { ModelRuntimeRegistry.admission(for: $0.manifest).isAdmitted }
+  }
+
   private func refreshASRProviderInventory() async {
-    let localModelAvailable = localASRModel.providerID == "com.woice.whisperkit"
+    // Provider health is derived from the verified inventory, not from the
+    // persisted provider snapshot alone. A stale setting must never make an
+    // unavailable or unapproved Runtime look ready.
+    let selectedLocalPack = modelPackInventory.first(where: {
+      $0.manifest.providerID == localASRModel.providerID
+        && $0.manifest.modelID == localASRModel.modelID
+        && $0.manifest.version == localASRModel.version
+        && ModelRuntimeRegistry.admission(for: $0.manifest).isAdmitted
+    })
+    let localModelAvailable = selectedLocalPack != nil
+    let localProviderID = selectedLocalPack?.manifest.providerID
     do {
       let resolved = try await asrProviderRegistry.resolve(
-        configuration: settings.asrConfiguration, localModelAvailable: localModelAvailable)
+        configuration: settings.asrConfiguration,
+        localModelAvailable: localModelAvailable,
+        localProviderID: localProviderID)
       try await asrProviderRegistry.updateHealth(
         providerID: resolved.providerID, health: resolved.health)
     } catch {
@@ -790,6 +811,37 @@ final class AppState {
     }
   }
 
+  /// Loads the user-selected verified Runtime after startup inventory is
+  /// available. The synchronous initializer keeps launch responsive and may
+  /// temporarily use the macOS fallback until this boundary completes.
+  private func activateSelectedLocalModelIfAvailable() async {
+    guard !WoiceTestRuntimeConfiguration.usesFixtureTranscription,
+      let packID = settings.selectedLocalModelPackID,
+      let version = settings.selectedLocalModelVersion,
+      let item = modelPackInventory.first(where: {
+        $0.manifest.packID == packID && $0.manifest.version == version
+      }),
+      ModelRuntimeRegistry.admission(for: item.manifest).isAdmitted
+    else { return }
+    let current = localTranscription.model
+    guard
+      current.providerID != item.manifest.providerID
+        || current.modelID != item.manifest.modelID
+        || current.version != item.manifest.version
+    else { return }
+    do {
+      let folder =
+        try await
+        (item.location == .bundled
+        ? modelPackStore.bundledDirectory(for: item.manifest)
+        : modelPackStore.installedDirectory(for: item.manifest))
+      localTranscription = try ModelRuntimeRegistry.makeProvider(
+        manifest: item.manifest, modelFolder: folder)
+    } catch {
+      errorMessage = "本机模型启动失败：\(error.localizedDescription)；原始录音仍安全保存在本机。"
+    }
+  }
+
   var canUpdateModelCatalog: Bool {
     modelCatalogConfiguration != nil && modelCatalogStore != nil
   }
@@ -847,8 +899,12 @@ final class AppState {
   }
 
   func isModelPackInstalled(entry: WhisperKitModelCatalogEntry) -> Bool {
+    isModelPackInstalled(packID: entry.packID, version: entry.modelRevision)
+  }
+
+  func isModelPackInstalled(packID: String, version: String) -> Bool {
     modelPackInventory.contains {
-      $0.manifest.packID == entry.packID && $0.manifest.version == entry.modelRevision
+      $0.manifest.packID == packID && $0.manifest.version == version
     }
   }
 
@@ -903,6 +959,64 @@ final class AppState {
       modelInstallCoordinator.cancel(packID: task.packID, version: task.version)
     }
     modelDownloadTask?.cancel()
+  }
+
+  func cancelModelDownload() {
+    cancelWhisperKitModelDownload()
+  }
+
+  func startQwen3ASRModelDownload(
+    intent: ModelInstallIntent = ModelInstallIntent(entryPoint: .settings)
+  ) {
+    let entry = Qwen3ASRModelCatalogEntry.recommended
+    guard
+      !isDownloadingModel
+        || modelInstallCoordinator.isActive(
+          packID: Qwen3ASRModelCatalogEntry.packID,
+          version: Qwen3ASRModelCatalogEntry.derivedRevision)
+    else { return }
+    modelDownloadTask = Task { @MainActor [weak self] in
+      guard let self else { return false }
+      defer { self.modelDownloadTask = nil }
+      return await self.installQwen3ASRModel(entry: entry, intent: intent)
+    }
+  }
+
+  func cancelQwen3ASRModelDownload() {
+    cancelWhisperKitModelDownload()
+  }
+
+  func downloadQwen3ASRModel() async -> Bool {
+    await installQwen3ASRModel(entry: .recommended, intent: nil)
+  }
+
+  private func installQwen3ASRModel(
+    entry: Qwen3ASRModelCatalogEntry,
+    intent: ModelInstallIntent?
+  ) async -> Bool {
+    let manifest = entry.manifest
+    if let intent {
+      attachModelInstallIntent(
+        intent, packID: manifest.packID, version: manifest.version)
+    }
+    let task = modelInstallCoordinator.enqueue(
+      packID: manifest.packID,
+      version: manifest.version
+    ) { [weak self] in
+      guard let self else { return false }
+      if let catalog = await self.verifiedCatalog(
+        containingPackID: manifest.packID, version: manifest.version)
+      {
+        return await self.performVerifiedCatalogModel(
+          catalog: catalog,
+          packID: manifest.packID,
+          version: manifest.version,
+          initialIntent: intent)
+      }
+      return await self.performQwen3ASRModelDownload(
+        entry: entry, initialIntent: intent)
+    }
+    return await task.value
   }
 
   /// Downloads a catalogued model after an explicit user action. All three UI
@@ -1006,7 +1120,10 @@ final class AppState {
         _ = try? updateModelDownloadTask(
           id: taskID, state: .verifying, completedBytes: catalog.estimatedBytes,
           lastError: nil)
-        let provider = try WhisperKitTranscriptionService(
+        _ = try? updateModelDownloadTask(
+          id: taskID, state: .installing, completedBytes: catalog.estimatedBytes,
+          lastError: nil)
+        let provider = try ModelRuntimeRegistry.makeProvider(
           manifest: result.manifest, modelFolder: result.installedURL)
         _ = try? updateModelDownloadTask(
           id: taskID, state: .activating, completedBytes: catalog.estimatedBytes,
@@ -1023,6 +1140,7 @@ final class AppState {
           id: taskID, state: .installed, completedBytes: catalog.estimatedBytes, lastError: nil)
         await refreshModelPackInventory()
         await refreshASRProviderInventory()
+        resumeWaitingForModelTranscriptions()
         errorMessage = nil
         presentActionFeedback(.success("模型已下载并安装"))
         return true
@@ -1044,16 +1162,142 @@ final class AppState {
     #endif
   }
 
+  /// Downloads the pinned Qwen3-ASR MLX pack through the generic data-only
+  /// downloader. Store builds must use a verified Catalog; Core builds may use
+  /// the fixed HTTPS manifest above and still go through SHA-256 installation.
+  private func performQwen3ASRModelDownload(
+    entry: Qwen3ASRModelCatalogEntry,
+    initialIntent: ModelInstallIntent?
+  ) async -> Bool {
+    #if WOICE_APP_STORE
+      errorMessage = "当前 App Store 版本只接受已验证的模型清单；请先检查模型清单。"
+      presentActionFeedback(.failure("模型清单不可用"))
+      return false
+    #else
+      guard !isDownloadingModel else { return false }
+      let manifest = entry.manifest
+      guard let baseURL = URL(string: Qwen3ASRModelCatalogEntry.downloadBaseURL) else {
+        errorMessage = "Qwen3-ASR 模型下载地址无效；当前模型和录音未改变。"
+        presentActionFeedback(.failure("模型下载地址无效"))
+        return false
+      }
+      isDownloadingModel = true
+      modelDownloadProgress = nil
+      errorMessage = nil
+      let taskID: UUID
+      do {
+        if let existing = modelDownloadTasks.first(where: {
+          $0.packID == manifest.packID && $0.version == manifest.version
+        }) {
+          taskID = existing.id
+        } else {
+          taskID = UUID()
+        }
+        let existingTask = modelDownloadTasks.first(where: {
+          $0.packID == manifest.packID && $0.version == manifest.version
+        })
+        let task = try ModelDownloadTask(
+          id: taskID,
+          packID: manifest.packID,
+          version: manifest.version,
+          state: .preflighting,
+          completedBytes: existingTask?.completedBytes ?? 0,
+          totalBytes: manifest.size,
+          stagingPath: store.rootURL.appendingPathComponent(
+            "downloads/\(manifest.packID)-\(manifest.version).partial"
+          ).path,
+          lastError: nil,
+          intents: mergedIntents(existingTask?.intents ?? [], adding: initialIntent),
+          createdAt: existingTask?.createdAt ?? Date(),
+          updatedAt: Date())
+        try store.saveModelDownloadTask(task)
+        modelDownloadTasks = store.loadModelDownloadTasks()
+        activeModelDownloadTaskID = taskID
+        _ = try? updateModelDownloadTask(
+          id: taskID,
+          state: .downloading,
+          completedBytes: existingTask?.completedBytes ?? 0,
+          lastError: nil)
+      } catch {
+        isDownloadingModel = false
+        errorMessage = "模型下载任务无法保存：\(error.localizedDescription)；当前模型和录音未改变。"
+        presentActionFeedback(.failure("模型下载任务保存失败"))
+        return false
+      }
+      defer {
+        isDownloadingModel = false
+        activeModelDownloadTaskID = nil
+        if modelDownloadProgress?.fractionCompleted == 1 { modelDownloadProgress = nil }
+      }
+      do {
+        let installedURL = try await qwen3ASRModelDownloader.download(
+          manifest: manifest,
+          baseURL: baseURL,
+          policy: .localImport,
+          progress: { [weak self] progress in
+            Task { @MainActor [weak self] in
+              self?.updateModelDownloadProgress(
+                progress, taskID: taskID, totalBytes: manifest.size)
+            }
+          })
+        _ = try? updateModelDownloadTask(
+          id: taskID, state: .verifying, completedBytes: manifest.size, lastError: nil)
+        _ = try? updateModelDownloadTask(
+          id: taskID, state: .installing, completedBytes: manifest.size, lastError: nil)
+        let provider = try ModelRuntimeRegistry.makeProvider(
+          manifest: manifest, modelFolder: installedURL)
+        _ = try? updateModelDownloadTask(
+          id: taskID, state: .activating, completedBytes: manifest.size, lastError: nil)
+        var updatedSettings = settings
+        updatedSettings.selectedLocalModelPackID = manifest.packID
+        updatedSettings.selectedLocalModelVersion = manifest.version
+        updatedSettings.asrProviderSelection = .onDevice
+        try store.saveSettings(updatedSettings)
+        localTranscription = provider
+        settings = updatedSettings
+        withdrawExternalASRRequestsForLocalRoute()
+        try updateModelDownloadTask(
+          id: taskID, state: .installed, completedBytes: manifest.size, lastError: nil)
+        await refreshModelPackInventory()
+        await refreshASRProviderInventory()
+        resumeWaitingForModelTranscriptions()
+        errorMessage = nil
+        presentActionFeedback(.success("Qwen3-ASR 模型已下载并安装"))
+        return true
+      } catch is CancellationError {
+        _ = try? updateModelDownloadTask(
+          id: taskID, state: .paused, completedBytes: currentDownloadBytes(taskID: taskID),
+          lastError: "用户取消下载；点击继续即可恢复。")
+        errorMessage = "模型下载已取消；当前本机模型和录音未改变。"
+        presentActionFeedback(.failure("模型下载已取消"))
+        return false
+      } catch {
+        _ = try? updateModelDownloadTask(
+          id: taskID, state: .failed, completedBytes: currentDownloadBytes(taskID: taskID),
+          lastError: error.localizedDescription)
+        errorMessage = "Qwen3-ASR 模型下载失败：\(error.localizedDescription)；当前本机模型和录音未改变。"
+        presentActionFeedback(.failure("Qwen3-ASR 模型下载失败"))
+        return false
+      }
+    #endif
+  }
+
   /// Consumes only the last locally verified Catalog snapshot. If a matching
   /// entry exists, the generic downloader is mandatory; the legacy pinned
   /// WhisperKit Hub installer is used only when no Catalog entry is present.
   private func verifiedCatalog(containing entry: WhisperKitModelCatalogEntry) async
     -> ModelCatalog?
   {
+    await verifiedCatalog(containingPackID: entry.packID, version: entry.modelRevision)
+  }
+
+  private func verifiedCatalog(containingPackID packID: String, version: String) async
+    -> ModelCatalog?
+  {
     guard let modelCatalogStore else { return nil }
     guard let catalog = await modelCatalogStore.snapshot(),
       catalog.entries.contains(where: {
-        $0.packID == entry.packID && $0.version == entry.modelRevision
+        $0.packID == packID && $0.version == version
       })
     else { return nil }
     return catalog
@@ -1082,9 +1326,15 @@ final class AppState {
       presentActionFeedback(.failure("找不到模型清单条目"))
       return false
     }
-    guard manifest.providerID == "com.woice.whisperkit" else {
-      errorMessage = "当前版本暂不支持该模型 Provider：\(manifest.providerID)。"
-      presentActionFeedback(.failure("模型 Provider 暂不支持"))
+    guard ModelRuntimeRegistry.admission(for: manifest).isAdmitted else {
+      let reason: String
+      if case .unavailable(let message) = ModelRuntimeRegistry.admission(for: manifest) {
+        reason = message
+      } else {
+        reason = "没有随 App 签名的受信 Runtime。"
+      }
+      errorMessage = "当前模型 Runtime 不可用：\(reason)"
+      presentActionFeedback(.failure("模型 Runtime 暂不支持"))
       return false
     }
     guard !isDownloadingModel else { return false }
@@ -1148,7 +1398,9 @@ final class AppState {
         })
       _ = try? updateModelDownloadTask(
         id: taskID, state: .verifying, completedBytes: manifest.size, lastError: nil)
-      let provider = try WhisperKitTranscriptionService(
+      _ = try? updateModelDownloadTask(
+        id: taskID, state: .installing, completedBytes: manifest.size, lastError: nil)
+      let provider = try ModelRuntimeRegistry.makeProvider(
         manifest: manifest, modelFolder: result)
       _ = try? updateModelDownloadTask(
         id: taskID, state: .activating, completedBytes: manifest.size, lastError: nil)
@@ -1164,6 +1416,7 @@ final class AppState {
         id: taskID, state: .installed, completedBytes: manifest.size, lastError: nil)
       await refreshModelPackInventory()
       await refreshASRProviderInventory()
+      resumeWaitingForModelTranscriptions()
       presentActionFeedback(.success("模型已下载并安装"))
       return true
     } catch is CancellationError {
@@ -1297,6 +1550,33 @@ final class AppState {
     modelDownloadTasks = store.loadModelDownloadTasks()
   }
 
+  /// Rehydrates material requests that were intentionally kept at
+  /// `waitingForModel`. This runs only after a verified Runtime is activated;
+  /// it never scans or sends audio during app startup by itself.
+  private func resumeWaitingForModelTranscriptions() {
+    let candidateIDs = Set(
+      recordings.compactMap { record in
+        record.processingTasks.contains(where: {
+          $0.kind == .transcription && $0.status == .waitingForModel
+        }) ? record.id : nil
+      })
+    for recordID in candidateIDs where resumingModelWaitingRecordIDs.insert(recordID).inserted {
+      Task { @MainActor [weak self] in
+        guard let self else { return }
+        defer { self.resumingModelWaitingRecordIDs.remove(recordID) }
+        guard let record = self.recordings.first(where: { $0.id == recordID }) else { return }
+        let tracks = self.transcriptionTracks(for: record)
+        if tracks.count > 1 {
+          for track in tracks {
+            await self.processLocalTranscription(for: recordID, sourceTrack: track)
+          }
+        } else {
+          await self.processLocalTranscription(for: recordID, sourceTrack: tracks.first)
+        }
+      }
+    }
+  }
+
   /// Installs a user-selected, already downloaded model directory. This is
   /// deliberately explicit; no URL is fetched and no existing model is
   /// replaced until ModelPackStore has verified every file.
@@ -1305,18 +1585,16 @@ final class AppState {
       let manifest = try await modelPackStore.loadManifest(from: sourceDirectory)
       let installedURL = try await modelPackStore.install(
         manifest: manifest, from: sourceDirectory)
-      if manifest.providerID == "com.woice.whisperkit" {
-        let provider = try WhisperKitTranscriptionService(
-          manifest: manifest, modelFolder: installedURL)
-        var updatedSettings = settings
-        updatedSettings.selectedLocalModelPackID = manifest.packID
-        updatedSettings.selectedLocalModelVersion = manifest.version
-        updatedSettings.asrProviderSelection = .onDevice
-        try store.saveSettings(updatedSettings)
-        localTranscription = provider
-        settings = updatedSettings
-        withdrawExternalASRRequestsForLocalRoute()
-      }
+      let provider = try ModelRuntimeRegistry.makeProvider(
+        manifest: manifest, modelFolder: installedURL)
+      var updatedSettings = settings
+      updatedSettings.selectedLocalModelPackID = manifest.packID
+      updatedSettings.selectedLocalModelVersion = manifest.version
+      updatedSettings.asrProviderSelection = .onDevice
+      try store.saveSettings(updatedSettings)
+      localTranscription = provider
+      settings = updatedSettings
+      withdrawExternalASRRequestsForLocalRoute()
       await refreshModelPackInventory()
       await refreshASRProviderInventory()
       errorMessage = nil
@@ -1338,7 +1616,7 @@ final class AppState {
         let item = try await modelPackStore.inventory().first(where: {
           $0.manifest.packID == packID && $0.manifest.version == version
         }),
-        item.manifest.providerID == "com.woice.whisperkit"
+        ModelRuntimeRegistry.admission(for: item.manifest).isAdmitted
       else {
         throw ModelPackStoreError.invalidManifest("找不到已安装的本机模型版本。")
       }
@@ -1347,7 +1625,7 @@ final class AppState {
         (item.location == .bundled
         ? modelPackStore.bundledDirectory(for: item.manifest)
         : modelPackStore.installedDirectory(for: item.manifest))
-      let provider = try WhisperKitTranscriptionService(
+      let provider = try ModelRuntimeRegistry.makeProvider(
         manifest: item.manifest, modelFolder: modelFolder)
       var updatedSettings = settings
       updatedSettings.selectedLocalModelPackID = packID

@@ -4,7 +4,7 @@ APP_NAME := Woice
 BUILD_DIR := .build/release
 APP_BUNDLE := build/Woice.app
 
-.PHONY: docs-check harness-check appicon-check release-manifest-check model-package-check release-verify-remote store-capability-check connectors-check mcp-check project xcode-project xcode-list xcode-build-store build test package package-core package-offline package-store package-dmg-core package-dmg-offline release-adhoc release-developer-id model-benchmark-fixture model-benchmark model-benchmark-strict install format lint acceptance-core acceptance-whisperkit acceptance-meeting acceptance-meeting-transcription acceptance-settings acceptance-material acceptance-recovery acceptance-catalog acceptance-interruption acceptance-offline-model acceptance-local-provider acceptance-agent-outbound acceptance-agent-inbound acceptance-agent-external-inbound acceptance-workspace-sidebar acceptance-media-import-transcription acceptance-media-import-desktop acceptance-permission-continuity acceptance-stable-upgrade acceptance-launch-window acceptance-accessibility-runtime verify verify-core verify-offline verify-app-store archive-app-store acceptance-app-store-sandbox acceptance-app-store-clean-user
+.PHONY: docs-check harness-check appicon-check release-manifest-check model-package-check release-verify-remote store-capability-check connectors-check mcp-check project xcode-project xcode-list xcode-build-direct xcode-build-store build test package package-core package-offline package-store package-dmg-core package-dmg-offline release-adhoc release-developer-id model-benchmark-fixture model-benchmark model-benchmark-strict install format lint acceptance-core acceptance-whisperkit acceptance-meeting acceptance-meeting-transcription acceptance-settings acceptance-material acceptance-recovery acceptance-catalog acceptance-interruption acceptance-offline-model acceptance-local-provider acceptance-agent-outbound acceptance-agent-inbound acceptance-agent-external-inbound acceptance-workspace-sidebar acceptance-media-import-transcription acceptance-media-import-desktop acceptance-permission-continuity acceptance-stable-upgrade acceptance-launch-window acceptance-accessibility-runtime verify verify-core verify-offline verify-app-store archive-app-store acceptance-app-store-sandbox acceptance-app-store-clean-user
 
 docs-check:
 	@test -f doc/INDEX.md
@@ -194,8 +194,11 @@ xcode-project:
 xcode-list: xcode-project
 	@xcodebuild -list -project Woice.xcodeproj
 
+xcode-build-direct: xcode-project
+	@xcodebuild -quiet -project Woice.xcodeproj -scheme Woice-Store -configuration Release-Direct -sdk macosx -derivedDataPath .build/xcode-direct-derived ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO -skipPackagePluginValidation build
+
 xcode-build-store: xcode-project
-	@xcodebuild -project Woice.xcodeproj -scheme Woice-Store -configuration Release-AppStore -sdk macosx -derivedDataPath .build/xcode-derived CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
+	@xcodebuild -project Woice.xcodeproj -scheme Woice-Store -configuration Release-AppStore -sdk macosx -derivedDataPath .build/xcode-derived CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO -skipPackagePluginValidation build
 	@python3 scripts/verify_xcode_store_bundle.py --app .build/xcode-derived/Build/Products/Release-AppStore/Woice.app
 
 build: project
@@ -204,22 +207,22 @@ build: project
 test: project
 	@swift test --no-parallel
 
-package: build
-	@python3 scripts/package_distribution.py --flavor core --binary "$(BUILD_DIR)/Woice" --info-plist Resources/Info.plist --output "$(APP_BUNDLE)"
+package: xcode-build-direct
+	@python3 scripts/package_distribution.py --flavor core --binary .build/xcode-direct-derived/Build/Products/Release-Direct/Woice.app/Contents/MacOS/Woice --mlx-bundle .build/xcode-direct-derived/Build/Products/Release-Direct/Woice.app/Contents/Resources/mlx-swift_Cmlx.bundle --info-plist Resources/Info.plist --output "$(APP_BUNDLE)"
 
-package-core: build
-	@python3 scripts/package_distribution.py --flavor core --binary "$(BUILD_DIR)/Woice" --info-plist Resources/Info.plist --output build/Woice-Core.app
+package-core: xcode-build-direct
+	@python3 scripts/package_distribution.py --flavor core --binary .build/xcode-direct-derived/Build/Products/Release-Direct/Woice.app/Contents/MacOS/Woice --mlx-bundle .build/xcode-direct-derived/Build/Products/Release-Direct/Woice.app/Contents/Resources/mlx-swift_Cmlx.bundle --info-plist Resources/Info.plist --output build/Woice-Core.app
 
-package-offline: build
+package-offline: xcode-build-direct
 	@test -n "$(WOICE_OFFLINE_MODEL_ROOT)" || { echo "WOICE_OFFLINE_MODEL_ROOT 未设置；请显式提供已验证模型目录。"; exit 1; }
-	@python3 scripts/package_distribution.py --flavor offline --binary "$(BUILD_DIR)/Woice" --info-plist Resources/Info.plist --model-root "$(WOICE_OFFLINE_MODEL_ROOT)" --output build/Woice-Offline.app
+	@python3 scripts/package_distribution.py --flavor offline --binary .build/xcode-direct-derived/Build/Products/Release-Direct/Woice.app/Contents/MacOS/Woice --mlx-bundle .build/xcode-direct-derived/Build/Products/Release-Direct/Woice.app/Contents/Resources/mlx-swift_Cmlx.bundle --info-plist Resources/Info.plist --model-root "$(WOICE_OFFLINE_MODEL_ROOT)" --output build/Woice-Offline.app
 
-package-store: project appicon-check model-package-check
+package-store: xcode-build-store appicon-check model-package-check
 	@set -euo pipefail; \
-		WOICE_DISTRIBUTION=app-store swift build -c release; \
 		package_args=( \
 			--flavor store \
-			--binary "$(BUILD_DIR)/Woice" \
+			--binary .build/xcode-derived/Build/Products/Release-AppStore/Woice.app/Contents/MacOS/Woice \
+			--mlx-bundle .build/xcode-derived/Build/Products/Release-AppStore/Woice.app/Contents/Resources/mlx-swift_Cmlx.bundle \
 			--info-plist Resources/Info.plist \
 			--output build/Woice-Store.app \
 			--entitlements Resources/Woice-Store.entitlements \
@@ -234,10 +237,10 @@ package-dmg-core: package-core
 package-dmg-offline: package-offline
 	@python3 scripts/package_dmg.py --app build/Woice-Offline.app --output build/Woice-Offline.dmg --volume-name Woice-Offline
 
-release-adhoc: docs-check harness-check build
+release-adhoc: docs-check harness-check xcode-build-direct
 	@test -n "$(WOICE_OFFLINE_MODEL_ROOT)" || { echo "WOICE_OFFLINE_MODEL_ROOT 未设置；不会伪造 Offline 预发布包。"; exit 1; }
-	@WOICE_CODESIGN_IDENTITY=- python3 scripts/package_distribution.py --flavor core --binary "$(BUILD_DIR)/Woice" --info-plist Resources/Info.plist --output build/Woice-Core.app
-	@WOICE_CODESIGN_IDENTITY=- python3 scripts/package_distribution.py --flavor offline --binary "$(BUILD_DIR)/Woice" --info-plist Resources/Info.plist --model-root "$(WOICE_OFFLINE_MODEL_ROOT)" --output build/Woice-Offline.app
+	@WOICE_CODESIGN_IDENTITY=- python3 scripts/package_distribution.py --flavor core --binary .build/xcode-direct-derived/Build/Products/Release-Direct/Woice.app/Contents/MacOS/Woice --mlx-bundle .build/xcode-direct-derived/Build/Products/Release-Direct/Woice.app/Contents/Resources/mlx-swift_Cmlx.bundle --info-plist Resources/Info.plist --output build/Woice-Core.app
+	@WOICE_CODESIGN_IDENTITY=- python3 scripts/package_distribution.py --flavor offline --binary .build/xcode-direct-derived/Build/Products/Release-Direct/Woice.app/Contents/MacOS/Woice --mlx-bundle .build/xcode-direct-derived/Build/Products/Release-Direct/Woice.app/Contents/Resources/mlx-swift_Cmlx.bundle --info-plist Resources/Info.plist --model-root "$(WOICE_OFFLINE_MODEL_ROOT)" --output build/Woice-Offline.app
 	@python3 scripts/package_dmg.py --app build/Woice-Core.app --output build/Woice-Core.dmg --volume-name Woice-Core
 	@python3 scripts/package_dmg.py --app build/Woice-Offline.app --output build/Woice-Offline.dmg --volume-name Woice-Offline
 	@set -euo pipefail; \

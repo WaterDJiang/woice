@@ -1,6 +1,6 @@
 # M2-02 本机实时转写预览
 
-> 状态：基础实现完成；仅使用 macOS Speech 的 on-device 模式，不把实时预览写入原始 Transcript；主动授权后的人工 partial Journey 待解锁桌面验收。
+> 状态：代码与自动门禁完成；工作台和菜单栏已显示 on-device partial，不写入原始 Transcript；真实 Speech 授权与 partial 体验只作人工提示。
 
 ## 目标
 

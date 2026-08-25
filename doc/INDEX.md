@@ -15,9 +15,9 @@
 
 - 当前实施顺序与旧计划状态只看[当前路线图与计划迁移表](plan/2026-08-22-current-roadmap-and-plan-transition.md)：R0 录音核心收口 -> M2-08 ASR/模型/双版本 -> R2 素材库收口 -> M2-09 Agent 协作。旧 M3 插件生态已停止，旧总计划不能单独作为当前排期来源。
 - [工作区侧栏与权限连续性优化计划](plan/2026-08-23-workspace-sidebar-and-permission-continuity.md)只保留历史实施与证据；全部未完成项已迁出，WPC 无活动待办。
-- [当前技术开发收口计划](plan/2026-08-24-current-technical-development-closure.md)是唯一活动开发源：新增 WCL-07 承接本机模型一键安装、Qwen3-ASR-0.6B 和 Store-compatible Runtime；WCL-00～07 只列技术工作，真实用户与真实体验仅作提醒。
+- [当前技术开发收口计划](plan/2026-08-24-current-technical-development-closure.md)是唯一活动开发源：WCL-07 正在承接本机模型一键安装、Qwen3-ASR-0.6B 和 Store-compatible Runtime；Apache-2.0 原生 Swift/MLX Runtime 已获确认，Runtime、固定模型包、来源/SHA、Notice/SBOM 与 Core/Store Bundle 门禁已通过，正式性能矩阵、签名 Catalog 和真实录音仍待；WCL-00～07 只列技术工作，真实用户与真实体验仅作提醒。
 - [菜单栏、设置、快捷键与 Dock 图标精简优化计划](plan/2026-08-23-menubar-settings-shortcut-optimization.md)已完成 MSS-07R 代码与自动测试收口：Popover、四动作、设置分层、快捷键、Bundle AppIcon、录音来源命名、loopback 信任持久化、工作台确认、可恢复“稍后处理”、主/片段任务去重和活动转写状态投影已落地；专项证据 Build `2026082332` 保留为历史记录，当前安装包基线是 `2026082408`；云端稍后处理和视觉/TCC Journey 仍按[进度复核](plan/2026-08-23-plan-progress-review.md)及手册验收。
-- [当前计划进度复核](plan/2026-08-23-plan-progress-review.md)是当前进度真相源：既有录音与模型基线通过；WCL-07 一键模型安装/Qwen Runtime 待开发，WCL-04 因发行凭据阻塞，WCL-06 的签名 Archive/上架仍待外部条件。
+- [当前计划进度复核](plan/2026-08-23-plan-progress-review.md)是当前进度真相源：既有录音与 WhisperKit 模型基线通过；WCL-07 的一键安装/Qwen Runtime 已完成代码与本机 Bundle 门禁，正式性能/Catalog 待收口；WCL-04 因发行凭据阻塞，WCL-06 的签名 Archive/上架仍待外部条件。
 - [Mac App Store 上架计划](plan/2026-08-23-mac-app-store-launch.md)已完成 MAS-03 本机能力裁剪、正式 Xcode Store 组合根生成、无签名构建和 Store 资源/SBOM 门禁；Store Edition 使用单一商店记录，仍单独承接签名 Archive、App Sandbox、隐私/素材、TestFlight 和审核；官网 Core/Offline 的 Developer ID/公证仍留在 M1-07/M2-08i，MAS-00～02、MAS-04～08 待账号与外部条件。
 - [公开 GitHub 仓库与 ad hoc 预发布准备](../specs/2026-08-24-public-github-adhoc-release-preparation.md)已完成并推送到公开 GitHub；随后已发布 [Woice v0.1.2 Core](https://github.com/WaterDJiang/woice/releases/tag/v0.1.2)，仅提供 Apple Silicon 的无模型 Core DMG 与 SHA-256 清单。产物未公证，不替代 Developer ID/Notarization 发行门禁；含模型 Offline 仍不属于本次 Release。
 - [录音与转写产品升级门禁](plan/2026-08-22-recording-product-upgrade.md)已并入当前路线图：文档只保留 1,650 条 App Store 评论、设置页截图与验收门禁；录音、双轨会议 ASR、模型、素材与发布分别由 M1-02/M1-04/M2-01/M2-03/M2-08 承接，不再使用 `UP-*` 工作包或第二套工期。
@@ -27,6 +27,7 @@
 - 当前提醒：M1 麦克风录音/Large-v3 主链已通过；M2-01 双轨系统会议转写由用户手动验收并记为通过；逐项 TCC/真实会议应用、全桌面、多窗口和长时矩阵只作人工体验提醒。
 - 当前增量：工作台顶部以“麦克风”“电脑声音”两个按钮选择下一次录音来源，默认双开；双关时禁止开始，录音中锁定来源。新录音直接写入 AAC/M4A，双开生成会议合成；详情页只按需打开当前选中音轨，原文和时间轴在固定窗口内滚动。旧素材不转码、不覆盖。
 - 当前增量：菜单栏使用中性音源状态按钮，开始录音是唯一蓝色主动作并使用独立的录制图标；工作台顶部移除悬空的导入按钮、右上角录音控制组和居中的空闲状态胶囊，导入/开始录音保留在素材空状态。详见 `specs/2026-08-25-recording-control-visual-hierarchy.md`。
+- 当前增量：录音实时文字已在工作台和菜单栏可见，开关移到录音设置首层；菜单栏 Popover 支持点击外部收起，导入页收紧并支持单文件拖放。详见 `specs/2026-08-25-live-preview-popover-and-import-ux.md`。
 - 最近决策：先把录音到可复用上下文做完整，再接外部 Agent；不在 Woice 内建设通用 Agent Loop 或多 Agent 控制台。
 - 当前增量：录音详情不再承载 TTS；文字/文件转音频进入独立窗口；本机 ASR 对已关闭声音片段后台串行处理，外部 ASR 仍停止后确认外发。详见[独立 TTS 与后台转写规格](spec/2026-08-22-independent-tts-and-background-transcription.md)。
 - 当前增量：修复已失败本机转写任务在切换模型后无法重新取得 Lease 的问题；重试保存当前模型快照，同一录音重复点击不并发。详见[模型切换后的已有录音重转写规格](spec/2026-08-22-model-switch-retranscription.md)。

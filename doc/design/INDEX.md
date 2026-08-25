@@ -8,5 +8,6 @@
 | 架构、技术栈、组件、UI/UX 基线 | 已实施，待真实 UI 验收 | Swift 模块化单体；连接器只走本地 RPC；macOS 原生界面 | [开发计划第 4-8 节](../plan/2026-08-22-m0-mvp.md#4-技术栈) |
 | 设置页 UI/UX | 已实施，待解锁桌面人工 Journey | 侧栏分组、独立设置草稿、ASR 健康检查、Keychain 字段和可执行错误文案 | [2026-08-22-settings-ui-ux.md](2026-08-22-settings-ui-ux.md) |
 | 音频回调写入并发边界 | 已采用 | 实时回调使用锁保护写入器和串行队列，不跨 MainActor；`@unchecked Sendable` 限定在边界 | [2026-08-22-system-audio-buffer-concurrency.md](2026-08-22-system-audio-buffer-concurrency.md) |
+| Qwen3-ASR 本机 Runtime 许可证与接入 | 已确认；Runtime/模型包已验证，性能与 Catalog 待收口 | Apache-2.0 原生 Swift/MLX Runtime 已固定提交并进入 Core/Store in-process 构建；Qwen 正式推荐仍受性能与签名 Catalog 门禁约束 | [2026-08-25-qwen3-asr-runtime-decision.md](2026-08-25-qwen3-asr-runtime-decision.md) |
 
 新增不可逆技术决策时，创建 `YYYY-MM-DD-{主题}.md`，并在此登记；不要把临时讨论写成 ADR。

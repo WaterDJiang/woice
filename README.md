@@ -11,11 +11,11 @@ Woice 帮你把主动录下的声音变成可复听、可搜索、可导出的�
 | 下载包 | 是否包含第三方模型权重 | 适合谁 |
 |---|---|---|
 | `Woice-Core-…-arm64.dmg` | 否 | 已有本机 ASR 服务，或愿意在 App 内自行下载模型的用户 |
-| `Woice-Offline-…-arm64.dmg` | 是，包含一个已校验的 WhisperKit 模型包 | 希望离线完成首次录音与转写的用户 |
+| `Woice-Offline-…-arm64.dmg` | 是，v0.1.3 包含已校验的 Qwen3-ASR-0.6B 4-bit 本机模型 | 希望下载后直接离线转写的 Apple Silicon 用户 |
 
 两个包使用同一 App、数据目录和功能集；Offline 仅多出一个随包模型。切换安装包不会删除你的录音、已下载模型或设置。
 
-当前预发布采用 **ad hoc 签名，未公证**。下载后 macOS 可能提示“无法验证开发者”；请仅从本项目的 GitHub Release 下载，并在 Finder 中按住 Control 点击 App 后选择“打开”。正式 Developer ID 签名和公证尚未完成。
+当前 GitHub 下载包采用 **ad hoc 签名，未公证**。下载后 macOS 可能提示“无法验证开发者”；请仅从本项目的 GitHub Release 下载，并在 Finder 中按住 Control 点击 App 后选择“打开”。正式 Developer ID 签名和公证尚未完成。
 
 ## 产品边界
 

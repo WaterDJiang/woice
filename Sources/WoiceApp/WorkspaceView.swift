@@ -186,6 +186,15 @@ struct WorkspaceView: View {
           .padding(16)
           .transition(.move(edge: .top).combined(with: .opacity))
       }
+      if let livePreviewPresentation {
+        LiveTranscriptPreviewCard(presentation: livePreviewPresentation)
+          .frame(maxWidth: 520)
+          .frame(maxWidth: .infinity, alignment: .top)
+          .padding(.top, 16)
+          .padding(.horizontal, 24)
+          .zIndex(4)
+          .transition(.move(edge: .top).combined(with: .opacity))
+      }
       if let request = appState.pendingExternalProcessing {
         WorkspaceExternalProcessingCard(request: request)
           .frame(maxWidth: 520)
@@ -231,7 +240,20 @@ struct WorkspaceView: View {
       }
     }
     .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: appState.actionFeedback?.id)
+    .animation(
+      reduceMotion ? nil : .easeOut(duration: 0.2),
+      value: livePreviewPresentation
+    )
     .frame(minWidth: 1_080, idealWidth: 1_180, minHeight: 700, idealHeight: 760)
+  }
+
+  private var livePreviewPresentation: LiveTranscriptPreviewPresentation? {
+    LiveTranscriptPreviewPresentation.make(
+      isRecording: appState.isRecording || appState.liveTranscriptionState == .requestingPermission,
+      isEnabled: appState.settings.enableLiveTranscription,
+      capturesMicrophone: appState.settings.captureMicrophone,
+      state: appState.liveTranscriptionState,
+      transcript: appState.liveTranscript)
   }
 
   @ViewBuilder
@@ -240,6 +262,7 @@ struct WorkspaceView: View {
     case .library:
       WorkspaceLibraryEmptyState(
         hasRecordings: !appState.recordings.isEmpty,
+        showModelInstall: !appState.hasInstalledLocalModelPack,
         startRecording: { appState.startRecording() },
         importMedia: {
           importedRecordID = nil
@@ -748,6 +771,7 @@ private struct WorkspaceRecordingRow: View {
 
 private struct WorkspaceLibraryEmptyState: View {
   let hasRecordings: Bool
+  let showModelInstall: Bool
   let startRecording: () -> Void
   let importMedia: () -> Void
 
@@ -769,6 +793,9 @@ private struct WorkspaceLibraryEmptyState: View {
           .buttonStyle(.borderedProminent)
         Button("导入音视频…", systemImage: "square.and.arrow.down", action: importMedia)
           .buttonStyle(.bordered)
+      }
+      if showModelInstall {
+        ModelInstallCard(entryPoint: .workspace)
       }
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)

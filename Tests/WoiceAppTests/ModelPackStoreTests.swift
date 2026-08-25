@@ -203,6 +203,115 @@ func modelPackStoreRejectsSymbolicLinks() async throws {
   }
 }
 
+@Test("Store 模型包拒绝可执行权限")
+func modelPackStoreRejectsExecutablePermissions() async throws {
+  let root = FileManager.default.temporaryDirectory.appendingPathComponent(
+    "woice-store-model-executable-\(UUID().uuidString)", isDirectory: true)
+  defer { try? FileManager.default.removeItem(at: root) }
+  let source = root.appendingPathComponent("source", isDirectory: true)
+  let fileURL = source.appendingPathComponent("weights/model.bin")
+  try FileManager.default.createDirectory(
+    at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+  let bytes = Data(repeating: 0x44, count: 24)
+  try bytes.write(to: fileURL)
+  try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: fileURL.path)
+  let hash = SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined()
+  let manifest = try ModelPackManifest(
+    packID: "com.woice.store.model",
+    modelID: "store-model",
+    version: "1.0.0",
+    providerID: "com.woice.qwen3-asr",
+    transport: .inProcess,
+    files: [try ModelPackFile(relativePath: "weights/model.bin", byteCount: 24, sha256: hash)],
+    license: try ModelPackLicense(
+      identifier: "Apache-2.0", noticePath: "NOTICE.txt", sourceURL: "https://example.com/qwen"),
+    size: 24,
+    provenance: try ModelPackProvenance(
+      upstreamModelID: "Qwen/Qwen3-ASR-0.6B-hf", upstreamRevision: "fixture-revision",
+      sourceURL: "https://huggingface.co/Qwen/Qwen3-ASR-0.6B-hf",
+      derivedFormat: "fixture", conversionTool: "fixture-converter", conversionRevision: "1"),
+    storeCompatible: true,
+    runtimeID: "com.woice.qwen3-asr")
+
+  await #expect(throws: ModelPackStoreError.executableContent("weights/model.bin")) {
+    try await ModelPackStore(rootURL: root).install(
+      manifest: manifest, from: source, policy: .storeCatalog)
+  }
+}
+
+@Test("Store 模型包拒绝脚本扩展名")
+func modelPackStoreRejectsScriptExtensions() async throws {
+  let root = FileManager.default.temporaryDirectory.appendingPathComponent(
+    "woice-store-model-script-\(UUID().uuidString)", isDirectory: true)
+  defer { try? FileManager.default.removeItem(at: root) }
+  let source = root.appendingPathComponent("source", isDirectory: true)
+  let fileURL = source.appendingPathComponent("weights/tokenizer.sh")
+  try FileManager.default.createDirectory(
+    at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+  let bytes = Data("echo blocked\n".utf8)
+  try bytes.write(to: fileURL)
+  let hash = SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined()
+  let manifest = try ModelPackManifest(
+    packID: "com.woice.store.script",
+    modelID: "store-model",
+    version: "1.0.0",
+    providerID: "com.woice.qwen3-asr",
+    transport: .inProcess,
+    files: [
+      try ModelPackFile(
+        relativePath: "weights/tokenizer.sh", byteCount: Int64(bytes.count), sha256: hash)
+    ],
+    license: try ModelPackLicense(
+      identifier: "Apache-2.0", noticePath: "NOTICE.txt", sourceURL: "https://example.com/qwen"),
+    size: Int64(bytes.count),
+    provenance: try ModelPackProvenance(
+      upstreamModelID: "Qwen/Qwen3-ASR-0.6B-hf", upstreamRevision: "fixture-revision",
+      sourceURL: "https://huggingface.co/Qwen/Qwen3-ASR-0.6B-hf",
+      derivedFormat: "fixture", conversionTool: "fixture-converter", conversionRevision: "1"),
+    storeCompatible: true,
+    runtimeID: "com.woice.qwen3-asr")
+
+  await #expect(throws: ModelPackStoreError.scriptContent("weights/tokenizer.sh")) {
+    try await ModelPackStore(rootURL: root).install(
+      manifest: manifest, from: source, policy: .storeCatalog)
+  }
+}
+
+@Test("Store 模型包拒绝 Mach-O 文件头")
+func modelPackStoreRejectsMachOHeader() async throws {
+  let root = FileManager.default.temporaryDirectory.appendingPathComponent(
+    "woice-store-model-macho-\(UUID().uuidString)", isDirectory: true)
+  defer { try? FileManager.default.removeItem(at: root) }
+  let source = root.appendingPathComponent("source", isDirectory: true)
+  let fileURL = source.appendingPathComponent("weights/weights.bin")
+  try FileManager.default.createDirectory(
+    at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+  let bytes = Data([0xCF, 0xFA, 0xED, 0xFE, 0x00, 0x00, 0x00, 0x00])
+  try bytes.write(to: fileURL)
+  let hash = SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined()
+  let manifest = try ModelPackManifest(
+    packID: "com.woice.store.macho",
+    modelID: "store-model",
+    version: "1.0.0",
+    providerID: "com.woice.qwen3-asr",
+    transport: .inProcess,
+    files: [try ModelPackFile(relativePath: "weights/weights.bin", byteCount: 8, sha256: hash)],
+    license: try ModelPackLicense(
+      identifier: "Apache-2.0", noticePath: "NOTICE.txt", sourceURL: "https://example.com/qwen"),
+    size: 8,
+    provenance: try ModelPackProvenance(
+      upstreamModelID: "Qwen/Qwen3-ASR-0.6B-hf", upstreamRevision: "fixture-revision",
+      sourceURL: "https://huggingface.co/Qwen/Qwen3-ASR-0.6B-hf",
+      derivedFormat: "fixture", conversionTool: "fixture-converter", conversionRevision: "1"),
+    storeCompatible: true,
+    runtimeID: "com.woice.qwen3-asr")
+
+  await #expect(throws: ModelPackStoreError.machOContent("weights/weights.bin")) {
+    try await ModelPackStore(rootURL: root).install(
+      manifest: manifest, from: source, policy: .storeCatalog)
+  }
+}
+
 @Test("WhisperKit Adapter 暴露清单中的 Provider、模型和版本")
 func whisperKitAdapterPreservesModelSnapshot() throws {
   let bytes = Data(repeating: 0x77, count: 16)

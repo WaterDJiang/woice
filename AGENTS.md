@@ -40,6 +40,8 @@ make verify
 
 命令缺少前置条件时必须响亮失败；禁止把未执行命令写成“已通过”。
 
+`make build` 与 `make xcode-build-direct` 只做无签名编译检查。需要在本机安装或验证 TCC 覆盖安装时，必须显式传入本机未跟踪的 `WOICE_LOCAL_SIGNING_IDENTITY`，再调用 `make package-core`、`make package-offline` 或带该变量的 `make install`。
+
 ## 计划结构
 
 ```text
@@ -153,6 +155,14 @@ PI 使用当前 `@earendil-works/pi-coding-agent` Extension API；DeepSeek 等�
 - 禁止 `/bin/sh -c` 或任意命令拼接；CLI 凭据由目标 Agent 管理，Woice 不读取或复制。
 - 删除默认可恢复；永久删除必须明确目标和二次确认。
 - 不读取、提交或展示本地密钥文件；发现疑似密钥立即停止并报告。
+
+## 本机签名与线上发行边界
+
+- 本机需要安装、覆盖安装或验证 TCC 连续性时，必须显式使用登录钥匙串中的 Apple Development 身份；本机最终包不能只使用无签名编译产物或默认 Ad Hoc 包。示例：`WOICE_CODESIGN_IDENTITY="$WOICE_LOCAL_SIGNING_IDENTITY" WOICE_OFFLINE_MODEL_ROOT="$WOICE_OFFLINE_MODEL_ROOT" make package-offline`。
+- `WOICE_LOCAL_SIGNING_IDENTITY` 只存在于本机 Shell 或未跟踪配置中。不得把证书名称、SHA-1、Team ID、私钥、Provisioning Profile、钥匙串文件或实际签名命令中的个人身份写入仓库、模型包、Release 资产或 CI；验证后只记录脱敏结论。
+- `xcode-build-direct` 只负责无签名编译；用于本机安装的 Bundle 必须在 `package_distribution.py` 的最终 Bundle 阶段使用显式身份签名，并用 `codesign --verify --deep --strict` 与 `codesign -dvv` 确认不是 `Signature=adhoc`、不是 `TeamIdentifier=not set`。
+- 线上/公开 Ad Hoc 版本继续使用显式 `WOICE_CODESIGN_IDENTITY=-`（此前 AOC/Ad Hoc 版本边界）。本机 Apple Development 身份及其私钥不得用于 GitHub、CI、公开下载或其他线上分发；正式线上发行另走 Developer ID/公证或商店签名门禁。
+- 从 Ad Hoc 切换到本机稳定身份可能需要一次重新授权；只有后续包的 Bundle ID、Team ID、权限声明和签名要求一致时，才可把覆盖安装视为具备 TCC 连续性条件。真实 TCC 连续性仍需在 Mac 上手测，不得由静态签名检查代替。
 
 ## 文档闭环
 

@@ -84,6 +84,81 @@ func distributionManifestValidatesFlavor() throws {
   #expect(store.flavor == .store)
 }
 
+@Test("Store 模型清单必须保留来源与格式转换链")
+func storeModelManifestRequiresProvenance() throws {
+  #expect(throws: ModelPackValidationError.missingStoreProvenance) {
+    try ModelPackManifest(
+      packID: "com.woice.store.model",
+      modelID: "store-model",
+      version: "1.0.0",
+      providerID: "com.woice.store.runtime",
+      files: [fixtureFile],
+      license: fixtureLicense,
+      size: fixtureFile.byteCount,
+      storeCompatible: true,
+      runtimeID: "com.woice.store.runtime")
+  }
+}
+
+@Test("Runtime admission 允许受信 Qwen，并拒绝非进程模型")
+func modelRuntimeAdmissionChecksTransportAndCapability() throws {
+  let qwen = try ModelPackManifest(
+    packID: "com.woice.qwen.fixture",
+    modelID: "qwen3-asr",
+    version: "fixture",
+    providerID: "com.woice.qwen3-asr",
+    transport: .inProcess,
+    capabilities: [.transcription, .timestamps],
+    files: [fixtureFile],
+    license: fixtureLicense,
+    size: fixtureFile.byteCount,
+    provenance: try ModelPackProvenance(
+      upstreamModelID: "Qwen/Qwen3-ASR-0.6B-hf",
+      upstreamRevision: "fixture-revision",
+      sourceURL: "https://huggingface.co/Qwen/Qwen3-ASR-0.6B-hf",
+      derivedFormat: "fixture",
+      conversionTool: "fixture-converter",
+      conversionRevision: "1"),
+    storeCompatible: true,
+    runtimeID: "com.woice.qwen3-asr")
+  #expect(ModelRuntimeRegistry.admission(for: qwen).isAdmitted)
+
+  let externalWhisper = try ModelPackManifest(
+    packID: "com.woice.whisper.external",
+    modelID: "whisper",
+    version: "fixture",
+    providerID: "com.woice.whisperkit",
+    transport: .controlledProcess,
+    files: [fixtureFile],
+    license: fixtureLicense,
+    size: fixtureFile.byteCount)
+  #expect(!ModelRuntimeRegistry.admission(for: externalWhisper).isAdmitted)
+}
+
+@Test("Qwen3-ASR 模型清单固定派生来源、SHA 和本机 Runtime")
+func qwen3ModelCatalogManifestIsPinned() throws {
+  let manifest = Qwen3ASRModelCatalogEntry.recommended.manifest
+  #expect(manifest.packID == Qwen3ASRModelCatalogEntry.packID)
+  #expect(manifest.version == Qwen3ASRModelCatalogEntry.derivedRevision)
+  #expect(manifest.providerID == "com.woice.qwen3-asr")
+  #expect(manifest.license.identifier == "Apache-2.0")
+  #expect(manifest.storeCompatible)
+  #expect(manifest.runtimeID == "com.woice.qwen3-asr")
+  #expect(manifest.size == Qwen3ASRModelCatalogEntry.estimatedBytes)
+  #expect(manifest.provenance?.upstreamRevision == Qwen3ASRModelCatalogEntry.upstreamRevision)
+  let files = Dictionary(uniqueKeysWithValues: manifest.files.map { ($0.relativePath, $0) })
+  #expect(files.count == 5)
+  #expect(files["model.safetensors"]?.byteCount == 708_236_945)
+  #expect(
+    files["model.safetensors"]?.sha256
+      == "70c7e67e588062adce4f10796e47ad42ead51c6671eda61a0987eae38ca95ddf")
+  #expect(files["merges.txt"]?.byteCount == 1_671_853)
+  #expect(files["vocab.json"]?.byteCount == 2_776_833)
+  #expect(files["tokenizer_config.json"]?.byteCount == 12_487)
+  #expect(files["README.md"]?.byteCount == 1_008)
+  #expect(ModelRuntimeRegistry.admission(for: manifest).isAdmitted)
+}
+
 @Test("旧任务解码时新增模型能力和配置快照保持可选")
 func processingTaskModelSnapshotRemainsBackwardCompatible() throws {
   let data = Data(

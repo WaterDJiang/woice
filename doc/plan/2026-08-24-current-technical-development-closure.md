@@ -1,6 +1,6 @@
 # Woice 当前技术开发收口计划
 
-> 状态：WCL-00～03、WCL-05 已完成源码与自动门禁；WCL-04 发行验证待凭据；WCL-06 已完成 MAS-03 本机能力裁剪及 Store 本机预检；WCL-07 本机模型一键安装与 Store-compatible Qwen Runtime 待实施  
+> 状态：WCL-00～03、WCL-05、WCL-08 已完成源码与自动门禁；WCL-04 发行验证待凭据；WCL-06 已完成 MAS-03 本机能力裁剪及 Store 本机预检；WCL-07 Runtime、模型包与 Store Bundle 门禁已落地，正式性能矩阵与签名 Catalog 待收口  
 > 日期：2026-08-24  
 > 当前基线：双音源选择、AAC/M4A 新录音、会议合成、长素材详情按需加载与录音控制区视觉层级已实现；官网版 `make verify` 通过 208 项 Swift 测试 / 14 个 Suite，Store 条件通过 186 项 Swift 测试 / 11 个 Suite，PI/MCP、构建、Core 打包和本机 Store Bundle 预检均通过；`Woice-Store / Release-AppStore` Xcode 无签名构建通过。  
 > 历史诊断：2026-08-24 早先的原生 macOS 回归曾出现真实麦克风 0 帧/CoreAudio IPC 挂起；后续音频宿主恢复并完成完整回归。该次仅保留为诊断记录，不作为当前产品代码失败结论。  
@@ -16,6 +16,10 @@
 
 > 当前更新（2026-08-25 01:16）：菜单栏音源改为中性状态按钮，录音保持唯一强调主动作并使用 `record.circle` 区分麦克风来源。按用户视觉复核，工作台顶部移除悬空的导入按钮、右上角麦克风/电脑声音/录音控制组和居中的空闲状态胶囊；导入与开始录音仍保留在素材空状态。官网 208 项 / 14 Suite 及覆盖安装启动通过；此前同源码结构的 Store 186 项 / 11 Suite 和正式 Xcode Store 无签名构建证据保留。
 
+> 当前更新（2026-08-25）：用户已明确允许引入 Apache-2.0 原生 Swift/MLX Runtime。WCL-07 已完成一键安装的 durable intent、预检/下载/校验/安装/激活状态投影、三入口共用安装卡、等待模型转写恢复、Qwen 原生 Provider、固定模型包文件 SHA/来源、传递依赖 Notice/SBOM，以及 Store 模型包不可执行内容校验。Runtime admission 以已验证库存和受信 Runtime 为唯一事实源；Qwen 在正式性能矩阵和签名 Catalog 完成前继续 fail-closed。`swift test --quiet` 通过 214 项 / 14 个 Suite；真实 Qwen 模型原生加载冒烟通过；`make xcode-build-store`、`make package-core`、`make package-store`、Store Bundle 与 App Store 预检通过。Xcode Release 配置负责 MLX Metal shader bundle，SwiftPM CLI 不承担 shader 编译。
+
+> 当前更新（2026-08-25）：WCL-08 已完成实时文字可见投影、设置首层入口、Popover 面板外收起和单文件拖放导入；不改变 Speech、Artifact、外发确认和模型路由边界。`swift test --quiet` 通过 217 项 / 14 个 Suite，`make lint`、`make docs-check`、`make harness-check` 和 `make xcode-build-store` 通过。
+
 ## 1. 计划定位
 
 本计划只列需要修改代码、工程、自动测试、签名流水线或发行配置的工作。真实用户、真实会议、真实素材、真实桌面视觉和人工体验验收不作为开发工作包、退出条件或完成阻塞项，只在第 7 节提示。
@@ -28,7 +32,7 @@
 - 保留：保留现有产品规格、WPC 已完成代码、M2-09 安全边界、Developer ID 发行边界和 MAS-00～08 专项细节。
 - 迁移：旧 WPC 中仍需要技术开发的部分迁入 WCL-00～06；纯人工体验与真实环境验收仅迁入第 7 节提醒。
 - 停止：停止 `WPC-01R`、WSL 临时编号，以及把真实用户验收写成开发工作包或计划完成门槛。
-- 顺序：已完成工作包保持关闭；新增开发按 WCL-07 -> WCL-04/WCL-06 发行门禁推进。WCL-05 不阻塞无 Agent 核心发行；WCL-07 的 Qwen Runtime 未通过前不进入正式 Catalog。
+- 顺序：已完成工作包保持关闭；新增开发按 WCL-07 -> WCL-04/WCL-06 发行门禁推进。WCL-05 不阻塞无 Agent 核心发行；WCL-07 的 Qwen 性能与签名 Catalog 未通过前不进入正式 Catalog。
 
 ## 3. 旧 WPC 未完成项分流
 
@@ -116,17 +120,26 @@
 
 退出条件：MAS 专项计划的技术工作包完成；当前 MAS-03 与本机静态预检通过，正式 Xcode/签名、沙盒运行、模型/隐私审定、TestFlight 和审核仍未完成。
 
-### WCL-07：本机模型一键安装与 Store 兼容（待实施）
+### WCL-07：本机模型一键安装与 Store 兼容（进行中）
 
-- 以[本机模型一键安装与 App Store 兼容规格](../../specs/2026-08-25-one-click-model-installation-and-store-compatibility.md)为唯一体验与技术边界。
-- 工作台、素材待转写状态和设置页共用一个 `ModelInstallCoordinator`；用户只点击一次，系统自动完成预检、下载、校验、安装、激活，并按入口恢复原任务。
+- 以[本机模型一键安装与 App Store 兼容规格](../../specs/2026-08-25-one-click-model-installation-and-store-compatibility.md)为唯一体验与技术边界。基础安装链路、原生 Runtime、固定模型包和 Store 数据包门禁已实现；正式性能与 Catalog 仍待收口。
+- 工作台、素材待转写状态和设置页共用一个 `ModelInstallCoordinator`；用户只点击一次，系统自动完成预检、下载、校验、安装、激活，并按入口恢复原任务。durable intent、恢复态和等待转写 continuation 已接入。
 - 模型卡内联显示大小、来源、许可证和本机处理承诺；不增加确认 Sheet、配置 Endpoint、选择文件夹或强制勾选。
-- Qwen3-ASR-0.6B 固定官方 revision；如生成 Apple Silicon 派生格式，必须记录转换链、上游与派生摘要、Apache-2.0、Notice 和 SBOM。
-- Qwen 正式实现使用随 App 构建并签名的 in-process Runtime；官网与 Store 复用同一实现。Python/Transformers 进程只作研发对照，不进入用户下载链。
-- Store 模型包只包含权重、Tokenizer、配置与许可证数据；自动拒绝可执行文件、脚本、dylib、bundle、可执行权限和容器外依赖。
+- Qwen3-ASR-0.6B 固定官方 revision 与 MLX 派生 revision；模型包已记录转换链、上游与派生摘要、逐文件大小/SHA-256、Apache-2.0、README Notice 和 SBOM。原生模型加载冒烟已通过。
+- Qwen 正式实现使用随 App 构建并签名的 in-process Runtime；官网与 Store 复用同一实现。MLX Metal shader 由 Xcode Release 配置构建并随 App Bundle 提供；Python/Transformers 进程只作研发对照，不进入用户下载链。
+- Store 模型包只包含权重、Tokenizer、配置与许可证数据；自动拒绝清单外文件、可执行文件、脚本、dylib、bundle、Mach-O、可执行权限和容器外依赖。
 - 没有模型时仍允许录音和导入；素材持久化后进入 `waitingForModel`，模型就绪再恢复，不覆盖原始 Artifact 或旧 Transcript。
 
-退出条件：WCL-TAC-020～027 通过；Qwen Runtime、许可证或性能任一未通过时，Qwen 条目不进入正式 Catalog，但已批准 WhisperKit/Speech 路径不受阻塞。
+退出条件：WCL-TAC-020～027 通过；当前安装链路、Runtime、模型包来源/SHA、Notice/SBOM、Store 不可执行内容和 Bundle 构建门禁已验证，仍需固定音频准确率、300 秒/长会议性能与峰值内存、签名 Catalog 和真实录音手测。未收口前 Qwen 条目不进入正式 Catalog，但已批准 WhisperKit/Speech 路径不受阻塞。
+
+### WCL-08：实时预览与短流程 UI 收口（已完成）
+
+- 按[实时文字预览、顶部面板收起与导入页优化规格](../../specs/2026-08-25-live-preview-popover-and-import-ux.md)复用现有本机 Speech 状态，不新增 ASR 链路。
+- 工作台与菜单栏 Popover 在录音期间显示 partial transcript；设置开关移到“录音与转写”首层。
+- Popover 在本 App 内点击面板外时收起，切换到其他 App 时通过失去焦点通知收起；监听与通知在关闭后清理。
+- 导入 Sheet 收紧信息层级，增加单文件拖放，按钮和拖放复用同一导入函数。
+
+退出条件：WCL-TAC-028～031 通过；真实 Speech partial 和桌面点击手感只作安装包提示。
 
 ### 4.1 当前关闭状态（2026-08-24）
 
@@ -139,7 +152,8 @@
 | WCL-04 | 发行验证阻塞 | `make release-developer-id` 具备签名/公证/staple、本地 manifest 和固定身份门禁；`make release-verify-remote` 具备生产 manifest 读回与远程状态/大小/摘要校验，缺凭据或不一致会失败 | Developer ID 身份、公证 profile、生产 Catalog URL/ID/可信公钥、已发布远程 manifest/产物 |
 | WCL-05 | 已完成源码与契约门禁 | Agent 三级独立权限、二次确认、重复派发拒绝、CLI 版本/安装状态诊断和 Beta 文案已接入 | 真实 CLI 登录、批准和素材入站仅作提醒 |
 | WCL-06 | MAS-03、正式 Xcode 组合根与 Store 本机静态预检已完成，其他 MAS 工作包未完成 | `StoreCapabilityProfile`、Store 编译条件、Agent/Socket/自动粘贴入口裁剪、`project.yml`/`Woice.xcodeproj`、`make xcode-build-store`（AppIcon/PrivacyInfo/NOTICES/DistributionManifest/SBOM 入 Bundle）、`verify_xcode_store_bundle.py`、`verify-app-store`、`acceptance-app-store-sandbox` | Apple 账号/签名、Store 签名下 Sandbox/TCC、模型/隐私资料、签名 Archive/TestFlight/审核 |
-| WCL-07 | 待实施 | 规格已冻结一次点击、durable Job、Qwen in-process Runtime 与 Store 不可执行模型包边界 | Runtime/许可证 ADR、实现、自动门禁和正式 Catalog 条目 |
+| WCL-07 | 进行中 | 一键安装基础链路、intent 持久化、等待转写恢复、Qwen 原生 Provider、固定依赖/转换链、模型包逐文件 SHA/来源、Notice/SBOM、Store 不可执行模型包门禁与 Xcode Core/Store Bundle 构建已验证；`swift test --quiet` 214 项 / 14 Suite、原生 Qwen 冒烟通过 | 固定音频准确率、300 秒/长会议性能与峰值内存、签名 Catalog 条目、真实录音与 Store 签名/沙盒手测 |
+| WCL-08 | 已完成 | 实时文字共用投影、设置首层入口、Popover 外部收起、单文件拖放和 3 项定向测试；217 项 Swift 与 Xcode Store 构建通过 | 真实 Speech partial 与桌面手感只作提示 |
 
 ## 5. 技术验收标准
 
@@ -170,6 +184,10 @@
 - WCL-TAC-025：Qwen 固定官方 revision，派生链、SHA-256、Apache-2.0、Notice、SBOM 和来源完整。
 - WCL-TAC-026：Qwen 输出进入现有分段、双轨合并、配置快照和 Transcript Artifact 版本链。
 - WCL-TAC-027：未通过 Runtime、许可证或性能门禁的模型不进入正式 Catalog 和用户 UI。
+- WCL-TAC-028：录音期间的 Speech 准备、监听、不可用和 partial transcript 投影有确定性测试。
+- WCL-TAC-029：工作台和菜单栏复用同一预览组件，开关关闭、非麦克风或未录音时不显示。
+- WCL-TAC-030：Popover 外部鼠标事件收起策略可测，监听器在关闭后清理。
+- WCL-TAC-031：选择文件与单文件拖放复用导入入口，不支持或损坏文件继续 fail-closed。
 
 ## 6. 开发门禁与关闭规则
 

@@ -19,6 +19,10 @@ let package = Package(
         .package(
             url: "https://github.com/argmaxinc/argmax-oss-swift.git",
             exact: "1.0.0"
+        ),
+        .package(
+            url: "https://github.com/vfasky/qwen3-asr-swift.git",
+            revision: "4824c95e1e4624200405d639fb4ebe10f93f1075"
         )
     ],
     targets: [
@@ -30,7 +34,9 @@ let package = Package(
             name: "WoiceApp",
             dependencies: [
                 "WoiceCore",
-                .product(name: "WhisperKit", package: "argmax-oss-swift")
+                .product(name: "WhisperKit", package: "argmax-oss-swift"),
+                .product(name: "Qwen3ASR", package: "qwen3-asr-swift"),
+                .product(name: "Qwen3Common", package: "qwen3-asr-swift")
             ],
             path: "Sources/WoiceApp",
             resources: [.process("Resources")],

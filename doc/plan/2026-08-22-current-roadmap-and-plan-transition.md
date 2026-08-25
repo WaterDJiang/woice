@@ -103,7 +103,7 @@ R2 是已有核心工作的退出检查，不是新建的并行项目：
 | M2-05 PI Connector 基础 | 已有基础/迁移验收 | M2-09e | 保留薄适配；真实安装和外部读取统一在 M2-09 验收 |
 | M2-06 系统 TTS | 独立入口代码完成，人工体验仅作提醒 | 现有系统能力与独立 TTS 规格 | 保留 AVSpeechSynthesizer，但从录音详情迁移到文字/文件独立窗口；云端/本地 TTS Provider 扩展停止 |
 | M2-07 受控进程基础 | 安全基础已完成，作为依赖保留 | M2-08 ASR、M2-09c CLI | 共享安全原语；不得扩展成通用插件平台 |
-| M2-08 | 既有模型闭环完成；一键安装与 Qwen Store-compatible Runtime 待实施 | M2-08 专项计划、当前技术开发收口计划 WCL-07 与一键模型安装规格 | 本机 ASR、统一 Provider 配置/Registry、会议路由、模型库存控制、Catalog 信任/回滚/轮换校验、受限 HTTPS 传输、多文件下载编排、Core/Offline 本地 DMG 和默认 Large-v3 路由已实现；新增工作只承接三个入口共用的一键安装状态机、等待任务自动恢复、Qwen 原生 Runtime 及 Store 不可执行模型包门禁；Developer ID/公证/生产 Catalog/Store 签名 Archive 仍待外部条件 |
+| M2-08 | 既有模型闭环完成；一键安装与 Qwen Store-compatible Runtime 已落地，性能/Catalog 待收口 | M2-08 专项计划、当前技术开发收口计划 WCL-07 与一键模型安装规格 | 本机 ASR、统一 Provider 配置/Registry、会议路由、模型库存控制、Catalog 信任/回滚/轮换校验、受限 HTTPS 传输、多文件下载编排、Core/Offline 本地 DMG、默认 Large-v3 路由和 Qwen 原生 Runtime/模型包门禁已实现；新增工作只承接固定音频准确率、300 秒/长会议性能与峰值内存、签名 Catalog、真实录音与 Store 签名/沙盒手测；Developer ID/公证/生产 Catalog/Store 签名 Archive 仍待外部条件 |
 | M2-09 | Agent Beta 源码与契约门禁已完成，保持核心发布后置 | M2-09 专项计划与 WCL-05 | 真实 CLI 登录、批准、素材入站和外部 Agent Journey 仍是人工提醒；不改变录音核心发布顺序 |
 | 旧 M3 DeepSeek Harness/插件生态 | 停止 | M2-09 P1（仅经验证的专用适配） | 旧 M3 作为阶段整体失效，不得创建插件市场或网关 |
 

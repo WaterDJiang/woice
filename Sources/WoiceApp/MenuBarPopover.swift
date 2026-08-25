@@ -18,6 +18,11 @@ struct MenuBarPopover: View {
       }
       if appState.isRecording {
         recordingStatus
+        if let livePreviewPresentation {
+          LiveTranscriptPreviewCard(
+            presentation: livePreviewPresentation,
+            isCompact: true)
+        }
       } else if shouldShowProcessingStatus {
         processingStatus
       }
@@ -163,6 +168,15 @@ struct MenuBarPopover: View {
 
   private var shouldShowProcessingStatus: Bool {
     appState.errorMessage != nil || appState.processingState != .ready
+  }
+
+  private var livePreviewPresentation: LiveTranscriptPreviewPresentation? {
+    LiveTranscriptPreviewPresentation.make(
+      isRecording: appState.isRecording || appState.liveTranscriptionState == .requestingPermission,
+      isEnabled: appState.settings.enableLiveTranscription,
+      capturesMicrophone: appState.settings.captureMicrophone,
+      state: appState.liveTranscriptionState,
+      transcript: appState.liveTranscript)
   }
 
   private var processingStatus: some View {

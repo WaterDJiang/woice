@@ -123,6 +123,10 @@ func sqliteModelDownloadTaskSurvivesRestartAsPaused() throws {
   defer { try? FileManager.default.removeItem(at: root) }
   let database = try SQLiteMetadataStore(databaseURL: root.appendingPathComponent("woice.sqlite3"))
   let created = Date(timeIntervalSince1970: 1_700_000_000)
+  let recordingID = UUID(uuidString: "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE")!
+  let intent = ModelInstallIntent(
+    entryPoint: .material, recordingID: recordingID, sourceTrack: .systemAudio,
+    createdAt: created)
   let task = try ModelDownloadTask(
     packID: "com.woice.fixture.model",
     version: "1.0.0",
@@ -130,17 +134,33 @@ func sqliteModelDownloadTaskSurvivesRestartAsPaused() throws {
     completedBytes: 12,
     totalBytes: 100,
     stagingPath: "/tmp/woice.partial",
+    intents: [intent],
     createdAt: created,
     updatedAt: created)
   try database.saveModelDownloadTask(task)
-  #expect(try database.loadModelDownloadTasks().first?.state == .downloading)
+  let installingTask = try ModelDownloadTask(
+    packID: "com.woice.fixture.installing",
+    version: "1.0.0",
+    state: .installing,
+    completedBytes: 80,
+    totalBytes: 100,
+    stagingPath: "/tmp/woice.installing.partial",
+    createdAt: created,
+    updatedAt: created.addingTimeInterval(1))
+  try database.saveModelDownloadTask(installingTask)
+  let loadedTasks = try database.loadModelDownloadTasks()
+  #expect(loadedTasks.contains { $0.id == task.id && $0.state == .downloading })
 
-  #expect(try database.recoverModelDownloadTasks(now: created.addingTimeInterval(20)) == 1)
-  let recovered = try #require(database.loadModelDownloadTasks().first)
-  #expect(recovered.id == task.id)
+  #expect(try database.recoverModelDownloadTasks(now: created.addingTimeInterval(20)) == 2)
+  let recovered = try #require(
+    database.loadModelDownloadTasks().first { $0.id == task.id })
+  let recoveredInstalling = try #require(
+    database.loadModelDownloadTasks().first { $0.id == installingTask.id })
   #expect(recovered.state == .paused)
   #expect(recovered.completedBytes == 12)
   #expect(recovered.lastError?.contains("点击继续") == true)
+  #expect(recovered.intents == [intent])
+  #expect(recoveredInstalling.state == .paused)
 }
 
 @Test("SQLite Agent Job 持久化幂等更新并在重启后恢复为中断")

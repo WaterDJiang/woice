@@ -184,6 +184,9 @@ struct RecordingDetailView: View {
                 Button("按声音片段转写") { appState.requestSegmentTranscription(for: record) }
                   .buttonStyle(.bordered)
               }
+              if !appState.hasInstalledLocalModelPack {
+                ModelInstallCard(entryPoint: .material, recordingID: record.id)
+              }
             }
           }
         }
