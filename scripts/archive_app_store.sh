@@ -35,10 +35,11 @@ archive_args=(
   CODE_SIGN_IDENTITY="$store_signing_identity" \
   CODE_SIGNING_ALLOWED=YES \
   CODE_SIGNING_REQUIRED=YES \
-  archive
+  -skipPackagePluginValidation
 )
-if [[ -n "${WOICE_STORE_PROVISIONING_PROFILE_SPECIFIER:-}" ]]; then
-  archive_args+=("PROVISIONING_PROFILE_SPECIFIER=$WOICE_STORE_PROVISIONING_PROFILE_SPECIFIER")
+if [[ -n "${WOICE_DERIVED_DATA_PATH:-}" ]]; then
+  archive_args+=("-derivedDataPath" "$WOICE_DERIVED_DATA_PATH")
 fi
+archive_args+=(archive)
 "${archive_args[@]}"
 print "archive-app-store: $archive_path"

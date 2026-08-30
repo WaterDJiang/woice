@@ -72,12 +72,16 @@ targets:
       configs:
         Debug:
           CODE_SIGN_ENTITLEMENTS: Resources/Woice-Store.entitlements
+          PRODUCT_BUNDLE_IDENTIFIER: com.water.woice
           SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) WOICE_APP_STORE
         Release-Direct:
           CODE_SIGN_ENTITLEMENTS: Resources/Woice.entitlements
+          PRODUCT_BUNDLE_IDENTIFIER: com.woice.app
           SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited)
         Release-AppStore:
           CODE_SIGN_ENTITLEMENTS: Resources/Woice-Store.entitlements
+          PRODUCT_BUNDLE_IDENTIFIER: com.water.woice
+          PROVISIONING_PROFILE_SPECIFIER: Woice Mac App Store
           SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) WOICE_APP_STORE
 
 schemes:

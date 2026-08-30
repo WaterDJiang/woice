@@ -14,6 +14,10 @@ import tempfile
 from pathlib import Path
 
 
+DIRECT_BUNDLE_ID = "com.woice.app"
+STORE_BUNDLE_ID = "com.water.woice"
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--flavor", choices=("core", "offline", "store"), required=True)
@@ -218,6 +222,12 @@ def apply_runtime_release_configuration(plist: dict) -> None:
             ]
 
 
+def apply_flavor_bundle_identity(plist: dict, flavor: str) -> None:
+    """Keep direct packages on their legacy identity and isolate the Store app identity."""
+
+    plist["CFBundleIdentifier"] = STORE_BUNDLE_ID if flavor == "store" else DIRECT_BUNDLE_ID
+
+
 def main() -> None:
     args = parse_args()
     project_root = Path(__file__).resolve().parents[1]
@@ -241,6 +251,7 @@ def main() -> None:
     shutil.copy2(binary, macos / "Woice")
     with info_plist.open("rb") as handle:
         plist = plistlib.load(handle)
+    apply_flavor_bundle_identity(plist, args.flavor)
     apply_runtime_release_configuration(plist)
 
     brand_exports = project_root / "assets" / "brand" / "exports"

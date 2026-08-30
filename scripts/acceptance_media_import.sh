@@ -5,6 +5,10 @@ cd "${0:A:h}/.."
 swift test --no-parallel --filter MediaImportTests
 rg -q 'MediaImportSheet' Sources/WoiceApp/WorkspaceView.swift
 rg -q 'fileImporter' Sources/WoiceApp/MediaImportSheet.swift
+rg -F -q '@Environment(\.dismiss)' Sources/WoiceApp/MediaImportSheet.swift
+rg -q 'onDismiss: handleMediaImportDismissal' Sources/WoiceApp/WorkspaceView.swift
+rg -q 'MediaImportSheetDismissalDestination' Sources/WoiceApp/MediaImportSheet.swift
+rg -q '关闭并后台继续' Sources/WoiceApp/MediaImportSheet.swift
 rg -q 'prepareTranscriptionAudio' Sources/WoiceApp/AudioPreparationService.swift
 rg -q 'AudioChunkingService' Sources/WoiceApp/AppState.swift
 rg -q 'defaultMaximumUploadBytes' Sources/WoiceApp/AudioChunkingService.swift

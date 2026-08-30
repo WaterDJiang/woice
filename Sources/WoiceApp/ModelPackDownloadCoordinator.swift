@@ -165,6 +165,25 @@ actor ModelPackDownloadCoordinator {
     progressOffset: Int64,
     progress: (@Sendable (ModelPackDownloadProgress) -> Void)?
   ) async throws -> Int64 {
+    try await ModelDownloadRetry.run {
+      try await self.downloadFileAttempt(
+        file: file,
+        baseURL: baseURL,
+        destination: destination,
+        manifest: manifest,
+        progressOffset: progressOffset,
+        progress: progress)
+    }
+  }
+
+  private func downloadFileAttempt(
+    file: ModelPackFile,
+    baseURL: URL,
+    destination: URL,
+    manifest: ModelPackManifest,
+    progressOffset: Int64,
+    progress: (@Sendable (ModelPackDownloadProgress) -> Void)?
+  ) async throws -> Int64 {
     let url = baseURL.appendingPathComponent(file.relativePath)
     var offset = currentFileByteCount(at: destination)
     var request = URLRequest(url: url)

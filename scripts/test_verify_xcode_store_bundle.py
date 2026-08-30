@@ -33,10 +33,11 @@ class XcodeStoreBundleTests(unittest.TestCase):
         with (contents / "Info.plist").open("wb") as handle:
             plistlib.dump(
                 {
-                    "CFBundleIdentifier": "com.woice.app",
+                    "CFBundleIdentifier": "com.water.woice",
                     "CFBundleIconFile": "AppIcon",
                     "CFBundleIconName": "AppIcon",
                     "CFBundlePackageType": "APPL",
+                    "LSApplicationCategoryType": "public.app-category.productivity",
                     "LSMinimumSystemVersion": "14.0",
                     "NSMicrophoneUsageDescription": "fixture",
                     "NSScreenCaptureUsageDescription": "fixture",
@@ -91,6 +92,17 @@ class XcodeStoreBundleTests(unittest.TestCase):
     def test_missing_distribution_manifest_is_rejected(self) -> None:
         app = self.make_bundle()
         (app / "Contents/Resources/DistributionManifest.json").unlink()
+        with self.assertRaises(MODULE.XcodeStoreBundleError):
+            MODULE.verify(app)
+
+    def test_missing_app_store_category_is_rejected(self) -> None:
+        app = self.make_bundle()
+        info_path = app / "Contents/Info.plist"
+        with info_path.open("rb") as handle:
+            info = plistlib.load(handle)
+        info.pop("LSApplicationCategoryType")
+        with info_path.open("wb") as handle:
+            plistlib.dump(info, handle)
         with self.assertRaises(MODULE.XcodeStoreBundleError):
             MODULE.verify(app)
 

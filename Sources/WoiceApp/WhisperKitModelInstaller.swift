@@ -107,15 +107,17 @@ actor WhisperKitModelInstaller {
     try fileManager.createDirectory(at: packageRoot, withIntermediateDirectories: true)
 
     let hub = HubApiWrapper(downloadBase: cacheRoot)
-    let modelSnapshot = try await hub.snapshot(
-      from: HubApiWrapper.Repo(id: entry.modelRepository),
-      revision: entry.modelRevision,
-      matching: [entry.modelFolderName + "/*"]
-    ) { [weak self] current in
-      guard let self else { return }
-      let total = max(1, current.totalUnitCount)
-      let completed = max(0, min(total, current.completedUnitCount))
-      Task { await self.report(progress, entry: entry, completed: completed, total: total) }
+    let modelSnapshot = try await ModelDownloadRetry.run {
+      try await hub.snapshot(
+        from: HubApiWrapper.Repo(id: entry.modelRepository),
+        revision: entry.modelRevision,
+        matching: [entry.modelFolderName + "/*"]
+      ) { [weak self] current in
+        guard let self else { return }
+        let total = max(1, current.totalUnitCount)
+        let completed = max(0, min(total, current.completedUnitCount))
+        Task { await self.report(progress, entry: entry, completed: completed, total: total) }
+      }
     }
     try Task.checkCancellation()
 
@@ -131,15 +133,17 @@ actor WhisperKitModelInstaller {
       entry: entry,
       stage: "整理模型文件")
 
-    let tokenizerSnapshot = try await hub.snapshot(
-      from: HubApiWrapper.Repo(id: entry.tokenizerRepository),
-      revision: entry.tokenizerRevision,
-      matching: ["config.json", "tokenizer_config.json", "tokenizer.json"]
-    ) { [weak self] current in
-      guard let self else { return }
-      let total = max(1, current.totalUnitCount)
-      let completed = max(0, min(total, current.completedUnitCount))
-      Task { await self.report(progress, entry: entry, completed: completed, total: total) }
+    let tokenizerSnapshot = try await ModelDownloadRetry.run {
+      try await hub.snapshot(
+        from: HubApiWrapper.Repo(id: entry.tokenizerRepository),
+        revision: entry.tokenizerRevision,
+        matching: ["config.json", "tokenizer_config.json", "tokenizer.json"]
+      ) { [weak self] current in
+        guard let self else { return }
+        let total = max(1, current.totalUnitCount)
+        let completed = max(0, min(total, current.completedUnitCount))
+        Task { await self.report(progress, entry: entry, completed: completed, total: total) }
+      }
     }
     let tokenizerDestination =
       packageRoot

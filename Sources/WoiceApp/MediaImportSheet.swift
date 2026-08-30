@@ -1,12 +1,71 @@
 import SwiftUI
 import WoiceCore
 
+enum MediaImportSheetCloseAction: Equatable {
+  case cancelImport
+  case closeWindow
+  case background
+  case deferProcessing
+
+  static func resolve(
+    hasRecord: Bool,
+    taskStatus: ProcessingTaskStatus?
+  ) -> Self {
+    guard hasRecord else { return .cancelImport }
+    switch taskStatus {
+    case .running, .awaitingAuthorization:
+      return .background
+    case .queued:
+      return .deferProcessing
+    default:
+      return .closeWindow
+    }
+  }
+
+  var title: String {
+    switch self {
+    case .cancelImport: "取消导入"
+    case .closeWindow: "关闭窗口"
+    case .background: "关闭并后台继续"
+    case .deferProcessing: "关闭，稍后处理"
+    }
+  }
+
+  var hint: String {
+    switch self {
+    case .cancelImport: "关闭导入窗口"
+    case .closeWindow: "关闭导入窗口，已保存的原件不会删除"
+    case .background: "关闭窗口，转写任务会继续，不会取消任务"
+    case .deferProcessing: "关闭窗口，任务保留在处理列表中"
+    }
+  }
+}
+
+enum MediaImportSheetDismissalDestination: Equatable {
+  case processing
+  case recording(UUID)
+  case settings(SettingsSection)
+
+  @MainActor
+  func apply(to router: WorkspaceRouter) {
+    switch self {
+    case .processing:
+      router.show(.processing)
+    case .recording(let id):
+      router.show(recordID: id)
+    case .settings(let section):
+      router.show(settings: section)
+    }
+  }
+}
+
 struct MediaImportSheet: View {
   @Environment(AppState.self) private var appState
-  @Environment(WorkspaceRouter.self) private var router
   @Environment(\.dismiss) private var dismiss
 
+  @Binding var isPresented: Bool
   @Binding var recordID: UUID?
+  @Binding var dismissalDestination: MediaImportSheetDismissalDestination?
   @State private var isShowingFileImporter = false
   @State private var isDropTarget = false
   @State private var isImportingFile = false
@@ -31,14 +90,15 @@ struct MediaImportSheet: View {
       .navigationTitle("导入音视频")
       .toolbar {
         ToolbarItem(placement: .cancellationAction) {
-          Button("取消") { dismiss() }
+          Button(closeButtonTitle) { closeSheet() }
+            .accessibilityLabel(closeButtonTitle)
+            .accessibilityHint(closeButtonHint)
         }
       }
     }
     .onChange(of: record?.materialStatus) { _, status in
       guard status == .ready, let recordID else { return }
-      router.show(recordID: recordID)
-      dismiss()
+      closeSheet(after: .recording(recordID))
     }
     .fileImporter(
       isPresented: $isShowingFileImporter,
@@ -123,6 +183,40 @@ struct MediaImportSheet: View {
     }
   }
 
+  private var activeTaskStatus: ProcessingTaskStatus? {
+    guard let record else { return nil }
+    return ProcessingTaskProjection.activeTranscriptionTask(in: record.processingTasks)?.status
+  }
+
+  private var closeButtonTitle: String {
+    let action = MediaImportSheetCloseAction.resolve(
+      hasRecord: record != nil, taskStatus: activeTaskStatus)
+    return action.title
+  }
+
+  private var closeButtonHint: String {
+    let action = MediaImportSheetCloseAction.resolve(
+      hasRecord: record != nil, taskStatus: activeTaskStatus)
+    return action.hint
+  }
+
+  private var backgroundCloseTitle: String? {
+    let action = MediaImportSheetCloseAction.resolve(
+      hasRecord: record != nil, taskStatus: activeTaskStatus)
+    switch action {
+    case .background, .deferProcessing:
+      return action.title
+    default:
+      return nil
+    }
+  }
+
+  private func closeSheet(after destination: MediaImportSheetDismissalDestination? = nil) {
+    dismissalDestination = destination
+    isPresented = false
+    dismiss()
+  }
+
   @ViewBuilder
   private func importedContent(_ record: RecordingRecord) -> some View {
     VStack(alignment: .leading, spacing: 14) {
@@ -154,12 +248,7 @@ struct MediaImportSheet: View {
 
       HStack(spacing: 10) {
         Button {
-          if appState.canTranscribe {
-            appState.requestTranscription(for: record)
-          } else {
-            router.show(settings: .services)
-            dismiss()
-          }
+          startTranscription(for: record)
         } label: {
           Label(transcribeButtonTitle(record), systemImage: "text.badge.checkmark")
         }
@@ -172,13 +261,23 @@ struct MediaImportSheet: View {
         )
         .accessibilityLabel(transcribeButtonTitle(record))
         .help(transcribeButtonTitle(record))
-        Button("稍后处理") {
-          router.show(recordID: record.id)
-          dismiss()
+        Group {
+          if let backgroundCloseTitle {
+            Button(backgroundCloseTitle) {
+              closeSheet()
+            }
+            .buttonStyle(.bordered)
+            .accessibilityLabel(backgroundCloseTitle)
+            .accessibilityHint("关闭窗口，任务会继续，不会取消")
+          } else {
+            Button("稍后处理") {
+              closeSheet(after: .recording(record.id))
+            }
+            .buttonStyle(.bordered)
+            .accessibilityLabel("稍后处理")
+            .help("稍后处理")
+          }
         }
-        .buttonStyle(.bordered)
-        .accessibilityLabel("稍后处理")
-        .help("稍后处理")
         Button("打开原件") {
           _ = appState.openOriginalMedia(for: record)
         }
@@ -189,6 +288,16 @@ struct MediaImportSheet: View {
       if !appState.hasInstalledLocalModelPack {
         ModelInstallCard(entryPoint: .material, recordingID: record.id)
       }
+    }
+  }
+
+  private func startTranscription(for record: RecordingRecord) {
+    let canTranscribe = appState.canTranscribe
+    if canTranscribe {
+      appState.requestTranscription(for: record)
+      closeSheet(after: .processing)
+    } else {
+      closeSheet(after: .settings(.services))
     }
   }
 
@@ -212,7 +321,7 @@ struct MediaImportSheet: View {
     case .awaitingAuthorization:
       return "等待你确认外发；原始文件已安全保存在本机。"
     case .running:
-      return "正在转写；可以关闭此窗口，任务会继续。"
+      return "正在后台转写；关闭此窗口不会中断任务。"
     case .queued:
       return "文件已保存并排队；点击“转文字”开始处理。"
     case .waitingForModel:

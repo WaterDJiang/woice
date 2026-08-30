@@ -7,7 +7,7 @@
     <key>CFBundleExecutable</key>
     <string>Woice</string>
     <key>CFBundleIdentifier</key>
-    <string>com.woice.app</string>
+    <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>
@@ -17,7 +17,9 @@
     <key>CFBundleShortVersionString</key>
     <string>0.1.3</string>
     <key>CFBundleVersion</key>
-    <string>1</string>
+    <string>2</string>
+    <key>LSApplicationCategoryType</key>
+    <string>public.app-category.productivity</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
     <key>LSMultipleInstancesProhibited</key>

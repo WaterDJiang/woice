@@ -140,6 +140,7 @@ struct WorkspaceView: View {
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @State private var isShowingMediaImport = false
   @State private var importedRecordID: UUID?
+  @State private var mediaImportDismissalDestination: MediaImportSheetDismissalDestination?
 
   private var areaSelection: Binding<WorkspaceArea> {
     Binding(
@@ -226,16 +227,21 @@ struct WorkspaceView: View {
       guard requested else { return }
       router.shouldPresentMediaImport = false
       importedRecordID = nil
+      mediaImportDismissalDestination = nil
       isShowingMediaImport = true
     }
-    .sheet(isPresented: $isShowingMediaImport) {
-      MediaImportSheet(recordID: $importedRecordID)
-        .environment(appState)
-        .environment(router)
+    .sheet(isPresented: $isShowingMediaImport, onDismiss: handleMediaImportDismissal) {
+      MediaImportSheet(
+        isPresented: $isShowingMediaImport,
+        recordID: $importedRecordID,
+        dismissalDestination: $mediaImportDismissalDestination
+      )
+      .environment(appState)
     }
     .task {
       if router.shouldPresentMediaImport {
         router.shouldPresentMediaImport = false
+        mediaImportDismissalDestination = nil
         isShowingMediaImport = true
       }
     }
@@ -245,6 +251,12 @@ struct WorkspaceView: View {
       value: livePreviewPresentation
     )
     .frame(minWidth: 1_080, idealWidth: 1_180, minHeight: 700, idealHeight: 760)
+  }
+
+  private func handleMediaImportDismissal() {
+    guard let destination = mediaImportDismissalDestination else { return }
+    mediaImportDismissalDestination = nil
+    destination.apply(to: router)
   }
 
   private var livePreviewPresentation: LiveTranscriptPreviewPresentation? {
@@ -266,6 +278,7 @@ struct WorkspaceView: View {
         startRecording: { appState.startRecording() },
         importMedia: {
           importedRecordID = nil
+          mediaImportDismissalDestination = nil
           isShowingMediaImport = true
         })
     case .recording(let id):

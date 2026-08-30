@@ -7,6 +7,47 @@ import WoiceCore
 @testable import WoiceApp
 
 struct MediaImportTests {
+  @Test("导入转写运行中关闭浮窗会继续后台任务，而不是显示取消")
+  func runningImportSheetUsesBackgroundCloseAction() {
+    #expect(
+      MediaImportSheetCloseAction.resolve(hasRecord: true, taskStatus: .running)
+        == .background)
+    #expect(
+      MediaImportSheetCloseAction.resolve(hasRecord: true, taskStatus: .running).title
+        == "关闭并后台继续")
+    #expect(
+      MediaImportSheetCloseAction.resolve(hasRecord: true, taskStatus: .running).hint
+        == "关闭窗口，转写任务会继续，不会取消任务")
+    #expect(
+      MediaImportSheetCloseAction.resolve(hasRecord: true, taskStatus: .queued)
+        == .deferProcessing)
+    #expect(
+      MediaImportSheetCloseAction.resolve(hasRecord: true, taskStatus: .queued).title
+        == "关闭，稍后处理")
+  }
+
+  @Test("尚未导入文件时关闭动作仍是取消导入")
+  func emptyImportSheetUsesCancelAction() {
+    #expect(
+      MediaImportSheetCloseAction.resolve(hasRecord: false, taskStatus: nil)
+        == .cancelImport)
+  }
+
+  @Test("转写路由只在浮窗退出后应用目标工作区")
+  @MainActor
+  func dismissalDestinationAppliesStableRoute() {
+    let router = WorkspaceRouter()
+    MediaImportSheetDismissalDestination.processing.apply(to: router)
+    #expect(router.route == .processing)
+
+    let recordID = UUID()
+    MediaImportSheetDismissalDestination.recording(recordID).apply(to: router)
+    #expect(router.route == .recording(recordID))
+
+    MediaImportSheetDismissalDestination.settings(.services).apply(to: router)
+    #expect(router.route == .settings(.services))
+  }
+
   @Test("导入 Sheet 优先展示活动转写任务，避免状态卡与按钮相互矛盾")
   @MainActor
   func importSheetUsesActiveTranscriptionTask() {

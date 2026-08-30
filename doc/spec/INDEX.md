@@ -2,6 +2,7 @@
 
 | 功能域 | 状态 | 一句话定义 | 文件 |
 |---|---|---|---|
+| 直接发行包模型下载重试 | 代码与自动门禁完成；真实 WhisperKit 下载验收通过 | Core/Offline 的 WhisperKit Hub 与通用模型包下载对瞬时 TLS、连接中断和超时有限重试，并保留续传、取消和原子安装边界 | [../specs/2026-08-30-model-download-retry.md](../specs/2026-08-30-model-download-retry.md) |
 | 实时文字预览、顶部面板收起与导入页优化 | 代码与自动门禁完成 | 录音期间在工作台和菜单栏显示本机 partial transcript，Popover 点击外部收起，导入页收紧并支持拖放 | [../specs/2026-08-25-live-preview-popover-and-import-ux.md](../specs/2026-08-25-live-preview-popover-and-import-ux.md) |
 | 本机模型一键安装与 App Store 兼容 | 待实施 | 无模型时只需一次点击，自动完成下载、校验、安装、切换和等待任务恢复；Store 只下载不可执行模型数据 | [../specs/2026-08-25-one-click-model-installation-and-store-compatibility.md](../specs/2026-08-25-one-click-model-installation-and-store-compatibility.md) |
 | 录音控制区视觉层级 | 按用户复核移除工作台顶部动作，代码、自动门禁与覆盖安装完成 | 菜单栏音源使用中性状态按钮、录音是唯一主动作；工作台顶部不再复制导入和录音控制 | [../specs/2026-08-25-recording-control-visual-hierarchy.md](../specs/2026-08-25-recording-control-visual-hierarchy.md) |

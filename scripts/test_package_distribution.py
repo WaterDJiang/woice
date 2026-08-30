@@ -49,6 +49,20 @@ def create_fixture(root: Path, *, license_info: object, notice_path: str = "NOTI
 
 
 class PackageDistributionModelGateTests(unittest.TestCase):
+    def test_store_flavor_uses_store_bundle_id(self) -> None:
+        plist = {"CFBundleIdentifier": "com.woice.app"}
+
+        PACKAGE_DISTRIBUTION.apply_flavor_bundle_identity(plist, "store")
+
+        self.assertEqual(plist["CFBundleIdentifier"], "com.water.woice")
+
+    def test_direct_flavor_keeps_legacy_bundle_id(self) -> None:
+        plist = {"CFBundleIdentifier": "$(PRODUCT_BUNDLE_IDENTIFIER)"}
+
+        PACKAGE_DISTRIBUTION.apply_flavor_bundle_identity(plist, "core")
+
+        self.assertEqual(plist["CFBundleIdentifier"], "com.woice.app")
+
     def test_valid_license_and_notice_are_accepted(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)

@@ -44,6 +44,7 @@
 		8C3D54931812B4DD65FBC757 /* ModelCatalogRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60859C375E0ED404D1CCEC23 /* ModelCatalogRuntime.swift */; };
 		8FAA5D87ACCB26E07495C140 /* ControlledCLIRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 686968A695D17E4F2C2D7DAD /* ControlledCLIRunner.swift */; };
 		94055D7F57FA6CA9950720A6 /* DistributionManifest.json in Resources */ = {isa = PBXBuildFile; fileRef = 3EDC9C8EAE63D08EA669E656 /* DistributionManifest.json */; };
+		94D8ACE8188105D8AE8AEFC1 /* ModelDownloadRetry.swift in Sources */ = {isa = PBXBuildFile; fileRef = F70ED695E59EC0578A4BE72D /* ModelDownloadRetry.swift */; };
 		9677C93DA970F44ECCCBCE0A /* AudioChunkingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDC709EC3064445BD2CAD677 /* AudioChunkingService.swift */; };
 		97BF9CE3CE02C5D506EE8A2B /* ProcessProviderRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 058E27EF77E34FFB30B836E8 /* ProcessProviderRunner.swift */; };
 		9A7DEBF7311172AA11A0C8E8 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAEE9045FAE66E75FD5665DF /* AppState.swift */; };
@@ -170,6 +171,7 @@
 		F41202B58A3D31238B79E359 /* SystemAudioCapabilityService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemAudioCapabilityService.swift; sourceTree = "<group>"; };
 		F63EF6348A7AD5FF8E78EABE /* TextInsertionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextInsertionService.swift; sourceTree = "<group>"; };
 		F69901F609E6F3F9C4798344 /* SingleInstanceGuard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SingleInstanceGuard.swift; sourceTree = "<group>"; };
+		F70ED695E59EC0578A4BE72D /* ModelDownloadRetry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelDownloadRetry.swift; sourceTree = "<group>"; };
 		F86432DE25176C9ABFA23D35 /* MediaImportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaImportService.swift; sourceTree = "<group>"; };
 		F9A0C4578B60FEC5F095CDF2 /* Qwen3ASRService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Qwen3ASRService.swift; sourceTree = "<group>"; };
 		FCBDEAFF11D75DDD64A3B477 /* SystemAudioCaptureService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemAudioCaptureService.swift; sourceTree = "<group>"; };
@@ -272,6 +274,7 @@
 				3A3C0D640481119C983AFFBC /* MediaImportSheet.swift */,
 				7EADB082E854C6A5D516989A /* MenuBarPopover.swift */,
 				60859C375E0ED404D1CCEC23 /* ModelCatalogRuntime.swift */,
+				F70ED695E59EC0578A4BE72D /* ModelDownloadRetry.swift */,
 				9004F82776918DEAB92DCF12 /* ModelInstallCard.swift */,
 				884988E8FF590FCFD4037A41 /* ModelInstallCoordinator.swift */,
 				96679625CF51E75669945673 /* ModelPackDownloadCoordinator.swift */,
@@ -490,6 +493,7 @@
 				DFA6F535BE7610DB776C2DAB /* MediaImportSheet.swift in Sources */,
 				DA754834D6C4CAFF83B26699 /* MenuBarPopover.swift in Sources */,
 				8C3D54931812B4DD65FBC757 /* ModelCatalogRuntime.swift in Sources */,
+				94D8ACE8188105D8AE8AEFC1 /* ModelDownloadRetry.swift in Sources */,
 				8AD7832FBF75FF8C9B894D40 /* ModelInstallCard.swift in Sources */,
 				F8725499A1BFF4B45583C2AF /* ModelInstallCoordinator.swift in Sources */,
 				AC0691DD091FC582EF1BA39D /* ModelPackDownloadCoordinator.swift in Sources */,
@@ -573,7 +577,7 @@
 					"$(inherited)",
 					"-ObjC",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.woice.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.water.woice;
 				PRODUCT_NAME = Woice;
 				SDKROOT = macosx;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) WOICE_APP_STORE";
@@ -651,8 +655,9 @@
 					"$(inherited)",
 					"-ObjC",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.woice.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.water.woice;
 				PRODUCT_NAME = Woice;
+				PROVISIONING_PROFILE_SPECIFIER = "Woice Mac App Store";
 				SDKROOT = macosx;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) WOICE_APP_STORE";
 			};

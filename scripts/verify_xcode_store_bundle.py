@@ -74,10 +74,14 @@ def verify(app: Path) -> None:
         raise XcodeStoreBundleError(f"Xcode Store Bundle 或可执行文件缺失：{app}")
 
     info = read_plist(contents / "Info.plist")
-    if info.get("CFBundleIdentifier") != "com.woice.app":
-        raise XcodeStoreBundleError("Xcode Store Bundle ID 必须是 com.woice.app。")
+    if info.get("CFBundleIdentifier") != "com.water.woice":
+        raise XcodeStoreBundleError("Xcode Store Bundle ID 必须是 com.water.woice。")
     if info.get("CFBundlePackageType") != "APPL":
         raise XcodeStoreBundleError("Xcode Store Bundle 不是 macOS App。")
+    if info.get("LSApplicationCategoryType") != "public.app-category.productivity":
+        raise XcodeStoreBundleError(
+            "Xcode Store Bundle 缺少有效的 App Store 类别：public.app-category.productivity。"
+        )
     if info.get("CFBundleIconName") != "AppIcon" or info.get("CFBundleIconFile") != "AppIcon":
         raise XcodeStoreBundleError("Xcode Store Bundle 缺少 AppIcon 元数据。")
     try:

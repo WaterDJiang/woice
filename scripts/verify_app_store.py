@@ -119,10 +119,14 @@ def verify(app: Path, project_root: Path) -> None:
     if not app.is_dir() or not executable.is_file():
         raise StoreBundleError(f"Store Bundle 或可执行文件缺失：{app}")
     info = read_plist(contents / "Info.plist")
-    if info.get("CFBundleIdentifier") != "com.woice.app":
-        raise StoreBundleError("Store Bundle ID 必须是 com.woice.app。")
+    if info.get("CFBundleIdentifier") != "com.water.woice":
+        raise StoreBundleError("Store Bundle ID 必须是 com.water.woice。")
     if info.get("CFBundlePackageType") != "APPL":
         raise StoreBundleError("Store Bundle 不是 macOS App。")
+    if info.get("LSApplicationCategoryType") != "public.app-category.productivity":
+        raise StoreBundleError(
+            "Store Bundle 缺少有效的 App Store 类别：public.app-category.productivity。"
+        )
     if info.get("CFBundleIconName") != "AppIcon" or info.get("CFBundleIconFile") != "AppIcon":
         raise StoreBundleError("Store Bundle 缺少 AppIcon Asset Catalog 元数据。")
     if str(info.get("LSMinimumSystemVersion", "")) < "14.0":
