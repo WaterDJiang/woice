@@ -2,7 +2,7 @@
 
 | 日期 | 类型 | 一句话结论 | 文件 |
 |---|---|---|---|
-| 2026-08-30 | 签名模型 Catalog 与 TestFlight build 3 准备 | Tiny/Large-v3 生产 Catalog 已用 Ed25519 签名并由 Store 公钥验签；Catalog 已推送，0.1.3 build 3 Archive/待上传 pkg 与 230 项 Swift 门禁通过，上传因 Xcode 无 App Store Connect 账号停止 | [2026-08-30.md](2026-08-30.md) |
+| 2026-08-30 | 签名模型 Catalog 与 TestFlight build 3 上传 | Tiny/Large-v3 生产 Catalog 已用 Ed25519 签名并由 Store 公钥验签；Catalog 已推送，0.1.3 build 3 Archive/pkg 与 230 项 Swift 门禁通过，Xcode 日志确认已上传，等待 App Store Connect 处理 | [2026-08-30.md](2026-08-30.md) |
 | 2026-08-30 | 模型下载取舍说明与 Store 清单门禁 | 下载卡展示 Tiny/Qwen3-ASR/Large-v3 的设备与质量取舍；Store/TestFlight 无已验证 Catalog 时明确禁用下载而不伪造可用；228 项 Swift、Store 条件构建与 verify 通过 | [2026-08-30.md](2026-08-30.md) |
 | 2026-08-30 | 前端版本号显示 | 工作台导航副标题显示 Bundle 版本与 Build，设置页复用同一来源；新增回退测试，完整 226 项 Swift、lint 与 verify 通过 | [2026-08-30.md](2026-08-30.md) |
 | 2026-08-30 | Core/Offline 模型下载重试修复 | 修复 Hugging Face 瞬时 TLS/连接错误导致的一次点击失败；224 项 Swift、真实 WhisperKit 下载/安装/转写和 0.1.3 arm64 ad hoc 双包校验通过 | [2026-08-30.md](2026-08-30.md) |
