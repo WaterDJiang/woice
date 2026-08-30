@@ -17,7 +17,7 @@
     <key>CFBundleShortVersionString</key>
     <string>0.1.3</string>
     <key>CFBundleVersion</key>
-    <string>2</string>
+    <string>3</string>
     <key>LSApplicationCategoryType</key>
     <string>public.app-category.productivity</string>
     <key>LSMinimumSystemVersion</key>
@@ -32,5 +32,23 @@
     <string>Woice 仅在你开启会议模式并开始录音后捕获系统声音。</string>
     <key>NSSpeechRecognitionUsageDescription</key>
     <string>Woice 在你选择本机语言转文字或主动开启实时预览后，使用这台 Mac 的语音识别模型。</string>
+    <key>WOICEModelCatalogURL</key>
+    <string>https://raw.githubusercontent.com/WaterDJiang/woice/main/Resources/ModelCatalog/model-catalog.json</string>
+    <key>WOICEModelCatalogID</key>
+    <string>woice-model-catalog</string>
+    <key>WOICEModelCatalogTrustedKeys</key>
+    <dict>
+        <key>woice-release-2026-08</key>
+        <string>oQOBwsn6Q2EkL3yTuEzz3+PvYHvDI62BsRzhOMXFQpU=</string>
+    </dict>
+    <key>WOICEModelCatalogAllowedHosts</key>
+    <array>
+        <string>raw.githubusercontent.com</string>
+    </array>
+    <key>WOICEModelDownloadAllowedHosts</key>
+    <array>
+        <string>huggingface.co</string>
+        <string>raw.githubusercontent.com</string>
+    </array>
 </dict>
 </plist>

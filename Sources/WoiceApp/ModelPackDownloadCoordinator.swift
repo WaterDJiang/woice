@@ -86,6 +86,7 @@ actor ModelPackDownloadCoordinator {
     manifest: ModelPackManifest,
     baseURL: URL,
     policy: ModelPackInstallPolicy = .localImport,
+    allowedHosts: Set<String>? = nil,
     progress: (@Sendable (ModelPackDownloadProgress) -> Void)? = nil
   ) async throws -> URL {
     try manifest.validate()
@@ -133,6 +134,7 @@ actor ModelPackDownloadCoordinator {
         destination: destination,
         manifest: manifest,
         progressOffset: completedPackBytes,
+        allowedHosts: allowedHosts,
         progress: progress)
       guard completed == file.byteCount else {
         throw ModelPackDownloadError.contentLengthMismatch(path: file.relativePath)
@@ -163,6 +165,7 @@ actor ModelPackDownloadCoordinator {
     destination: URL,
     manifest: ModelPackManifest,
     progressOffset: Int64,
+    allowedHosts: Set<String>?,
     progress: (@Sendable (ModelPackDownloadProgress) -> Void)?
   ) async throws -> Int64 {
     try await ModelDownloadRetry.run {
@@ -172,6 +175,7 @@ actor ModelPackDownloadCoordinator {
         destination: destination,
         manifest: manifest,
         progressOffset: progressOffset,
+        allowedHosts: allowedHosts,
         progress: progress)
     }
   }
@@ -182,9 +186,23 @@ actor ModelPackDownloadCoordinator {
     destination: URL,
     manifest: ModelPackManifest,
     progressOffset: Int64,
+    allowedHosts: Set<String>?,
     progress: (@Sendable (ModelPackDownloadProgress) -> Void)?
   ) async throws -> Int64 {
-    let url = baseURL.appendingPathComponent(file.relativePath)
+    let url: URL
+    if let rawDownloadURL = file.downloadURL {
+      let normalizedAllowedHosts = allowedHosts?.map { $0.lowercased() }
+      guard
+        let directURL = URL(string: rawDownloadURL),
+        ModelPackValidation.isValidDownloadURL(rawDownloadURL),
+        let host = directURL.host?.lowercased(),
+        normalizedAllowedHosts?.contains(host)
+          ?? (host == baseURL.host?.lowercased())
+      else { throw ModelPackDownloadError.invalidBaseURL }
+      url = directURL
+    } else {
+      url = baseURL.appendingPathComponent(file.relativePath)
+    }
     var offset = currentFileByteCount(at: destination)
     var request = URLRequest(url: url)
     request.httpMethod = "GET"
@@ -335,7 +353,11 @@ actor ModelCatalogDownloadCoordinator {
       throw ModelCatalogDownloadError.disallowedDownloadHost(host)
     }
     return try await coordinator.download(
-      manifest: manifest, baseURL: baseURL, policy: .storeCatalog, progress: progress)
+      manifest: manifest,
+      baseURL: baseURL,
+      policy: .storeCatalog,
+      allowedHosts: allowedHosts,
+      progress: progress)
   }
 }
 

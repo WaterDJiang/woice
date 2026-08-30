@@ -436,7 +436,7 @@ private struct WorkspaceSidebar: View {
     }
     .listStyle(.sidebar)
     .navigationTitle("Woice")
-    .navigationSubtitle("工作台")
+    .navigationSubtitle(WoiceAppVersion.navigationSubtitle)
     .frame(
       minWidth: WorkspaceSidebarLayout.minimumWidth,
       idealWidth: WorkspaceSidebarLayout.idealWidth,

@@ -1,0 +1,7 @@
+Woice model pack: WhisperKit Tiny（多语言）
+Model repository: argmaxinc/whisperkit-coreml
+Model revision: 0f63a7800b00dd0226abd051b906c246e1907482
+Tokenizer repository: openai/whisper-tiny
+Tokenizer revision: 169d4a4341b33bc18d8881c4b69c2e104e1cc0af
+License: MIT (see source repository)
+Source: https://huggingface.co/argmaxinc/whisperkit-coreml/tree/0f63a7800b00dd0226abd051b906c246e1907482/openai_whisper-tiny

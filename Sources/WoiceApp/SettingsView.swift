@@ -1394,57 +1394,23 @@ private struct ProvidersSettingsPane: View {
 
         Section {
           VStack(alignment: .leading, spacing: 10) {
+            Text("按设备资源和转写质量选择；下载完成后会自动设为当前本机模型。")
+              .font(.caption)
+              .foregroundStyle(.secondary)
             ModelInstallCard(entryPoint: .settings)
             #if !WOICE_APP_STORE
               ModelInstallCard(entryPoint: .settings, model: .qwen3ASR)
             #endif
-            Divider()
-            let largeCandidate = WhisperKitModelCatalogEntry.candidateLargeV3
-            HStack(alignment: .top, spacing: 10) {
-              Image(systemName: "speedometer")
-                .foregroundStyle(.secondary)
-                .frame(width: 20)
-              VStack(alignment: .leading, spacing: 3) {
-                Text(largeCandidate.displayName)
-                  .font(.callout.weight(.medium))
-                Text("约 626 MB · 固定版本 \(largeCandidate.modelRevision) · 已通过 5 类 300 秒性能门禁，可作为默认")
-                  .font(.caption)
-                  .foregroundStyle(.secondary)
-                  .textSelection(.enabled)
-              }
-              Spacer()
-              Button {
-                if appState.isDownloadingModel(entry: largeCandidate) {
-                  appState.cancelWhisperKitModelDownload()
-                } else {
-                  appState.startWhisperKitModelDownload(entry: largeCandidate)
-                }
-              } label: {
-                if appState.isDownloadingModel(entry: largeCandidate) {
-                  ProgressView().controlSize(.small)
-                  Text("取消")
-                } else if appState.isDownloadingModel {
-                  Text("等待当前下载")
-                } else if appState.isModelPackInstalled(entry: largeCandidate) {
-                  Label("已安装", systemImage: "checkmark")
-                } else {
-                  Label("下载候选", systemImage: "arrow.down.circle")
-                }
-              }
-              .buttonStyle(.bordered)
-              .controlSize(.small)
-              .disabled(
-                (appState.isDownloadingModel && !appState.isDownloadingModel(entry: largeCandidate))
-                  || appState.isModelPackInstalled(entry: largeCandidate))
-            }
-            downloadProgress(for: largeCandidate)
+            ModelInstallCard(
+              entryPoint: .settings,
+              model: .whisperKit(.candidateLargeV3))
           }
         } header: {
           Label("获取本机模型", systemImage: "arrow.down.circle")
         } footer: {
           #if WOICE_APP_STORE
             Text(
-              "下载由你显式触发，完成后会校验每个文件并原子安装；当前 Store 版本只展示已验证清单中的本机模型，下载失败不会替换当前模型。"
+              "下载由你显式触发，完成后会校验每个文件并原子安装；Store 版本只允许已验证模型清单中的条目，下载失败不会替换当前模型。"
             )
           #else
             Text(
@@ -1795,21 +1761,6 @@ private struct ProvidersSettingsPane: View {
     }
   }
 
-  @ViewBuilder
-  private func downloadProgress(for entry: WhisperKitModelCatalogEntry) -> some View {
-    if appState.isDownloadingModel(entry: entry), let progress = appState.modelDownloadProgress {
-      ProgressView(value: progress.fractionCompleted)
-      HStack {
-        Text(progress.filePath)
-        Spacer()
-        Text("\(Int(progress.fractionCompleted * 100))%")
-          .monospacedDigit()
-      }
-      .font(.caption)
-      .foregroundStyle(.secondary)
-    }
-  }
-
   private func providerFields(
     name: String,
     endpoint: Binding<String>,
@@ -2062,7 +2013,7 @@ private struct StorageSettingsPane: View {
 
       Section {
         LabeledContent("版本") {
-          Text(appVersionDisplay)
+          Text(WoiceAppVersion.display)
             .font(.callout.monospacedDigit())
             .textSelection(.enabled)
         }
@@ -2090,12 +2041,4 @@ private struct StorageSettingsPane: View {
     }
   }
 
-  private var appVersionDisplay: String {
-    let info = Bundle.main.infoDictionary ?? [:]
-    let version = info["CFBundleShortVersionString"] as? String ?? "开发版"
-    guard let build = info["CFBundleVersion"] as? String, !build.isEmpty else {
-      return version
-    }
-    return "\(version) (\(build))"
-  }
 }

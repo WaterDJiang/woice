@@ -4,12 +4,14 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import plistlib
 import subprocess
 import sys
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 
 EXPECTED_CAPABILITIES = {
@@ -65,6 +67,37 @@ def read_json(path: Path) -> dict[str, Any]:
     return value
 
 
+def verify_model_catalog_config(info: dict[str, Any]) -> None:
+    catalog_url = info.get("WOICEModelCatalogURL")
+    if not isinstance(catalog_url, str):
+        raise XcodeStoreBundleError("Xcode Store Bundle 缺少模型 Catalog URL。")
+    parsed = urlparse(catalog_url)
+    if parsed.scheme != "https" or parsed.hostname != "raw.githubusercontent.com":
+        raise XcodeStoreBundleError("Xcode Store Bundle 的模型 Catalog URL 必须指向受信 HTTPS 主机。")
+    if info.get("WOICEModelCatalogID") != "woice-model-catalog":
+        raise XcodeStoreBundleError("Xcode Store Bundle 的模型 Catalog ID 不符合发行配置。")
+    trusted_keys = info.get("WOICEModelCatalogTrustedKeys")
+    if not isinstance(trusted_keys, dict) or set(trusted_keys) != {"woice-release-2026-08"}:
+        raise XcodeStoreBundleError("Xcode Store Bundle 的模型 Catalog 信任根不符合发行配置。")
+    public_key = trusted_keys["woice-release-2026-08"]
+    if not isinstance(public_key, str):
+        raise XcodeStoreBundleError("Xcode Store Bundle 的模型 Catalog 公钥格式无效。")
+    try:
+        decoded = base64.b64decode(public_key, validate=True)
+    except (ValueError, base64.binascii.Error) as error:
+        raise XcodeStoreBundleError("Xcode Store Bundle 的模型 Catalog 公钥不是 Base64。") from error
+    if len(decoded) != 32:
+        raise XcodeStoreBundleError("Xcode Store Bundle 的模型 Catalog 公钥长度无效。")
+    catalog_hosts = info.get("WOICEModelCatalogAllowedHosts")
+    if not isinstance(catalog_hosts, list) or "raw.githubusercontent.com" not in catalog_hosts:
+        raise XcodeStoreBundleError("Xcode Store Bundle 缺少模型 Catalog host allowlist。")
+    download_hosts = info.get("WOICEModelDownloadAllowedHosts")
+    if not isinstance(download_hosts, list) or not {"huggingface.co", "raw.githubusercontent.com"}.issubset(
+        set(download_hosts)
+    ):
+        raise XcodeStoreBundleError("Xcode Store Bundle 缺少模型下载 host allowlist。")
+
+
 def verify(app: Path) -> None:
     app = app.expanduser().resolve()
     contents = app / "Contents"
@@ -98,6 +131,7 @@ def verify(app: Path) -> None:
     ):
         if not isinstance(info.get(usage_key), str) or not info[usage_key].strip():
             raise XcodeStoreBundleError(f"Xcode Store Bundle 缺少系统权限用途说明：{usage_key}")
+    verify_model_catalog_config(info)
 
     for resource_name in REQUIRED_RESOURCES:
         resource = resources / resource_name

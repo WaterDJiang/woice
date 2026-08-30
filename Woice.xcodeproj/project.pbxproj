@@ -24,6 +24,7 @@
 		4CCE224BD5E3927901396E6A /* WoiceTestRuntimeConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88256FC4E3C0023D54ADB3CE /* WoiceTestRuntimeConfiguration.swift */; };
 		4E405DFBED9DBB0837F7B232 /* TranscriptTextNormalizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB3C830E3F2961AF091D145C /* TranscriptTextNormalizer.swift */; };
 		5B6E7B24C8442B0D19B11C6C /* SpeechPlaybackService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F40A0CC21AEF60544370646 /* SpeechPlaybackService.swift */; };
+		68AF19A8E6306B836574C112 /* WoiceAppVersion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 503A02F8B0021E1E9248EFB1 /* WoiceAppVersion.swift */; };
 		6A6538F74F4C85962C561F71 /* SBOM.json in Resources */ = {isa = PBXBuildFile; fileRef = 04C090C41BFB000A85C1CD29 /* SBOM.json */; };
 		6D920A233819D1E115997169 /* DistributionCapabilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F84D5C1502355745A737E1D /* DistributionCapabilities.swift */; };
 		6EB57C957B821FB2F648CE4B /* WhisperKit in Frameworks */ = {isa = PBXBuildFile; productRef = 560E61020AE46D9FCEAC4456 /* WhisperKit */; };
@@ -123,6 +124,7 @@
 		451BFA4FD4AFC5CB919621E9 /* SettingsScope.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsScope.swift; sourceTree = "<group>"; };
 		48D3F1CEEF358B9EFEF4DD9C /* ModelRuntimeRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelRuntimeRegistry.swift; sourceTree = "<group>"; };
 		4E18E58155B38AB90AA23E15 /* LocalASRService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalASRService.swift; sourceTree = "<group>"; };
+		503A02F8B0021E1E9248EFB1 /* WoiceAppVersion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WoiceAppVersion.swift; sourceTree = "<group>"; };
 		5350EEB848F01FA93C05F538 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
 		5AF9996EF239C2E5317402D9 /* WoiceApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WoiceApp.swift; sourceTree = "<group>"; };
 		5B99CFC0A982839C8A9F575C /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
@@ -304,6 +306,7 @@
 				6D0BAAACB21905B89A132253 /* WhisperKitASRService.swift */,
 				76F60A831731726FE6BEDF85 /* WhisperKitModelInstaller.swift */,
 				5AF9996EF239C2E5317402D9 /* WoiceApp.swift */,
+				503A02F8B0021E1E9248EFB1 /* WoiceAppVersion.swift */,
 				2705543F051F7AECC067D397 /* WoiceBrandAssets.swift */,
 				309D74789CE29CBCBBE5922E /* WoiceMenuBarController.swift */,
 				88256FC4E3C0023D54ADB3CE /* WoiceTestRuntimeConfiguration.swift */,
@@ -523,6 +526,7 @@
 				7F46819F24BAF3F928EE92FA /* WhisperKitASRService.swift in Sources */,
 				A759C97C0CF14A5CE7506471 /* WhisperKitModelInstaller.swift in Sources */,
 				7DEF8326DA5BC31F57DECB26 /* WoiceApp.swift in Sources */,
+				68AF19A8E6306B836574C112 /* WoiceAppVersion.swift in Sources */,
 				731D13BF98229CF2FA72E403 /* WoiceBrandAssets.swift in Sources */,
 				E81D40819BAA61E727E27978 /* WoiceMenuBarController.swift in Sources */,
 				4CCE224BD5E3927901396E6A /* WoiceTestRuntimeConfiguration.swift in Sources */,

@@ -29,6 +29,10 @@ v0.1.3 不只支持 Qwen。Offline 为了控制体积，只预先放入 Qwen 权
 
 当前 GitHub 下载包采用 **ad hoc 签名，未公证**。下载后 macOS 可能提示“无法验证开发者”；请仅从本项目的 GitHub Release 下载，并在 Finder 中按住 Control 点击 App 后选择“打开”。正式 Developer ID 签名和公证尚未完成。
 
+### TestFlight / App Store 版本
+
+`0.1.3 (Build 3)` 使用签名模型 Catalog 提供 WhisperKit Tiny 和 Large-v3 的按需下载。Catalog 会先由 App 验证 Ed25519 签名，再允许逐文件下载、校验和安装；Store 版暂不开放 Qwen3-ASR。模型权重不随 Store 包上传，下载地址和版本固定在公开 Catalog 中。
+
 ## 产品边界
 
 - 录音只能由用户的按钮、快捷键或已明确授权的连接器触发。

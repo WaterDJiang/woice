@@ -58,6 +58,28 @@ func modelPackManifestRejectsUnsafeFiles() throws {
   }
 }
 
+@Test("模型文件可携带同一受信主机的逐文件 HTTPS 下载地址")
+func modelPackFileSupportsDirectDownloadURL() throws {
+  let file = try ModelPackFile(
+    relativePath: "weights/model.bin",
+    byteCount: 128,
+    sha256: String(repeating: "a", count: 64),
+    downloadURL: "https://huggingface.co/example/model/resolve/revision/weights/model.bin")
+  let decoded = try JSONDecoder.woice.decode(
+    ModelPackFile.self,
+    from: JSONEncoder.woice.encode(file))
+  #expect(decoded == file)
+  #expect(decoded.downloadURL?.hasPrefix("https://huggingface.co/") == true)
+
+  #expect(throws: ModelPackValidationError.invalidDownloadURL("http://huggingface.co/model")) {
+    try ModelPackFile(
+      relativePath: "weights/model.bin",
+      byteCount: 128,
+      sha256: String(repeating: "a", count: 64),
+      downloadURL: "http://huggingface.co/model")
+  }
+}
+
 @Test("发行清单区分 Core 与 Offline 且禁止 Core 随包模型")
 func distributionManifestValidatesFlavor() throws {
   let core = try DistributionManifest(

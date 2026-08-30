@@ -341,17 +341,32 @@ public struct ModelPackFile: Codable, Equatable, Hashable, Sendable {
   public let relativePath: String
   public let byteCount: Int64
   public let sha256: String
+  /// Optional immutable source URL for catalogs whose files are split across
+  /// more than one repository. It is metadata only; the downloader still
+  /// enforces HTTPS and the catalog's host allowlist.
+  public let downloadURL: String?
 
-  public init(relativePath: String, byteCount: Int64, sha256: String) throws {
+  public init(
+    relativePath: String,
+    byteCount: Int64,
+    sha256: String,
+    downloadURL: String? = nil
+  ) throws {
     self.relativePath = relativePath
     self.byteCount = byteCount
     self.sha256 = sha256.lowercased()
+    self.downloadURL = downloadURL
     try ModelPackValidation.validateFile(
       relativePath: relativePath, byteCount: byteCount, sha256: sha256)
+    if let downloadURL {
+      guard ModelPackValidation.isValidDownloadURL(downloadURL) else {
+        throw ModelPackValidationError.invalidDownloadURL(downloadURL)
+      }
+    }
   }
 
   private enum CodingKeys: String, CodingKey {
-    case relativePath, byteCount, sha256
+    case relativePath, byteCount, sha256, downloadURL
   }
 
   public init(from decoder: Decoder) throws {
@@ -359,7 +374,8 @@ public struct ModelPackFile: Codable, Equatable, Hashable, Sendable {
     try self.init(
       relativePath: container.decode(String.self, forKey: .relativePath),
       byteCount: container.decode(Int64.self, forKey: .byteCount),
-      sha256: container.decode(String.self, forKey: .sha256))
+      sha256: container.decode(String.self, forKey: .sha256),
+      downloadURL: container.decodeIfPresent(String.self, forKey: .downloadURL))
   }
 }
 
@@ -1033,6 +1049,7 @@ public enum ModelPackValidationError: LocalizedError, Equatable, Sendable {
   case invalidTransportForStore
   case missingStoreRuntime
   case invalidDownloadBaseURL
+  case invalidDownloadURL(String)
   case invalidSignature
   case coreCannotBundleModels
   case duplicateBundledPack(String)
@@ -1057,6 +1074,7 @@ public enum ModelPackValidationError: LocalizedError, Equatable, Sendable {
     case .invalidTransportForStore: "App Store 模型必须使用随 App 签名的内置 Runtime。"
     case .missingStoreRuntime: "App Store 模型缺少内置 Runtime 标识。"
     case .invalidDownloadBaseURL: "模型清单下载地址必须是无凭据的 HTTPS 地址。"
+    case .invalidDownloadURL(let value): "模型文件下载地址无效：\(value)"
     case .invalidSignature: "模型清单签名信息不完整。"
     case .coreCannotBundleModels: "Core 发行清单不能声明随包模型。"
     case .duplicateBundledPack(let packID): "发行清单重复模型包：\(packID)"
@@ -1304,5 +1322,13 @@ public enum ModelPackValidation {
     guard sha256.range(of: #"^[0-9a-fA-F]{64}$"#, options: .regularExpression) != nil else {
       throw ModelPackValidationError.invalidSHA256(relativePath)
     }
+  }
+
+  public static func isValidDownloadURL(_ value: String) -> Bool {
+    guard let url = URL(string: value), url.scheme?.lowercased() == "https",
+      url.user == nil, url.password == nil, url.query == nil, url.fragment == nil,
+      let host = url.host?.lowercased(), !host.isEmpty, !value.contains("\\")
+    else { return false }
+    return true
   }
 }

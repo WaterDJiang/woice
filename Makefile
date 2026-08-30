@@ -4,7 +4,7 @@ APP_NAME := Woice
 BUILD_DIR := .build/release
 APP_BUNDLE := build/Woice.app
 
-.PHONY: docs-check harness-check appicon-check release-manifest-check model-package-check release-verify-remote store-capability-check connectors-check mcp-check project xcode-project xcode-list xcode-build-direct xcode-build-store build test package package-core package-offline package-store package-dmg-core package-dmg-offline release-adhoc release-developer-id model-benchmark-fixture model-benchmark model-benchmark-strict install format lint acceptance-core acceptance-whisperkit acceptance-meeting acceptance-meeting-transcription acceptance-settings acceptance-material acceptance-recovery acceptance-catalog acceptance-interruption acceptance-offline-model acceptance-local-provider acceptance-agent-outbound acceptance-agent-inbound acceptance-agent-external-inbound acceptance-workspace-sidebar acceptance-media-import-transcription acceptance-media-import-desktop acceptance-permission-continuity acceptance-stable-upgrade acceptance-launch-window acceptance-accessibility-runtime verify verify-core verify-offline verify-app-store archive-app-store acceptance-app-store-sandbox acceptance-app-store-clean-user
+.PHONY: docs-check harness-check appicon-check release-manifest-check model-package-check release-verify-remote store-capability-check connectors-check mcp-check project xcode-project xcode-list xcode-build-direct xcode-build-store build test package package-core package-offline package-store package-dmg-core package-dmg-offline release-adhoc release-developer-id model-catalog model-benchmark-fixture model-benchmark model-benchmark-strict install format lint acceptance-core acceptance-whisperkit acceptance-meeting acceptance-meeting-transcription acceptance-settings acceptance-material acceptance-recovery acceptance-catalog acceptance-interruption acceptance-offline-model acceptance-local-provider acceptance-agent-outbound acceptance-agent-inbound acceptance-agent-external-inbound acceptance-workspace-sidebar acceptance-media-import-transcription acceptance-media-import-desktop acceptance-permission-continuity acceptance-stable-upgrade acceptance-launch-window acceptance-accessibility-runtime verify verify-core verify-offline verify-app-store archive-app-store acceptance-app-store-sandbox acceptance-app-store-clean-user
 
 docs-check:
 	@test -f doc/INDEX.md
@@ -261,6 +261,16 @@ release-adhoc: docs-check harness-check xcode-build-direct
 
 release-developer-id: docs-check harness-check appicon-check release-manifest-check
 	@./scripts/release_developer_id.sh
+
+model-catalog: docs-check harness-check
+	@test -n "$(WOICE_MODEL_ROOT)" || { echo "WOICE_MODEL_ROOT 未设置；不会生成生产模型 Catalog。"; exit 1; }
+	@test -n "$(WOICE_CATALOG_PRIVATE_KEY)" || { echo "WOICE_CATALOG_PRIVATE_KEY 未设置；不会生成签名模型 Catalog。"; exit 1; }
+	@test -n "$(WOICE_CATALOG_VERSION)" || { echo "WOICE_CATALOG_VERSION 未设置；不会生成版本不明的模型 Catalog。"; exit 1; }
+	@python3 scripts/generate_model_catalog.py \
+		--model-root "$(WOICE_MODEL_ROOT)" \
+		--output Resources/ModelCatalog/model-catalog.json \
+		--private-key "$(WOICE_CATALOG_PRIVATE_KEY)" \
+		--catalog-version "$(WOICE_CATALOG_VERSION)"
 
 verify-app-store: docs-check harness-check appicon-check package-store
 	@python3 scripts/verify_app_store.py --app build/Woice-Store.app
