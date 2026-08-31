@@ -456,6 +456,41 @@ func bundledModelPackIsDiscoverableAndRoutable() async throws {
   #expect(provider.model.version == manifest.version)
 }
 
+@Test("同一模型版本随包与已下载重合时只显示已下载项")
+func downloadedModelPackShadowsDuplicateBundledEntry() async throws {
+  let root = FileManager.default.temporaryDirectory.appendingPathComponent(
+    "woice-model-dedup-\(UUID().uuidString)", isDirectory: true)
+  defer { try? FileManager.default.removeItem(at: root) }
+  let source = root.appendingPathComponent("source", isDirectory: true)
+  try FileManager.default.createDirectory(
+    at: source.appendingPathComponent("weights", isDirectory: true),
+    withIntermediateDirectories: true)
+  let bytes = Data(repeating: 0x5A, count: 64)
+  try bytes.write(to: source.appendingPathComponent("weights/model.bin"))
+  let manifest = try storeFixtureManifest(
+    data: bytes, version: "duplicate-version", providerID: "com.woice.whisperkit")
+
+  let bundledVersion = root.appendingPathComponent("BundledModels", isDirectory: true)
+    .appendingPathComponent(manifest.packID, isDirectory: true)
+    .appendingPathComponent(manifest.version, isDirectory: true)
+  try FileManager.default.createDirectory(
+    at: bundledVersion.appendingPathComponent("weights", isDirectory: true),
+    withIntermediateDirectories: true)
+  try bytes.write(to: bundledVersion.appendingPathComponent("weights/model.bin"))
+  try JSONEncoder.woice.encode(manifest).write(
+    to: bundledVersion.appendingPathComponent("manifest.json"))
+
+  let store = ModelPackStore(
+    rootURL: root.appendingPathComponent("Storage", isDirectory: true),
+    bundledRootURL: root.appendingPathComponent("BundledModels", isDirectory: true))
+  _ = try await store.install(manifest: manifest, from: source)
+
+  let entries = try await store.inventory()
+  #expect(entries.count == 1)
+  #expect(entries.first?.location == .downloaded)
+  #expect(entries.first?.isCurrent == true)
+}
+
 @Test("模型包下载支持显式触发和 HTTP Range 续传")
 func modelPackDownloadResumesPartialFileBeforeAtomicInstall() async throws {
   let root = FileManager.default.temporaryDirectory.appendingPathComponent(

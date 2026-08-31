@@ -154,6 +154,10 @@ def verify(app: Path, project_root: Path) -> None:
     info = read_plist(contents / "Info.plist")
     if info.get("CFBundleIdentifier") != "com.water.woice":
         raise StoreBundleError("Store Bundle ID 必须是 com.water.woice。")
+    if info.get("CFBundleDisplayName") != "Woice" or info.get("CFBundleName") != "Woice":
+        raise StoreBundleError("Store Bundle 显示名必须是 Woice。")
+    if info.get("WOICEAppChannel") != "store":
+        raise StoreBundleError("Store Bundle 的 App Channel 必须是 store。")
     if info.get("CFBundlePackageType") != "APPL":
         raise StoreBundleError("Store Bundle 不是 macOS App。")
     if info.get("LSApplicationCategoryType") != "public.app-category.productivity":
@@ -213,8 +217,10 @@ def verify(app: Path, project_root: Path) -> None:
         isinstance(value, str) for value in bundled_model_ids
     ):
         raise StoreBundleError("Store 模型包清单必须是字符串数组。")
-    if any("/" in value or "\\" in value for value in bundled_model_ids):
-        raise StoreBundleError("Store 模型包标识包含不安全路径。")
+    if bundled_model_ids:
+        raise StoreBundleError("Store 安装包不得携带任何模型。")
+    if (resources / "Models").exists() or (resources / "BundledModels").exists():
+        raise StoreBundleError("Store 安装包不得包含随包模型目录。")
 
     notices = resources / "NOTICES.md"
     if not notices.is_file() or notices.stat().st_size == 0:

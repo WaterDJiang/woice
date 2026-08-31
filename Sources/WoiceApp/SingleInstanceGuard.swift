@@ -15,7 +15,7 @@ final class SingleInstanceGuard {
         "Library/Application Support")
     let directory =
       WoiceTestRuntimeConfiguration.storageRoot
-      ?? applicationSupport.appendingPathComponent("Woice", isDirectory: true)
+      ?? WoiceAppChannel.current.workspaceRoot(in: applicationSupport)
     self.init(lockURL: directory.appendingPathComponent("instance.lock"))
   }
 

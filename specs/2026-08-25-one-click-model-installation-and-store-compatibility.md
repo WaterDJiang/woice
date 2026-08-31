@@ -1,6 +1,6 @@
 # 本机模型一键安装与 App Store 兼容规格
 
-> 状态：开发中；一键安装基础链路、Qwen 原生 Runtime、模型包校验与 Store Bundle 门禁已落地；v0.1.3 GitHub Offline 包内置 Qwen 预览版，正式性能矩阵与签名 Catalog 仍待收口  
+> 状态：开发中；一键安装基础链路、内存推荐、首启提示、库存去重与 Store 无模型门禁已落地；正式性能矩阵仍待收口  
 > 日期：2026-08-25  
 > 计划入口：[当前技术开发收口计划](../doc/plan/2026-08-24-current-technical-development-closure.md)  
 > 相关设计：[模型接入、连接向导与双版本架构设计](../doc/design/2026-08-22-model-onboarding-provider-architecture.md)  
@@ -50,8 +50,8 @@
 
 - 已安装且可用的用户当前模型优先。
 - 没有当前模型时，优先发行 Catalog 标记的 `recommended` 条目。
-- Qwen3-ASR-0.6B 已具备原生 Store-compatible Runtime、许可证 ADR 和固定模型包；在固定音频准确率、长文件/双轨性能、峰值内存和签名 Catalog 全部通过前，不成为正式推荐项。
-- 条件未满足时继续推荐已验证的 WhisperKit 模型，不展示点击后无法完成的 Qwen 下载按钮。
+- Qwen3-ASR-0.6B 已具备原生 Store-compatible Runtime、许可证 ADR 和固定模型包，进入按物理内存选择的推荐候选列表。
+- 推荐列表固定包含 Tiny、Qwen3-ASR-0.6B 与 Large-v3；Store 版只有在已验证签名 Catalog 包含对应条目时才允许下载，不为展示推荐绕过 Catalog。
 
 ### 3.3 下载前信息内联展示
 
@@ -175,6 +175,11 @@ verifying/installing/activating
 - 不执行下载内容，不修改 App Bundle，不安装 Python/uv/ffmpeg，不调用用户 Shell。
 - Runtime、Tokenizer、音频预处理代码随 Store Bundle 签名；下载项只包含权重、词表、配置和许可证数据。
 - Store 与官网使用同一 ModelPackManifest、ModelDownloadTask 和 ModelInventory。
+- App Store / TestFlight 的 App Bundle 不得携带任何模型权重或 `Resources/Models`；模型只能由用户首次启动后显式下载。
+- 首次启动且没有已安装模型时，直接说明“要把录音转成文字，需要先下载语音转换模型”，并展示单一推荐下载动作。
+- 没有已选模型时，推荐只读取 Mac 物理内存：低于 16 GiB 推荐 Tiny，16～31 GiB 推荐 Qwen3-ASR-0.6B，32 GiB 及以上推荐 Large-v3；不读取录音或用户内容。
+- Store 当前签名 Catalog 缺少目标档位时，按内存安全顺序回退到已验证条目：低内存和中档优先 Tiny，高内存优先 Qwen、再 Tiny；不可把不可下载模型标成当前推荐。
+- 同一 `packID + version` 同时出现在随包和已下载库存时，UI 只展示一条；已下载项优先，以保留 current pointer 和可恢复删除语义。
 
 ### 7.2 审核可解释性
 
@@ -228,6 +233,10 @@ verifying/installing/activating
 - MOD-TAC-010：模型卡具有可访问名称、阶段、进度和值；取消和继续支持键盘与 VoiceOver。
 - MOD-TAC-011：固定 revision、上游/派生 SHA-256、Apache-2.0、Notice、SBOM 和转换元数据完整。
 - MOD-TAC-012：未通过 Runtime/许可证/性能门禁的 Qwen 条目不会进入正式 Catalog 或用户 UI。
+- MOD-TAC-013：Store Bundle 的 `bundledModelPackIDs` 必须为空，且 `Contents/Resources/Models` 不存在；打包时传入任何 Store 模型目录必须 fail-closed。
+- MOD-TAC-014：物理内存阈值、推荐文案和推荐模型具有确定性测试；首启提示不触发静默下载。
+- MOD-TAC-015：库存对同一 `packID + version` 只返回一条，随包与已下载重合时优先已下载事实。
+- MOD-TAC-016：Tiny、Qwen3-ASR-0.6B、Large-v3 分别覆盖低于 16 GiB、16～31 GiB、32 GiB 及以上；候选不可用时只回退到已验证且可下载的模型。
 
 ## 11. 非开发体验提醒
 

@@ -36,3 +36,51 @@ func unknownWhisperKitEntryUsesConservativeGuidance() throws {
 
   #expect(ModelInstallCardModel.whisperKit(entry).guidance == .tiny)
 }
+
+@Test("模型推荐只按 Mac 物理内存阈值选择")
+func recommendedModelUsesPhysicalMemoryThreshold() {
+  #expect(
+    RecommendedModelPolicy.candidates.map(\.packID) == [
+      WhisperKitModelCatalogEntry.recommendedTiny.packID,
+      Qwen3ASRModelCatalogEntry.packID,
+      WhisperKitModelCatalogEntry.candidateLargeV3.packID,
+    ])
+
+  let belowThreshold = RecommendedModelPolicy.recommendation(
+    physicalMemoryBytes: RecommendedModelPolicy.qwenMinimumMemoryBytes - 1)
+  #expect(belowThreshold?.model.packID == WhisperKitModelCatalogEntry.recommendedTiny.packID)
+  #expect(belowThreshold?.reason.contains("Tiny") == true)
+
+  let qwen = RecommendedModelPolicy.recommendation(
+    physicalMemoryBytes: RecommendedModelPolicy.qwenMinimumMemoryBytes)
+  #expect(qwen?.model.packID == Qwen3ASRModelCatalogEntry.packID)
+  #expect(qwen?.reason.contains("Qwen3-ASR") == true)
+
+  let large = RecommendedModelPolicy.recommendation(
+    physicalMemoryBytes: RecommendedModelPolicy.largeModelMinimumMemoryBytes)
+  #expect(large?.model.packID == WhisperKitModelCatalogEntry.candidateLargeV3.packID)
+  #expect(large?.reason.contains("Large-v3") == true)
+}
+
+@Test("Store 推荐只从已验证可下载条目回退")
+func storeRecommendationFallsBackToVerifiedCatalogEntries() {
+  let tinyOnly = Set([WhisperKitModelCatalogEntry.recommendedTiny.packID])
+  let fallback = RecommendedModelPolicy.recommendation(
+    physicalMemoryBytes: RecommendedModelPolicy.qwenMinimumMemoryBytes,
+    availablePackIDs: tinyOnly)
+  #expect(fallback?.model.packID == WhisperKitModelCatalogEntry.recommendedTiny.packID)
+
+  let qwenAvailable = Set([
+    WhisperKitModelCatalogEntry.recommendedTiny.packID,
+    Qwen3ASRModelCatalogEntry.packID,
+  ])
+  let recommendedQwen = RecommendedModelPolicy.recommendation(
+    physicalMemoryBytes: RecommendedModelPolicy.qwenMinimumMemoryBytes,
+    availablePackIDs: qwenAvailable)
+  #expect(recommendedQwen?.model.packID == Qwen3ASRModelCatalogEntry.packID)
+
+  let unavailable = RecommendedModelPolicy.recommendation(
+    physicalMemoryBytes: RecommendedModelPolicy.qwenMinimumMemoryBytes,
+    availablePackIDs: [])
+  #expect(unavailable == nil)
+}

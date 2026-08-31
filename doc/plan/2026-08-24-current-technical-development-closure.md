@@ -20,6 +20,10 @@
 
 > 当前更新（2026-08-25）：WCL-08 已完成实时文字可见投影、设置首层入口、Popover 面板外收起和单文件拖放导入；不改变 Speech、Artifact、外发确认和模型路由边界。`swift test --quiet` 通过 217 项 / 14 个 Suite，`make lint`、`make docs-check`、`make harness-check` 和 `make xcode-build-store` 通过。
 
+> 当前更新（2026-08-31）：WCL-07 新增模型库存 `packID + version` 去重、仅按物理内存推荐 WhisperKit（低于 16 GiB 为 Tiny，16 GiB 及以上为 Large-v3）、首次无模型提示，以及 Store 包零模型硬门禁。已下载条目覆盖同版本随包条目；Store 打包与两层验证同时拒绝模型目录和非空模型清单。最终 `make verify` 通过 235 项 Swift、PI 7 项、MCP 2 项，`make xcode-build-store` 与 `make verify-app-store` 通过；真实首次启动视觉体验仍只作人工提醒。
+
+> 当前更新（2026-08-31）：Qwen3-ASR 0.6B 进入内存推荐候选，策略调整为低于 16 GiB 推荐 Tiny、16～31 GiB 推荐 Qwen、32 GiB 及以上推荐 Large-v3。Store 仅从已验证 Catalog 条目中推荐并下载，Catalog 缺项时安全回退；生成脚本已支持把 Qwen 固定模型包加入下一版签名 Catalog，生产 Catalog v1 尚未改签或发布。最终 `make verify` 通过 236 项 Swift、PI 7 项、MCP 2 项，正式 Store Target 构建通过。
+
 ## 1. 计划定位
 
 本计划只列需要修改代码、工程、自动测试、签名流水线或发行配置的工作。真实用户、真实会议、真实素材、真实桌面视觉和人工体验验收不作为开发工作包、退出条件或完成阻塞项，只在第 7 节提示。
@@ -129,6 +133,8 @@
 - Qwen 正式实现使用随 App 构建并签名的 in-process Runtime；官网与 Store 复用同一实现。MLX Metal shader 由 Xcode Release 配置构建并随 App Bundle 提供；Python/Transformers 进程只作研发对照，不进入用户下载链。
 - Store 模型包只包含权重、Tokenizer、配置与许可证数据；自动拒绝清单外文件、可执行文件、脚本、dylib、bundle、Mach-O、可执行权限和容器外依赖。
 - 没有模型时仍允许录音和导入；素材持久化后进入 `waitingForModel`，模型就绪再恢复，不覆盖原始 Artifact 或旧 Transcript。
+- App Store 安装包自身不包含任何模型；无模型首启明确提示下载，推荐只由物理内存决定：低于 16 GiB 为 Tiny，16～31 GiB 为 Qwen3-ASR 0.6B，32 GiB 及以上为 Large-v3。
+- 模型库存按 `packID + version` 去重；同一版本同时存在随包和已下载副本时，只展示已下载条目。
 
 退出条件：WCL-TAC-020～027 通过；当前安装链路、Runtime、模型包来源/SHA、Notice/SBOM、Store 不可执行内容和 Bundle 构建门禁已验证，仍需固定音频准确率、300 秒/长会议性能与峰值内存、签名 Catalog 和真实录音手测。未收口前 Qwen 条目不进入正式 Catalog，但已批准 WhisperKit/Speech 路径不受阻塞。
 
@@ -152,7 +158,7 @@
 | WCL-04 | 发行验证阻塞 | `make release-developer-id` 具备签名/公证/staple、本地 manifest 和固定身份门禁；`make release-verify-remote` 具备生产 manifest 读回与远程状态/大小/摘要校验，缺凭据或不一致会失败 | Developer ID 身份、公证 profile、生产 Catalog URL/ID/可信公钥、已发布远程 manifest/产物 |
 | WCL-05 | 已完成源码与契约门禁 | Agent 三级独立权限、二次确认、重复派发拒绝、CLI 版本/安装状态诊断和 Beta 文案已接入 | 真实 CLI 登录、批准和素材入站仅作提醒 |
 | WCL-06 | MAS-03、正式 Xcode 组合根与 Store 本机静态预检已完成，其他 MAS 工作包未完成 | `StoreCapabilityProfile`、Store 编译条件、Agent/Socket/自动粘贴入口裁剪、`project.yml`/`Woice.xcodeproj`、`make xcode-build-store`（AppIcon/PrivacyInfo/NOTICES/DistributionManifest/SBOM 入 Bundle）、`verify_xcode_store_bundle.py`、`verify-app-store`、`acceptance-app-store-sandbox` | Apple 账号/签名、Store 签名下 Sandbox/TCC、模型/隐私资料、签名 Archive/TestFlight/审核 |
-| WCL-07 | 进行中 | 一键安装基础链路、intent 持久化、等待转写恢复、Qwen 原生 Provider、固定依赖/转换链、模型包逐文件 SHA/来源、Notice/SBOM、Store 不可执行模型包门禁与 Xcode Core/Store Bundle 构建已验证；`swift test --quiet` 214 项 / 14 Suite、原生 Qwen 冒烟通过 | 固定音频准确率、300 秒/长会议性能与峰值内存、签名 Catalog 条目、真实录音与 Store 签名/沙盒手测 |
+| WCL-07 | 进行中 | 一键安装基础链路、intent 持久化、等待转写恢复、Qwen 原生 Provider、模型库存去重、物理内存推荐、首次无模型提示、Store 零模型硬门禁与 Xcode Core/Store Bundle 构建已验证；`make verify` 235 项 Swift、PI 7 项、MCP 2 项通过，原生 Qwen 冒烟通过 | 固定音频准确率、300 秒/长会议性能与峰值内存、真实录音与 Store 签名/沙盒手测 |
 | WCL-08 | 已完成 | 实时文字共用投影、设置首层入口、Popover 外部收起、单文件拖放和 3 项定向测试；217 项 Swift 与 Xcode Store 构建通过 | 真实 Speech partial 与桌面手感只作提示 |
 
 ## 5. 技术验收标准

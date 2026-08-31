@@ -2,6 +2,12 @@
 
 | 日期 | 类型 | 一句话结论 | 文件 |
 |---|---|---|---|
+| 2026-09-01 | TestFlight 0.1.4 Build 5 上传 | 侧栏修复后的 Build 5 通过 237 项 Swift 及 Store 无模型门禁，Xcode 与 Apple 分析完成并返回 Upload succeeded，当前等待 App Store Connect 处理 | [2026-09-01.md](2026-09-01.md) |
+| 2026-08-31 | 工作台空白侧栏修复 | 受控双列布局替代内容高度失控的 NavigationSplitView；四个导航与底部设置恢复可见，并支持菜单/按钮隐藏与恢复 | [2026-08-31.md](2026-08-31.md) |
+| 2026-08-31 | App 搜索残留清理与安装规则 | 4 个可重建 App 已删除、3 个旧 Archive 已移入废纸篓；安装与归档流程以后自动只保留每 Channel 最新安装和当前待上传 Archive | [2026-08-31.md](2026-08-31.md) |
+| 2026-08-31 | 0.1.4 Build 4 Dev 与 Store 发布执行 | Dev 已稳定签名安装，Store trusted 安装器包已导出；既有 Catalog 私钥缺失，未误报提交、推送或上传 | [2026-08-31.md](2026-08-31.md) |
+| 2026-08-31 | Store 无模型、三档内存推荐与库存去重 | Store 包严格不携带模型；首次无模型时提示下载，按物理内存推荐 Tiny/Qwen3-ASR/Large-v3；同版本随包与已下载条目合并 | [2026-08-31.md](2026-08-31.md) |
+| 2026-08-31 | Dev / Store App 命名、隔离与旧包清理 | Dev 与正式版的数据、Keychain、锁、Socket 已隔离，新建前清理旧 App；232 项 Swift 与 Store 构建通过，真实双安装/TCC Journey 待可信签名 | [2026-08-31.md](2026-08-31.md) |
 | 2026-08-30 | 签名模型 Catalog 与 TestFlight build 3 上传 | Tiny/Large-v3 生产 Catalog 已用 Ed25519 签名并由 Store 公钥验签；Catalog 已推送，0.1.3 build 3 Archive/pkg 与 230 项 Swift 门禁通过，Xcode 日志确认已上传，等待 App Store Connect 处理 | [2026-08-30.md](2026-08-30.md) |
 | 2026-08-30 | 模型下载取舍说明与 Store 清单门禁 | 下载卡展示 Tiny/Qwen3-ASR/Large-v3 的设备与质量取舍；Store/TestFlight 无已验证 Catalog 时明确禁用下载而不伪造可用；228 项 Swift、Store 条件构建与 verify 通过 | [2026-08-30.md](2026-08-30.md) |
 | 2026-08-30 | 前端版本号显示 | 工作台导航副标题显示 Bundle 版本与 Build，设置页复用同一来源；新增回退测试，完整 226 项 Swift、lint 与 verify 通过 | [2026-08-30.md](2026-08-30.md) |

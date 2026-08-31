@@ -18,7 +18,7 @@ rg -Fq '有声 \(formatDuration(appState.voiceDuration))' Sources/WoiceApp/MenuB
 rg -Fq '时长 \(formatDuration(appState.elapsed))，麦克风 \(appState.audioActivity.label)' Sources/WoiceApp/MenuBarPopover.swift
 
 if [[ "${WOICE_RUN_LAUNCH_JOURNEY:-0}" == "1" ]]; then
-  app_path="${WOICE_LAUNCH_APP_PATH:-/Applications/Woice.app}"
+  app_path="${WOICE_LAUNCH_APP_PATH:-/Applications/Woice (Dev).app}"
   [[ -d "$app_path" ]] || { echo "acceptance-launch-window: app not found: $app_path" >&2; exit 1; }
 
   workspace_window_title() {

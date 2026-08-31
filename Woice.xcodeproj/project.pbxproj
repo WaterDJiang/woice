@@ -55,6 +55,7 @@
 		A7E236E63A42A93F1CC08F0F /* ProcessingTaskProjection.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F52484D0E7CC14C8386CF4 /* ProcessingTaskProjection.swift */; };
 		AB6577E24A9E58CED2AD83C9 /* LocalASRService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E18E58155B38AB90AA23E15 /* LocalASRService.swift */; };
 		AC0691DD091FC582EF1BA39D /* ModelPackDownloadCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96679625CF51E75669945673 /* ModelPackDownloadCoordinator.swift */; };
+		AD4E607F46FAEC49F02467AB /* WoiceAppChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA09439F744B4D32E48A56A8 /* WoiceAppChannel.swift */; };
 		ADDDE6EBCDD02CE031EC0D4E /* APIClients.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDA509E6D5E17520A7235589 /* APIClients.swift */; };
 		B1367ED598E4C623DEBE8B83 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 5B99CFC0A982839C8A9F575C /* PrivacyInfo.xcprivacy */; };
 		B3200C70F838383AFE742329 /* AgentDispatchService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A9F0E93D156C2D7F76DEE39 /* AgentDispatchService.swift */; };
@@ -176,6 +177,7 @@
 		F70ED695E59EC0578A4BE72D /* ModelDownloadRetry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelDownloadRetry.swift; sourceTree = "<group>"; };
 		F86432DE25176C9ABFA23D35 /* MediaImportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaImportService.swift; sourceTree = "<group>"; };
 		F9A0C4578B60FEC5F095CDF2 /* Qwen3ASRService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Qwen3ASRService.swift; sourceTree = "<group>"; };
+		FA09439F744B4D32E48A56A8 /* WoiceAppChannel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WoiceAppChannel.swift; sourceTree = "<group>"; };
 		FCBDEAFF11D75DDD64A3B477 /* SystemAudioCaptureService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemAudioCaptureService.swift; sourceTree = "<group>"; };
 		FFCA937D8F30BE5144922D7E /* LiveTranscriptionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveTranscriptionService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -306,6 +308,7 @@
 				6D0BAAACB21905B89A132253 /* WhisperKitASRService.swift */,
 				76F60A831731726FE6BEDF85 /* WhisperKitModelInstaller.swift */,
 				5AF9996EF239C2E5317402D9 /* WoiceApp.swift */,
+				FA09439F744B4D32E48A56A8 /* WoiceAppChannel.swift */,
 				503A02F8B0021E1E9248EFB1 /* WoiceAppVersion.swift */,
 				2705543F051F7AECC067D397 /* WoiceBrandAssets.swift */,
 				309D74789CE29CBCBBE5922E /* WoiceMenuBarController.swift */,
@@ -526,6 +529,7 @@
 				7F46819F24BAF3F928EE92FA /* WhisperKitASRService.swift in Sources */,
 				A759C97C0CF14A5CE7506471 /* WhisperKitModelInstaller.swift in Sources */,
 				7DEF8326DA5BC31F57DECB26 /* WoiceApp.swift in Sources */,
+				AD4E607F46FAEC49F02467AB /* WoiceAppChannel.swift in Sources */,
 				68AF19A8E6306B836574C112 /* WoiceAppVersion.swift in Sources */,
 				731D13BF98229CF2FA72E403 /* WoiceBrandAssets.swift in Sources */,
 				E81D40819BAA61E727E27978 /* WoiceMenuBarController.swift in Sources */,
@@ -585,6 +589,8 @@
 				PRODUCT_NAME = Woice;
 				SDKROOT = macosx;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) WOICE_APP_STORE";
+				WOICE_APP_CHANNEL = store;
+				WOICE_APP_DISPLAY_NAME = Woice;
 			};
 			name = Debug;
 		};
@@ -624,6 +630,9 @@
 				PRODUCT_NAME = Woice;
 				SDKROOT = macosx;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited)";
+				WOICE_APP_CHANNEL = dev;
+				WOICE_APP_DISPLAY_NAME = "Woice (Dev)";
+				WRAPPER_NAME = "Woice (Dev).app";
 			};
 			name = "Release-Direct";
 		};
@@ -664,6 +673,8 @@
 				PROVISIONING_PROFILE_SPECIFIER = "Woice Mac App Store";
 				SDKROOT = macosx;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) WOICE_APP_STORE";
+				WOICE_APP_CHANNEL = store;
+				WOICE_APP_DISPLAY_NAME = Woice;
 			};
 			name = "Release-AppStore";
 		};

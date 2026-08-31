@@ -56,12 +56,38 @@ class PackageDistributionModelGateTests(unittest.TestCase):
 
         self.assertEqual(plist["CFBundleIdentifier"], "com.water.woice")
 
+    def test_store_flavor_rejects_any_bundled_model_root(self) -> None:
+        with self.assertRaises(SystemExit):
+            PACKAGE_DISTRIBUTION.validate_model_embedding_policy(
+                "store", Path("/tmp/fixture-model")
+            )
+
+        PACKAGE_DISTRIBUTION.validate_model_embedding_policy("store", None)
+
     def test_direct_flavor_keeps_legacy_bundle_id(self) -> None:
         plist = {"CFBundleIdentifier": "$(PRODUCT_BUNDLE_IDENTIFIER)"}
 
         PACKAGE_DISTRIBUTION.apply_flavor_bundle_identity(plist, "core")
 
         self.assertEqual(plist["CFBundleIdentifier"], "com.woice.app")
+        self.assertEqual(plist["CFBundleDisplayName"], "Woice")
+        self.assertEqual(plist["CFBundleName"], "Woice")
+        self.assertEqual(plist["WOICEAppChannel"], "release")
+
+    def test_dev_flavor_uses_distinct_local_name(self) -> None:
+        plist = {
+            "CFBundleIdentifier": "$(PRODUCT_BUNDLE_IDENTIFIER)",
+            "CFBundleDisplayName": "$(WOICE_APP_DISPLAY_NAME)",
+            "CFBundleName": "$(WOICE_APP_DISPLAY_NAME)",
+        }
+
+        PACKAGE_DISTRIBUTION.apply_flavor_bundle_identity(plist, "dev")
+
+        self.assertEqual(plist["CFBundleIdentifier"], "com.woice.app")
+        self.assertEqual(plist["CFBundleDisplayName"], "Woice (Dev)")
+        self.assertEqual(plist["CFBundleName"], "Woice (Dev)")
+        self.assertEqual(plist["CFBundleExecutable"], "Woice")
+        self.assertEqual(plist["WOICEAppChannel"], "dev")
 
     def test_valid_license_and_notice_are_accepted(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:

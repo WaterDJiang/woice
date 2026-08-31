@@ -106,6 +106,7 @@ private enum WorkspaceMaterialFilter: String, CaseIterable, Identifiable {
 final class WorkspaceRouter {
   var route: WorkspaceRoute = .library
   var shouldPresentMediaImport = false
+  var isSidebarVisible = true
 
   func show(_ area: WorkspaceArea) {
     switch area {
@@ -131,6 +132,10 @@ final class WorkspaceRouter {
   func requestMediaImport() {
     route = .library
     shouldPresentMediaImport = true
+  }
+
+  func toggleSidebar() {
+    isSidebarVisible.toggle()
   }
 }
 
@@ -172,56 +177,96 @@ struct WorkspaceView: View {
   }
 
   var body: some View {
-    ZStack(alignment: .topTrailing) {
-      NavigationSplitView {
-        WorkspaceSidebar(
-          selection: areaSelection, selectedRecordID: selectedRecordID,
-          settingsSelection: settingsSelection)
-      } detail: {
-        detailColumn
-      }
-      .navigationSplitViewStyle(.balanced)
-      .navigationTitle("Woice 工作台")
-      if let feedback = appState.actionFeedback {
-        ActionFeedbackBanner(feedback: feedback)
-          .padding(16)
-          .transition(.move(edge: .top).combined(with: .opacity))
-      }
-      if let livePreviewPresentation {
-        LiveTranscriptPreviewCard(presentation: livePreviewPresentation)
-          .frame(maxWidth: 520)
-          .frame(maxWidth: .infinity, alignment: .top)
-          .padding(.top, 16)
-          .padding(.horizontal, 24)
-          .zIndex(4)
-          .transition(.move(edge: .top).combined(with: .opacity))
-      }
-      if let request = appState.pendingExternalProcessing {
-        WorkspaceExternalProcessingCard(request: request)
-          .frame(maxWidth: 520)
-          .padding(.top, appState.actionFeedback == nil ? 16 : 68)
+    GeometryReader { geometry in
+      ZStack(alignment: .topTrailing) {
+        HStack(spacing: 0) {
+          if router.isSidebarVisible {
+            WorkspaceSidebar(
+              selection: areaSelection, selectedRecordID: selectedRecordID,
+              settingsSelection: settingsSelection
+            )
+            .frame(width: WorkspaceSidebarLayout.idealWidth)
+            Divider()
+          }
+          detailColumn
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .navigationTitle("Woice 工作台")
+        .toolbar {
+          ToolbarItem(placement: .navigation) {
+            Button {
+              router.toggleSidebar()
+            } label: {
+              Label(
+                router.isSidebarVisible ? "隐藏侧边栏" : "显示侧边栏",
+                systemImage: "sidebar.left")
+            }
+            .help(router.isSidebarVisible ? "隐藏侧边栏" : "显示侧边栏")
+            .accessibilityLabel(router.isSidebarVisible ? "隐藏侧边栏" : "显示侧边栏")
+          }
+        }
+        if !router.isSidebarVisible {
+          VStack {
+            HStack {
+              Button {
+                router.toggleSidebar()
+              } label: {
+                Label("显示侧边栏", systemImage: "sidebar.left")
+              }
+              .buttonStyle(.bordered)
+              .help("显示侧边栏")
+              .accessibilityLabel("显示侧边栏")
+              Spacer()
+            }
+            Spacer()
+          }
+          .padding(12)
+          .zIndex(5)
+        }
+        if let feedback = appState.actionFeedback {
+          ActionFeedbackBanner(feedback: feedback)
+            .padding(16)
+            .transition(.move(edge: .top).combined(with: .opacity))
+        }
+        if let livePreviewPresentation {
+          LiveTranscriptPreviewCard(presentation: livePreviewPresentation)
+            .frame(maxWidth: 520)
+            .frame(maxWidth: .infinity, alignment: .top)
+            .padding(.top, 16)
+            .padding(.horizontal, 24)
+            .zIndex(4)
+            .transition(.move(edge: .top).combined(with: .opacity))
+        }
+        if let request = appState.pendingExternalProcessing {
+          WorkspaceExternalProcessingCard(request: request)
+            .frame(maxWidth: 520)
+            .padding(.top, appState.actionFeedback == nil ? 16 : 68)
+            .padding(.trailing, 24)
+            .zIndex(3)
+            .transition(.move(edge: .top).combined(with: .opacity))
+        }
+        if appState.isShowingOnboarding {
+          WorkspaceOnboardingCard(
+            showModelInstall: !appState.hasInstalledLocalModelPack,
+            openRecordingSettings: {
+              appState.isShowingOnboarding = false
+              router.show(settings: .recording)
+            },
+            startRecording: {
+              appState.isShowingOnboarding = false
+              appState.startRecording()
+            },
+            dismiss: { appState.isShowingOnboarding = false }
+          )
+          .frame(maxWidth: 420)
+          .padding(.top, 54)
           .padding(.trailing, 24)
-          .zIndex(3)
+          .zIndex(2)
           .transition(.move(edge: .top).combined(with: .opacity))
+        }
       }
-      if appState.isShowingOnboarding {
-        WorkspaceOnboardingCard(
-          openRecordingSettings: {
-            appState.isShowingOnboarding = false
-            router.show(settings: .recording)
-          },
-          startRecording: {
-            appState.isShowingOnboarding = false
-            appState.startRecording()
-          },
-          dismiss: { appState.isShowingOnboarding = false }
-        )
-        .frame(maxWidth: 420)
-        .padding(.top, 54)
-        .padding(.trailing, 24)
-        .zIndex(2)
-        .transition(.move(edge: .top).combined(with: .opacity))
-      }
+      .frame(width: geometry.size.width, height: geometry.size.height)
+      .clipped()
     }
     .onChange(of: router.shouldPresentMediaImport) { _, requested in
       guard requested else { return }
@@ -341,7 +386,13 @@ private struct WorkspaceExternalProcessingCard: View {
   }
 }
 
+struct WorkspaceOnboardingModelPrompt {
+  static let title = "转成文字前，需要先下载语音转换模型"
+  static let detail = "App Store 安装包不携带模型。下载由你确认，模型只保存在这台 Mac。"
+}
+
 private struct WorkspaceOnboardingCard: View {
+  let showModelInstall: Bool
   let openRecordingSettings: () -> Void
   let startRecording: () -> Void
   let dismiss: () -> Void
@@ -364,6 +415,17 @@ private struct WorkspaceOnboardingCard: View {
         onboardingRow("mic.fill", "按下开始录音，录音期间会显示时长和输入状态")
         onboardingRow("text.badge.checkmark", "录音结束后按需转写，失败时仍保留原始素材")
         onboardingRow("slider.horizontal.3", "在设置中选择麦克风、电脑声音和转写方式")
+      }
+      if showModelInstall {
+        Divider()
+        VStack(alignment: .leading, spacing: 8) {
+          Label(WorkspaceOnboardingModelPrompt.title, systemImage: "arrow.down.circle.fill")
+            .font(.subheadline.weight(.semibold))
+          Text(WorkspaceOnboardingModelPrompt.detail)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+          RecommendedModelInstallCard(entryPoint: .workspace)
+        }
       }
       HStack {
         Button("打开录音设置", action: openRecordingSettings)
@@ -421,14 +483,22 @@ private struct WorkspaceSidebar: View {
       Divider()
       if selection == .library {
         libraryContext
-          .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+          .frame(
+            maxWidth: .infinity, minHeight: 0, idealHeight: 0,
+            maxHeight: .infinity, alignment: .top
+          )
+          .clipped()
       } else {
         ScrollView {
           contextContent
             .padding(.horizontal, 8)
             .padding(.vertical, 10)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .frame(
+          maxWidth: .infinity, minHeight: 0, idealHeight: 0,
+          maxHeight: .infinity, alignment: .top
+        )
+        .clipped()
       }
       Divider()
       sidebarRow(.settings)
@@ -808,7 +878,7 @@ private struct WorkspaceLibraryEmptyState: View {
           .buttonStyle(.bordered)
       }
       if showModelInstall {
-        ModelInstallCard(entryPoint: .workspace)
+        RecommendedModelInstallCard(entryPoint: .workspace)
       }
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)

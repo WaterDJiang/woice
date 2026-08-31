@@ -28,7 +28,7 @@ protocol KeychainStoring {
 struct KeychainStore: KeychainStoring {
   private let service: String
 
-  init(service: String = "com.woice.app") {
+  init(service: String = WoiceAppChannel.current.keychainService) {
     self.service = service
   }
 

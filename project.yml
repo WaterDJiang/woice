@@ -65,6 +65,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.woice.app
         PRODUCT_NAME: Woice
+        WOICE_APP_DISPLAY_NAME: Woice
+        WOICE_APP_CHANNEL: release
         INFOPLIST_FILE: Resources/Info.plist
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         GENERATE_INFOPLIST_FILE: NO
@@ -73,14 +75,19 @@ targets:
         Debug:
           CODE_SIGN_ENTITLEMENTS: Resources/Woice-Store.entitlements
           PRODUCT_BUNDLE_IDENTIFIER: com.water.woice
+          WOICE_APP_CHANNEL: store
           SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) WOICE_APP_STORE
         Release-Direct:
           CODE_SIGN_ENTITLEMENTS: Resources/Woice.entitlements
           PRODUCT_BUNDLE_IDENTIFIER: com.woice.app
+          WOICE_APP_DISPLAY_NAME: "Woice (Dev)"
+          WOICE_APP_CHANNEL: dev
+          WRAPPER_NAME: "Woice (Dev).app"
           SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited)
         Release-AppStore:
           CODE_SIGN_ENTITLEMENTS: Resources/Woice-Store.entitlements
           PRODUCT_BUNDLE_IDENTIFIER: com.water.woice
+          WOICE_APP_CHANNEL: store
           PROVISIONING_PROFILE_SPECIFIER: Woice Mac App Store
           SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) WOICE_APP_STORE
 

@@ -15,10 +15,11 @@ final class WoiceApp: NSObject, NSApplicationDelegate {
     let application = NSApplication.shared
     let delegate = WoiceApp()
     let mainMenu = NSMenu()
-    let appMenuItem = NSMenuItem(title: "Woice", action: nil, keyEquivalent: "")
-    let appMenu = NSMenu(title: "Woice")
+    let appName = WoiceAppChannel.current.displayName
+    let appMenuItem = NSMenuItem(title: appName, action: nil, keyEquivalent: "")
+    let appMenu = NSMenu(title: appName)
     appMenu.addItem(
-      withTitle: "退出 Woice",
+      withTitle: "退出 \(appName)",
       action: #selector(NSApplication.terminate(_:)),
       keyEquivalent: "q"
     )
@@ -76,6 +77,14 @@ final class WoiceApp: NSObject, NSApplicationDelegate {
       action: #selector(NSWindow.performClose(_:)),
       keyEquivalent: "w"
     )
+    windowMenu.addItem(.separator())
+    let toggleSidebarItem = windowMenu.addItem(
+      withTitle: "显示/隐藏侧边栏",
+      action: #selector(toggleWorkspaceSidebar(_:)),
+      keyEquivalent: "s"
+    )
+    toggleSidebarItem.target = delegate
+    toggleSidebarItem.keyEquivalentModifierMask = [.command, .control]
     windowMenuItem.submenu = windowMenu
     mainMenu.addItem(windowMenuItem)
     application.mainMenu = mainMenu
@@ -184,6 +193,11 @@ final class WoiceApp: NSObject, NSApplicationDelegate {
 
   @objc private func showSettingsWorkspace(_ sender: Any?) {
     showWorkspace(.settings)
+  }
+
+  @objc private func toggleWorkspaceSidebar(_ sender: Any?) {
+    workspaceRouter.toggleSidebar()
+    workspaceWindowController.show()
   }
 
   private func showWorkspace(_ area: WorkspaceArea) {

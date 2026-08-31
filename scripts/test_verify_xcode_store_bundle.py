@@ -34,6 +34,9 @@ class XcodeStoreBundleTests(unittest.TestCase):
             plistlib.dump(
                 {
                     "CFBundleIdentifier": "com.water.woice",
+                    "CFBundleDisplayName": "Woice",
+                    "CFBundleName": "Woice",
+                    "WOICEAppChannel": "store",
                     "CFBundleIconFile": "AppIcon",
                     "CFBundleIconName": "AppIcon",
                     "CFBundlePackageType": "APPL",
@@ -43,6 +46,16 @@ class XcodeStoreBundleTests(unittest.TestCase):
                     "NSScreenCaptureUsageDescription": "fixture",
                     "NSAudioCaptureUsageDescription": "fixture",
                     "NSSpeechRecognitionUsageDescription": "fixture",
+                    "WOICEModelCatalogURL": "https://raw.githubusercontent.com/example/catalog.json",
+                    "WOICEModelCatalogID": "woice-model-catalog",
+                    "WOICEModelCatalogTrustedKeys": {
+                        "woice-release-2026-08": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+                    },
+                    "WOICEModelCatalogAllowedHosts": ["raw.githubusercontent.com"],
+                    "WOICEModelDownloadAllowedHosts": [
+                        "huggingface.co",
+                        "raw.githubusercontent.com",
+                    ],
                 },
                 handle,
             )
@@ -103,6 +116,12 @@ class XcodeStoreBundleTests(unittest.TestCase):
         info.pop("LSApplicationCategoryType")
         with info_path.open("wb") as handle:
             plistlib.dump(info, handle)
+        with self.assertRaises(MODULE.XcodeStoreBundleError):
+            MODULE.verify(app)
+
+    def test_bundled_models_directory_is_rejected(self) -> None:
+        app = self.make_bundle()
+        (app / "Contents/Resources/Models").mkdir()
         with self.assertRaises(MODULE.XcodeStoreBundleError):
             MODULE.verify(app)
 

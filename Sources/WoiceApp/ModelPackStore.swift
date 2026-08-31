@@ -60,6 +60,11 @@ struct ModelPackInventoryEntry: Equatable, Sendable {
 /// Durable model inventory and atomic installer. It never executes anything
 /// from a model pack; a pack contains only data and a validated manifest.
 actor ModelPackStore {
+  private struct InventoryIdentity: Hashable {
+    let packID: String
+    let version: String
+  }
+
   private struct CurrentPointer: Codable, Equatable {
     let packID: String
     let version: String
@@ -80,7 +85,7 @@ actor ModelPackStore {
   }
 
   func inventory(bundledManifests: [ModelPackManifest] = []) throws -> [ModelPackInventoryEntry] {
-    var entries: [ModelPackInventoryEntry] = []
+    var entries: [InventoryIdentity: ModelPackInventoryEntry] = [:]
     let resolvedBundledManifests =
       bundledManifests.isEmpty ? try discoverBundledManifests() : bundledManifests
     for manifest in resolvedBundledManifests {
@@ -89,9 +94,9 @@ actor ModelPackStore {
       try validatePackContents(
         manifest: manifest, directory: directory,
         policy: manifest.storeCompatible ? .storeCatalog : .localImport)
-      entries.append(
+      entries[InventoryIdentity(packID: manifest.packID, version: manifest.version)] =
         ModelPackInventoryEntry(
-          manifest: manifest, location: .bundled, isCurrent: false, state: .installed))
+          manifest: manifest, location: .bundled, isCurrent: false, state: .installed)
     }
 
     let modelsDirectory = rootURL.appendingPathComponent("Models", isDirectory: true)
@@ -99,7 +104,7 @@ actor ModelPackStore {
       let packDirectories = try? fileManager.contentsOfDirectory(
         at: modelsDirectory, includingPropertiesForKeys: [.isDirectoryKey],
         options: [.skipsHiddenFiles])
-    else { return entries }
+    else { return sortedInventoryEntries(entries) }
 
     for packDirectory in packDirectories {
       guard isDirectory(packDirectory), isSafeChild(packDirectory, of: modelsDirectory) else {
@@ -118,15 +123,21 @@ actor ModelPackStore {
         try validatePackContents(
           manifest: manifest, directory: versionDirectory,
           policy: manifest.storeCompatible ? .storeCatalog : .localImport)
-        entries.append(
+        entries[InventoryIdentity(packID: manifest.packID, version: manifest.version)] =
           ModelPackInventoryEntry(
             manifest: manifest,
             location: .downloaded,
             isCurrent: current?.version == manifest.version && current?.packID == manifest.packID,
-            state: .installed))
+            state: .installed)
       }
     }
-    return entries.sorted {
+    return sortedInventoryEntries(entries)
+  }
+
+  private func sortedInventoryEntries(
+    _ entries: [InventoryIdentity: ModelPackInventoryEntry]
+  ) -> [ModelPackInventoryEntry] {
+    entries.values.sorted {
       ($0.manifest.packID, $0.manifest.version) < ($1.manifest.packID, $1.manifest.version)
     }
   }

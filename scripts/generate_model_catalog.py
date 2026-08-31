@@ -41,6 +41,15 @@ MODEL_SPECS: dict[str, dict[str, str]] = {
         "notice_slug": "whisperkit-large-v3",
         "notice_source": "https://huggingface.co/argmaxinc/whisperkit-coreml/tree/0f63a7800b00dd0226abd051b906c246e1907482/openai_whisper-large-v3-v20240930_626MB",
     },
+    "com.woice.qwen3.asr.0.6b.4bit": {
+        "kind": "qwen",
+        "model_id": "qwen3-asr-0.6b-4bit",
+        "model_repo": "mlx-community/Qwen3-ASR-0.6B-4bit",
+        "model_revision": "313d850181767edf09f00a9c289becca70e58cd0",
+        "display_name": "Qwen3-ASR 0.6B（本机）",
+        "provider_id": "com.woice.qwen3-asr",
+        "runtime_id": "com.woice.qwen3-asr",
+    },
 }
 
 
@@ -82,6 +91,11 @@ def normalized_url(value: str) -> str:
 def file_download_url(
     pack: dict[str, str], relative_path: str, model_base_url: str, notice_base_url: str
 ) -> str:
+    if pack.get("kind") == "qwen":
+        return (
+            f"{model_base_url}/{pack['model_repo']}/resolve/"
+            f"{pack['model_revision']}/{relative_path}"
+        )
     if relative_path == "NOTICE.txt":
         return f"{notice_base_url}/{pack['notice_slug']}/NOTICE.txt"
     tokenizer_prefix = "models/openai/"
@@ -113,8 +127,9 @@ def make_entry(
     local = read_json(manifest_paths[0])
     if local.get("packID") != pack_id or local.get("version") != spec["model_revision"]:
         raise SystemExit(f"本机模型版本与固定 revision 不一致：{pack_id}")
-    if local.get("providerID") != "com.woice.whisperkit":
-        raise SystemExit(f"模型 Provider 不是 WhisperKit：{pack_id}")
+    expected_provider = spec.get("provider_id", "com.woice.whisperkit")
+    if local.get("providerID") != expected_provider:
+        raise SystemExit(f"模型 Provider 与固定配置不一致：{pack_id}")
     files = local.get("files")
     if not isinstance(files, list) or not files:
         raise SystemExit(f"本机模型没有文件清单：{pack_id}")
@@ -138,6 +153,28 @@ def make_entry(
             }
         )
 
+    total_size = sum(item["byteCount"] for item in transformed_files)
+    if spec.get("kind") == "qwen":
+        if local.get("runtimeID") != spec["runtime_id"]:
+            raise SystemExit(f"Qwen Runtime 与固定配置不一致：{pack_id}")
+        license_value = local.get("license")
+        if not isinstance(license_value, dict) or license_value.get("identifier") != "Apache-2.0":
+            raise SystemExit(f"Qwen 模型许可证不是 Apache-2.0：{pack_id}")
+        if not any(item["relativePath"] == license_value.get("noticePath") for item in transformed_files):
+            raise SystemExit(f"Qwen 模型清单缺少许可证 Notice：{pack_id}")
+        entry = dict(local)
+        entry.update(
+            {
+                "files": transformed_files,
+                "size": total_size,
+                "displayName": spec["display_name"],
+                "isRecommended": False,
+                "storeCompatible": True,
+                "downloadBaseURL": model_base_url,
+            }
+        )
+        return entry
+
     committed_notice = Path(__file__).resolve().parents[1] / "Resources/ModelCatalog" / spec["notice_slug"] / "NOTICE.txt"
     if not committed_notice.is_file():
         raise SystemExit(f"公开 NOTICE 文件不存在：{committed_notice}")
@@ -148,7 +185,6 @@ def make_entry(
     notice_file["byteCount"] = len(notice_bytes)
     notice_file["sha256"] = __import__("hashlib").sha256(notice_bytes).hexdigest()
 
-    total_size = sum(item["byteCount"] for item in transformed_files)
     return {
         "schemaVersion": 1,
         "packID": pack_id,

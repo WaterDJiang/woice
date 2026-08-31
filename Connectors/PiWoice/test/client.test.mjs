@@ -1,10 +1,10 @@
 import { strict as assert } from "node:assert";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import net from "node:net";
 import test from "node:test";
-import { callWoice } from "../src/client.mjs";
+import { callWoice, socketPathForChannel } from "../src/client.mjs";
 
 async function listen(server, socketPath) {
   await new Promise((resolve, reject) => {
@@ -12,6 +12,18 @@ async function listen(server, socketPath) {
     server.listen(socketPath, resolve);
   });
 }
+
+test("PI client keeps Dev and release sockets isolated", () => {
+  assert.equal(
+    socketPathForChannel("dev"),
+    join(homedir(), "Library", "Application Support", "Woice Dev", "woice.sock")
+  );
+  assert.equal(
+    socketPathForChannel("release"),
+    join(homedir(), "Library", "Application Support", "Woice", "woice.sock")
+  );
+  assert.throws(() => socketPathForChannel("store"), /Unsupported Woice app channel/);
+});
 
 test("PI client sends the versioned Woice JSON Lines envelope", async (t) => {
   const root = await mkdtemp(join(tmpdir(), "woice-pi-client-"));

@@ -185,7 +185,7 @@ struct RecordingDetailView: View {
                   .buttonStyle(.bordered)
               }
               if !appState.hasInstalledLocalModelPack {
-                ModelInstallCard(entryPoint: .material, recordingID: record.id)
+                RecommendedModelInstallCard(entryPoint: .material, recordingID: record.id)
               }
             }
           }

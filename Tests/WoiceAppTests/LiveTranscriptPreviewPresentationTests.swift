@@ -1,5 +1,6 @@
 import AppKit
 import Testing
+
 @testable import WoiceApp
 
 @Test("live preview stays hidden outside an eligible microphone recording")

@@ -20,9 +20,9 @@ if ! /usr/bin/security find-identity -v -p codesigning 2>/dev/null | rg -F "$sta
 fi
 
 source_binary="${WOICE_STABLE_SOURCE_BINARY:-}"
-mlx_bundle="${WOICE_STABLE_MLX_BUNDLE:-$PWD/.build/xcode-direct-derived/Build/Products/Release-Direct/Woice.app/Contents/Resources/mlx-swift_Cmlx.bundle}"
+mlx_bundle="${WOICE_STABLE_MLX_BUNDLE:-$PWD/.build/xcode-direct-derived/Build/Products/Release-Direct/Woice (Dev).app/Contents/Resources/mlx-swift_Cmlx.bundle}"
 
-app_path="${WOICE_STABLE_APP_PATH:-/Applications/Woice.app}"
+app_path="${WOICE_STABLE_APP_PATH:-/Applications/Woice (Dev).app}"
 phase="${WOICE_STABLE_PHASE:-build}"
 backup_tag="${WOICE_STABLE_BACKUP_TAG:-next-step}"
 [[ "$backup_tag" =~ '^[A-Za-z0-9._-]+$' ]] || {
@@ -67,12 +67,13 @@ package_one() {
   /usr/bin/plutil -replace CFBundleVersion -string "$build_version" "$info_plist"
   WOICE_CODESIGN_IDENTITY="$stable_identity" \
     /usr/bin/python3 scripts/package_distribution.py \
-      --flavor core \
+      --flavor dev \
       --binary "$source_binary" \
       --mlx-bundle "$mlx_bundle" \
       --info-plist "$info_plist" \
       --output "$build_app"
   /usr/bin/ditto "$build_app" "$output_root/Woice-Stable-$label.app"
+  /bin/rm -rf "$build_app"
 }
 
 if [[ "$phase" == "build" || "$reuse_output" != "1" ]]; then
@@ -178,7 +179,7 @@ printf '%s\n' \
   "outputRoot=$output_root" >> "$output_root/manifest.txt"
 
 stop_running_instance() {
-  local lock="$HOME/Library/Application Support/Woice/instance.lock"
+  local lock="$HOME/Library/Application Support/Woice Dev/instance.lock"
   [[ -f "$lock" ]] || return 0
   local pid="$(tr -d '[:space:]' < "$lock")"
   [[ "$pid" =~ '^[0-9]+$' ]] || return 0

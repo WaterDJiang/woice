@@ -2,9 +2,11 @@
 
 | 功能域 | 状态 | 一句话定义 | 文件 |
 |---|---|---|---|
+| Qwen 推荐 Catalog 与 Dev / Store 0.1.4 发布 | 实施中 | 本地安装稳定签名 Dev，Catalog v2 加入千问，正式无模型 Store Build 上传 App Store Connect | [../specs/2026-08-31-qwen-catalog-dev-store-release.md](../specs/2026-08-31-qwen-catalog-dev-store-release.md) |
+| Dev / Store App 命名、隔离与旧包清理 | 代码与自动门禁完成；真实双安装/TCC Journey 待可信本机签名 | Dev 为 `Woice (Dev)` 并使用独立 Application Support、Keychain、锁与 Socket；Store 保持 `Woice`，不触碰正式数据与 Archive | [../specs/2026-08-31-dev-store-app-naming-and-cleanup.md](../specs/2026-08-31-dev-store-app-naming-and-cleanup.md) |
 | 直接发行包模型下载重试 | 代码与自动门禁完成；真实 WhisperKit 下载验收通过 | Core/Offline 的 WhisperKit Hub 与通用模型包下载对瞬时 TLS、连接中断和超时有限重试，并保留续传、取消和原子安装边界 | [../specs/2026-08-30-model-download-retry.md](../specs/2026-08-30-model-download-retry.md) |
 | 实时文字预览、顶部面板收起与导入页优化 | 代码与自动门禁完成 | 录音期间在工作台和菜单栏显示本机 partial transcript，Popover 点击外部收起，导入页收紧并支持拖放 | [../specs/2026-08-25-live-preview-popover-and-import-ux.md](../specs/2026-08-25-live-preview-popover-and-import-ux.md) |
-| 本机模型一键安装与 App Store 兼容 | 待实施 | 无模型时只需一次点击，自动完成下载、校验、安装、切换和等待任务恢复；Store 只下载不可执行模型数据 | [../specs/2026-08-25-one-click-model-installation-and-store-compatibility.md](../specs/2026-08-25-one-click-model-installation-and-store-compatibility.md) |
+| 本机模型一键安装与 App Store 兼容 | 库存去重、Tiny/Qwen/Large 三档推荐、首启提示与 Store 无模型门禁完成；新版签名 Catalog 待发布 | 无模型时只需一次点击，自动完成下载、校验、安装、切换和等待任务恢复；Store 安装包不携带模型 | [../specs/2026-08-25-one-click-model-installation-and-store-compatibility.md](../specs/2026-08-25-one-click-model-installation-and-store-compatibility.md) |
 | 录音控制区视觉层级 | 按用户复核移除工作台顶部动作，代码、自动门禁与覆盖安装完成 | 菜单栏音源使用中性状态按钮、录音是唯一主动作；工作台顶部不再复制导入和录音控制 | [../specs/2026-08-25-recording-control-visual-hierarchy.md](../specs/2026-08-25-recording-control-visual-hierarchy.md) |
 | 双音源、压缩存储与长素材详情 | 代码与自动门禁完成，当前安装包待用户真实双轨复验 | 工作台顶部独立控制麦克风/电脑声音，默认双开；新录音使用 AAC/M4A，双开生成会议合成；详情只保留一个按需播放器及固定滚动原文/时间轴 | [../specs/2026-08-25-dual-source-storage-and-long-detail.md](../specs/2026-08-25-dual-source-storage-and-long-detail.md) |
 | Large 模型启动校验内存 | 已修复并完成安装包实测 | 所有模型与素材 SHA-256 校验统一使用 1 MiB 固定缓冲；Large-v3 用户数据启动 RSS 从 1,785,056 KiB 降至约 135 MiB，仍保持完整哈希和 fail-closed | [../specs/2026-08-24-model-validation-startup-memory.md](../specs/2026-08-24-model-validation-startup-memory.md) |

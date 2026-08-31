@@ -1,7 +1,21 @@
 import Testing
 import WoiceCore
 
+@testable import WoiceApp
+
 struct WorkspaceSidebarLayoutTests {
+  @Test("工作台侧栏默认可见并可显式切换")
+  @MainActor
+  func sidebarVisibilityStartsVisibleAndCanToggle() {
+    let router = WorkspaceRouter()
+
+    #expect(router.isSidebarVisible)
+    router.toggleSidebar()
+    #expect(!router.isSidebarVisible)
+    router.toggleSidebar()
+    #expect(router.isSidebarVisible)
+  }
+
   @Test("侧栏固定区域锚定，只有中部上下文区消耗可变高度")
   func fixedRegionsAndContextHeightAreDeterministic() {
     let layout = WorkspaceSidebarLayout(totalHeight: 760)

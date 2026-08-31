@@ -12,7 +12,7 @@ if [[ "${WOICE_RUN_ACCESSIBILITY_JOURNEY:-0}" != "1" ]]; then
   exit 0
 fi
 
-app_path="${WOICE_ACCESSIBILITY_APP_PATH:-/Applications/Woice.app}"
+app_path="${WOICE_ACCESSIBILITY_APP_PATH:-/Applications/Woice (Dev).app}"
 [[ -d "$app_path" ]] || {
   echo "acceptance-accessibility-runtime: app not found: $app_path" >&2
   exit 1
@@ -52,18 +52,27 @@ tell application "System Events"
     if (count of workspaceWindows) is 0 then error "找不到 Woice 工作台"
     set workspaceWindow to item 1 of workspaceWindows
     perform action "AXRaise" of workspaceWindow
-    set sidebar to scroll area 1 of group 1 of splitter group 1 of group 1 of workspaceWindow
-    set sidebarHelp to {}
-    repeat with indexValue from 1 to (count of UI elements of sidebar)
-      set elementRef to UI element indexValue of sidebar
+    set requiredHelp to {"打开素材库，快捷键 ⌘1", "打开处理任务，快捷键 ⌘2", "打开文字转音频，快捷键 ⌘3", "打开设置，快捷键 ⌘4"}
+    set foundHelp to {}
+    set windowPosition to position of workspaceWindow
+    set windowSize to size of workspaceWindow
+    repeat with elementRef in (get entire contents of workspaceWindow)
+      set elementHelp to ""
       try
-        set end of sidebarHelp to (help of elementRef as text)
+        set elementHelp to help of elementRef as text
       end try
+      if requiredHelp contains elementHelp then
+        set elementPosition to position of elementRef
+        if (item 2 of elementPosition) < (item 2 of windowPosition) or (item 2 of elementPosition) ≥ ((item 2 of windowPosition) + (item 2 of windowSize)) then
+          error "侧栏导航位于窗口可视区外：" & elementHelp
+        end if
+        set end of foundHelp to elementHelp
+      end if
     end repeat
-    set sidebarText to sidebarHelp as text
-    if sidebarText does not contain "导入音频或视频" then error "缺少导入入口的 AX help"
-    if sidebarText does not contain "打开处理任务" then error "缺少处理任务入口的 AX help"
-    if (count of text fields of sidebar) < 1 then error "素材搜索框未暴露为 AX text field"
+    repeat with expectedHelp in requiredHelp
+      if foundHelp does not contain expectedHelp then error "缺少侧栏导航：" & expectedHelp
+    end repeat
+    if (count of text fields of workspaceWindow) < 1 then error "素材搜索框未暴露为 AX text field"
   end tell
 end tell
 APPLESCRIPT

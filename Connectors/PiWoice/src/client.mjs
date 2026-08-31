@@ -6,9 +6,21 @@ import net from "node:net";
 export const WOICE_PROTOCOL_VERSION = "1";
 export const WOICE_MAX_RESPONSE_BYTES = 64 * 1024;
 
+export function socketPathForChannel(channel = "release") {
+  const directory = channel === "dev"
+    ? "Woice Dev"
+    : channel === "release"
+      ? "Woice"
+      : null;
+  if (directory === null) {
+    throw new Error(`Unsupported Woice app channel: ${channel}`);
+  }
+  return join(homedir(), "Library", "Application Support", directory, "woice.sock");
+}
+
 export function defaultSocketPath() {
   return process.env.WOICE_SOCKET_PATH
-    ?? join(homedir(), "Library", "Application Support", "Woice", "woice.sock");
+    ?? socketPathForChannel(process.env.WOICE_APP_CHANNEL ?? "release");
 }
 
 /**

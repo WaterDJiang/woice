@@ -1168,6 +1168,26 @@ private struct ProvidersSettingsPane: View {
     }
   }
 
+  private var downloadableRecommendationPackIDs: Set<String>? {
+    guard StoreCapabilityProfile.current.isStoreEdition else { return nil }
+    return Set(
+      appState.verifiedModelCatalogEntries.compactMap {
+        $0.downloadBaseURL == nil ? nil : $0.packID
+      })
+  }
+
+  private var modelRecommendation: RecommendedModelPolicy.Recommendation? {
+    RecommendedModelPolicy.recommendation(
+      physicalMemoryBytes: ProcessInfo.processInfo.physicalMemory,
+      availablePackIDs: downloadableRecommendationPackIDs)
+  }
+
+  private var recommendationModels: [ModelInstallCardModel] {
+    guard let modelRecommendation else { return RecommendedModelPolicy.candidates }
+    return [modelRecommendation.model]
+      + RecommendedModelPolicy.candidates.filter { $0 != modelRecommendation.model }
+  }
+
   private func modelKey(_ item: ModelPackInventoryEntry) -> String {
     "\(item.manifest.packID)/\(item.manifest.version)"
   }
@@ -1397,13 +1417,12 @@ private struct ProvidersSettingsPane: View {
             Text("按设备资源和转写质量选择；下载完成后会自动设为当前本机模型。")
               .font(.caption)
               .foregroundStyle(.secondary)
-            ModelInstallCard(entryPoint: .settings)
-            #if !WOICE_APP_STORE
-              ModelInstallCard(entryPoint: .settings, model: .qwen3ASR)
-            #endif
-            ModelInstallCard(
-              entryPoint: .settings,
-              model: .whisperKit(.candidateLargeV3))
+            ForEach(Array(recommendationModels.enumerated()), id: \.offset) { _, model in
+              ModelInstallCard(
+                entryPoint: .settings,
+                model: model,
+                recommendation: modelRecommendation)
+            }
           }
         } header: {
           Label("获取本机模型", systemImage: "arrow.down.circle")

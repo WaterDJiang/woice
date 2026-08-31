@@ -73,6 +73,63 @@ enum ModelInstallCardModel: Equatable, Sendable {
   }
 }
 
+struct RecommendedModelPolicy: Equatable, Sendable {
+  struct Recommendation: Equatable, Sendable {
+    let model: ModelInstallCardModel
+    let reason: String
+  }
+
+  static let qwenMinimumMemoryBytes: UInt64 = 16 * 1_024 * 1_024 * 1_024
+  static let largeModelMinimumMemoryBytes: UInt64 = 32 * 1_024 * 1_024 * 1_024
+
+  static let candidates: [ModelInstallCardModel] = [
+    .whisperKit(.recommendedTiny),
+    .qwen3ASR,
+    .whisperKit(.candidateLargeV3),
+  ]
+
+  static var current: Recommendation {
+    recommendation(physicalMemoryBytes: ProcessInfo.processInfo.physicalMemory)!
+  }
+
+  static func recommendation(
+    physicalMemoryBytes: UInt64,
+    availablePackIDs: Set<String>? = nil
+  ) -> Recommendation? {
+    let memory = ByteCountFormatter.string(
+      fromByteCount: Int64(clamping: physicalMemoryBytes), countStyle: .memory)
+    let preference: [ModelInstallCardModel]
+    if physicalMemoryBytes >= largeModelMinimumMemoryBytes {
+      preference = [
+        .whisperKit(.candidateLargeV3), .qwen3ASR, .whisperKit(.recommendedTiny),
+      ]
+    } else if physicalMemoryBytes >= qwenMinimumMemoryBytes {
+      preference = [
+        .qwen3ASR, .whisperKit(.recommendedTiny), .whisperKit(.candidateLargeV3),
+      ]
+    } else {
+      preference = [
+        .whisperKit(.recommendedTiny), .qwen3ASR, .whisperKit(.candidateLargeV3),
+      ]
+    }
+    guard
+      let model = preference.first(where: { model in
+        availablePackIDs?.contains(model.packID) ?? true
+      })
+    else { return nil }
+    let description =
+      switch model {
+      case .qwen3ASR: "兼顾中文转写和本机占用的 Qwen3-ASR 0.6B"
+      case .whisperKit(let entry)
+      where entry.packID == WhisperKitModelCatalogEntry.candidateLargeV3.packID:
+        "准确率更高的 Large-v3"
+      case .whisperKit:
+        "占用更小的 Tiny"
+      }
+    return Recommendation(model: model, reason: "这台 Mac 有 \(memory) 内存，推荐\(description)。")
+  }
+}
+
 struct ModelInstallTradeoffSummary: View {
   let guidance: ModelInstallGuidance
 
@@ -120,15 +177,18 @@ struct ModelInstallCard: View {
   let entryPoint: ModelInstallEntryPoint
   let recordingID: UUID?
   let model: ModelInstallCardModel
+  let recommendation: RecommendedModelPolicy.Recommendation?
 
   init(
     entryPoint: ModelInstallEntryPoint,
     recordingID: UUID? = nil,
-    model: ModelInstallCardModel = .whisperKit(.recommendedTiny)
+    model: ModelInstallCardModel = RecommendedModelPolicy.current.model,
+    recommendation: RecommendedModelPolicy.Recommendation? = RecommendedModelPolicy.current
   ) {
     self.entryPoint = entryPoint
     self.recordingID = recordingID
     self.model = model
+    self.recommendation = recommendation
   }
 
   private var isInstalled: Bool {
@@ -162,8 +222,15 @@ struct ModelInstallCard: View {
           .foregroundStyle(.tint)
           .frame(width: 24)
         VStack(alignment: .leading, spacing: 3) {
-          Text(model.displayName)
-            .font(.headline)
+          HStack(spacing: 6) {
+            Text(model.displayName)
+              .font(.headline)
+            if recommendation?.model.packID == model.packID {
+              Label("为这台 Mac 推荐", systemImage: "sparkles")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.tint)
+            }
+          }
           Text(
             "约 \(ByteCountFormatter.string(fromByteCount: model.estimatedBytes, countStyle: .file)) · 本机运行"
           )
@@ -172,6 +239,11 @@ struct ModelInstallCard: View {
           Text("下载到这台 Mac；录音不会因此发送到网络。")
             .font(.caption)
             .foregroundStyle(.secondary)
+          if recommendation?.model.packID == model.packID, let recommendation {
+            Text(recommendation.reason)
+              .font(.caption2)
+              .foregroundStyle(.secondary)
+          }
         }
         Spacer(minLength: 8)
         Button {
@@ -248,5 +320,37 @@ struct ModelInstallCard: View {
         .strokeBorder(Color.accentColor.opacity(0.18), lineWidth: 1)
     }
     .accessibilityElement(children: .contain)
+  }
+}
+
+struct RecommendedModelInstallCard: View {
+  @Environment(AppState.self) private var appState
+
+  let entryPoint: ModelInstallEntryPoint
+  let recordingID: UUID?
+
+  init(entryPoint: ModelInstallEntryPoint, recordingID: UUID? = nil) {
+    self.entryPoint = entryPoint
+    self.recordingID = recordingID
+  }
+
+  private var recommendation: RecommendedModelPolicy.Recommendation? {
+    RecommendedModelPolicy.recommendation(
+      physicalMemoryBytes: ProcessInfo.processInfo.physicalMemory,
+      availablePackIDs: StoreCapabilityProfile.current.isStoreEdition
+        ? Set(
+          appState.verifiedModelCatalogEntries.compactMap {
+            $0.downloadBaseURL == nil ? nil : $0.packID
+          })
+        : nil)
+  }
+
+  var body: some View {
+    let displayedRecommendation = recommendation
+    ModelInstallCard(
+      entryPoint: entryPoint,
+      recordingID: recordingID,
+      model: displayedRecommendation?.model ?? RecommendedModelPolicy.current.model,
+      recommendation: displayedRecommendation)
   }
 }

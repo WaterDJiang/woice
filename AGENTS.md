@@ -42,6 +42,10 @@ make verify
 
 `make build` 与 `make xcode-build-direct` 只做无签名编译检查。需要在本机安装或验证 TCC 覆盖安装时，必须显式传入本机未跟踪的 `WOICE_LOCAL_SIGNING_IDENTITY`，再调用 `make package-core`、`make package-offline` 或带该变量的 `make install`。
 
+本地开发 Bundle 统一命名为 `Woice (Dev).app`，Bundle ID 保持 `com.woice.app`；App Store/TestFlight 只使用 `Woice.app` 和 `com.water.woice`。每次新建/安装 App 必须先替换同 Channel 的旧安装，安装后清理项目 `build/` 顶层与 `.build/xcode-*-derived/Build/Products` 中可重建的旧 App；系统应用目录中每个 Channel 只保留最新一份。新 Store Archive/导出包生成后，只保留当前待上传 Archive，旧 `.xcarchive` 可恢复移入废纸篓；不得删除另一 Channel 的 App、当前待上传 Archive、导出包或 `~/Library/Application Support/Woice*` 用户数据。
+
+Dev 必须使用 `~/Library/Application Support/Woice Dev`、Keychain service `com.woice.app.dev` 及该目录下独立的 `instance.lock` / `woice.sock`；不得读写、迁移或清理正式版对应的数据、Keychain、锁和 Socket。
+
 ## 计划结构
 
 ```text

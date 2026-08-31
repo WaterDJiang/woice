@@ -16,11 +16,15 @@ from pathlib import Path
 
 DIRECT_BUNDLE_ID = "com.woice.app"
 STORE_BUNDLE_ID = "com.water.woice"
+DEV_DISPLAY_NAME = "Woice (Dev)"
+RELEASE_DISPLAY_NAME = "Woice"
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--flavor", choices=("core", "offline", "store"), required=True)
+    parser.add_argument(
+        "--flavor", choices=("dev", "core", "offline", "store"), required=True
+    )
     parser.add_argument("--binary", type=Path, required=True)
     parser.add_argument("--info-plist", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
@@ -33,6 +37,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--entitlements", type=Path)
     parser.add_argument("--privacy-manifest", type=Path)
     return parser.parse_args()
+
+
+def validate_model_embedding_policy(flavor: str, model_root: Path | None) -> None:
+    if flavor == "store" and model_root is not None:
+        raise SystemExit("Store 安装包禁止携带模型；请通过签名 Catalog 由用户显式下载。")
 
 
 def sha256_file(path: Path) -> str:
@@ -226,10 +235,21 @@ def apply_flavor_bundle_identity(plist: dict, flavor: str) -> None:
     """Keep direct packages on their legacy identity and isolate the Store app identity."""
 
     plist["CFBundleIdentifier"] = STORE_BUNDLE_ID if flavor == "store" else DIRECT_BUNDLE_ID
+    display_name = DEV_DISPLAY_NAME if flavor == "dev" else RELEASE_DISPLAY_NAME
+    plist["CFBundleDisplayName"] = display_name
+    plist["CFBundleName"] = display_name
+    plist["CFBundleExecutable"] = RELEASE_DISPLAY_NAME
+    plist["WOICEAppChannel"] = {
+        "dev": "dev",
+        "core": "release",
+        "offline": "release",
+        "store": "store",
+    }[flavor]
 
 
 def main() -> None:
     args = parse_args()
+    validate_model_embedding_policy(args.flavor, args.model_root)
     project_root = Path(__file__).resolve().parents[1]
     binary = args.binary.resolve()
     info_plist = args.info_plist.resolve()
@@ -372,7 +392,7 @@ def main() -> None:
             },
         ]
     )
-    if args.flavor in ("offline", "store") and args.model_root is not None:
+    if args.flavor == "offline" and args.model_root is not None:
         model_root = args.model_root.expanduser().resolve()
         version_dir, manifest = find_model_version(model_root)
         pack_id = manifest.get("packID")

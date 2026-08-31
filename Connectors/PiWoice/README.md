@@ -25,4 +25,4 @@ PI 版本固定为 `@earendil-works/pi-coding-agent@0.83.0` peer dependency。Wo
 pi install ./Connectors/PiWoice
 ```
 
-默认 Socket 为 `~/Library/Application Support/Woice/woice.sock`；测试或特殊开发环境可设置 `WOICE_SOCKET_PATH` 覆盖路径。
+正式版默认 Socket 为 `~/Library/Application Support/Woice/woice.sock`；Dev 使用 `WOICE_APP_CHANNEL=dev` 并连接 `~/Library/Application Support/Woice Dev/woice.sock`。测试或特殊环境可设置 `WOICE_SOCKET_PATH` 覆盖路径。

@@ -20,7 +20,7 @@ if [[ "${WOICE_RUN_MEDIA_IMPORT_JOURNEY:-0}" != "1" ]]; then
   exit 0
 fi
 
-app_path="${WOICE_MEDIA_IMPORT_APP_PATH:-/Applications/Woice.app}"
+app_path="${WOICE_MEDIA_IMPORT_APP_PATH:-/Applications/Woice (Dev).app}"
 source_path="${WOICE_MEDIA_IMPORT_SOURCE:-}"
 [[ -d "$app_path" ]] || {
   echo "acceptance-media-import-desktop: app not found: $app_path" >&2

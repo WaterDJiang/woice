@@ -109,6 +109,10 @@ def verify(app: Path) -> None:
     info = read_plist(contents / "Info.plist")
     if info.get("CFBundleIdentifier") != "com.water.woice":
         raise XcodeStoreBundleError("Xcode Store Bundle ID 必须是 com.water.woice。")
+    if info.get("CFBundleDisplayName") != "Woice" or info.get("CFBundleName") != "Woice":
+        raise XcodeStoreBundleError("Xcode Store Bundle 显示名必须是 Woice。")
+    if info.get("WOICEAppChannel") != "store":
+        raise XcodeStoreBundleError("Xcode Store Bundle 的 App Channel 必须是 store。")
     if info.get("CFBundlePackageType") != "APPL":
         raise XcodeStoreBundleError("Xcode Store Bundle 不是 macOS App。")
     if info.get("LSApplicationCategoryType") != "public.app-category.productivity":
@@ -163,6 +167,8 @@ def verify(app: Path) -> None:
         raise XcodeStoreBundleError("Xcode Store Bundle 的 Store 能力清单不符合边界。")
     if distribution.get("bundledModelPackIDs") != []:
         raise XcodeStoreBundleError("正式 Xcode Store Target 不得静态内置未审定模型。")
+    if (resources / "Models").exists() or (resources / "BundledModels").exists():
+        raise XcodeStoreBundleError("正式 Xcode Store Target 不得包含随包模型目录。")
 
     sbom = read_json(resources / "SBOM.json")
     if sbom.get("bomFormat") != "CycloneDX" or sbom.get("specVersion") != "1.5":

@@ -42,4 +42,10 @@ if [[ -n "${WOICE_DERIVED_DATA_PATH:-}" ]]; then
 fi
 archive_args+=(archive)
 "${archive_args[@]}"
+archive_path="${archive_path:A}"
+if [[ "${archive_path:h}" == "$project_root/build" ]]; then
+  python3 scripts/cleanup_local_apps.py \
+    --archive-root "$project_root/build" \
+    --keep-archive "$archive_path"
+fi
 print "archive-app-store: $archive_path"

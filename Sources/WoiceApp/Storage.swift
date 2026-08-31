@@ -115,7 +115,7 @@ final class WorkspaceStore {
         "Library/Application Support")
     rootURL =
       storageRootURL ?? WoiceTestRuntimeConfiguration.storageRoot
-      ?? applicationSupport.appendingPathComponent("Woice", isDirectory: true)
+      ?? WoiceAppChannel.current.workspaceRoot(in: applicationSupport)
     recordingsURL = rootURL.appendingPathComponent("recordings", isDirectory: true)
     indexURL = rootURL.appendingPathComponent("recordings.json")
     settingsURL = rootURL.appendingPathComponent("settings.json")

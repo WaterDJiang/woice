@@ -286,7 +286,7 @@ struct MediaImportSheet: View {
         .help("打开原件")
       }
       if !appState.hasInstalledLocalModelPack {
-        ModelInstallCard(entryPoint: .material, recordingID: record.id)
+        RecommendedModelInstallCard(entryPoint: .material, recordingID: record.id)
       }
     }
   }
