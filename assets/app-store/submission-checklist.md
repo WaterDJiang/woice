@@ -16,9 +16,9 @@
 - [x] 隐私政策 URL 与支持 URL 已有公开地址；营销 URL 为可选项，提交前确认可访问性。
 - [x] 本机 Bundle 已包含 `PrivacyInfo.xcprivacy`；[Apple 上架资料快照](apple-submission-reference.md)已记录待法律/最终 SDK 审计的项目。
 - [x] 完成 Apple Distribution 签名 Archive 和 `destination=export` 的本地 App Store Connect 导出包；深度验签、版本、Bundle ID、双架构和零模型门禁通过。
-- [ ] 上传 Build 7，并确认 App Store Connect 处理完成且可选。
-- [ ] 完成年龄分级、出口合规、第三方内容权利、价格/税务和审核联系人。
-- [x] 审核测试步骤已写入 `metadata-draft.md`；上传前必须在实体 Mac 运行并记录结果。
+- [x] 已上传 Build 7；App Store Connect 处理完成，版本页与审核提交均已选择 `0.1.4 (7)`。
+- [ ] 完成年龄分级、第三方内容权利、价格/税务和审核联系人；Build 7 出口合规声明已完成。
+- [x] 审核测试步骤已写入 `metadata-draft.md`；Build 7 已在实体 Mac 完成“检查更新”、模型清单展示、录音、保存、打开与播放手测。
 - [ ] 从干净用户环境复验：无 Agent 时仍可录音、转写、复听、搜索和导出；失败时原始素材仍安全。
 - [ ] 录制从启动 App 开始的实体 Mac 审核视频；若展示模型下载，包含 Qwen3-ASR 的实际可用路径。
 
@@ -31,5 +31,5 @@
 ## 当前停止条件
 
 - `CFBundleVersion` 已递增到 7；Build 6 不得再次提交。
-- 本机已生成并验签 Catalog v2，包含 Tiny、Qwen3-ASR 和 Large-v3；公开地址仍是 v1，推送并回读 v2 前不能声称 Qwen 已可下载。
-- 未取得账号主体、版权人、审核联系人、价格/税务、年龄评级、出口合规和实机录屏证据前，不标记为“已完成提交”。
+- Catalog v2 已推送并从公开 GitHub Raw 回读验签，包含 Tiny、Qwen3-ASR 和 Large-v3；Review Notes 可以声明 Qwen 已通过签名清单提供。
+- Build 7 已完成出口合规、审核回复和重新提交，当前状态为“等待审核”；账号主体、版权人、审核联系人、价格/税务和年龄评级沿用本次已受理提交的 App Store Connect 配置，不在仓库中记录敏感值。
