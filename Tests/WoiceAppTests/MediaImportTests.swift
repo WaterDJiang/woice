@@ -231,7 +231,7 @@ struct MediaImportTests {
 
     #expect(record.sourceKind == .importedAudio)
     #expect(record.originalMediaFileName == "\(record.id.uuidString).source.待整理录音.wav")
-    #expect(record.title == "待整理录音")
+    #expect(record.displayTitle == "待整理录音.wav")
     #expect(record.originalMediaSHA256?.isEmpty == false)
     #expect(record.processingTasks.count == 1)
     #expect(record.processingTasks[0].kind == .transcription)

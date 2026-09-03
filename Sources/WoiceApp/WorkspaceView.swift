@@ -106,6 +106,7 @@ private enum WorkspaceMaterialFilter: String, CaseIterable, Identifiable {
 final class WorkspaceRouter {
   var route: WorkspaceRoute = .library
   var shouldPresentMediaImport = false
+  var pendingMediaImportRecordID: UUID?
   var isSidebarVisible = true
 
   func show(_ area: WorkspaceArea) {
@@ -126,11 +127,13 @@ final class WorkspaceRouter {
   }
 
   func show(recordID: UUID) {
+    MaterialPerformanceInstrumentation.event(.listSelection)
     route = .recording(recordID)
   }
 
-  func requestMediaImport() {
+  func requestMediaImport(recordID: UUID? = nil) {
     route = .library
+    pendingMediaImportRecordID = recordID
     shouldPresentMediaImport = true
   }
 
@@ -146,6 +149,7 @@ struct WorkspaceView: View {
   @State private var isShowingMediaImport = false
   @State private var importedRecordID: UUID?
   @State private var mediaImportDismissalDestination: MediaImportSheetDismissalDestination?
+  @State private var loadedDetailRecord: RecordingRecord?
 
   private var areaSelection: Binding<WorkspaceArea> {
     Binding(
@@ -271,7 +275,8 @@ struct WorkspaceView: View {
     .onChange(of: router.shouldPresentMediaImport) { _, requested in
       guard requested else { return }
       router.shouldPresentMediaImport = false
-      importedRecordID = nil
+      importedRecordID = router.pendingMediaImportRecordID
+      router.pendingMediaImportRecordID = nil
       mediaImportDismissalDestination = nil
       isShowingMediaImport = true
     }
@@ -286,8 +291,24 @@ struct WorkspaceView: View {
     .task {
       if router.shouldPresentMediaImport {
         router.shouldPresentMediaImport = false
+        importedRecordID = router.pendingMediaImportRecordID
+        router.pendingMediaImportRecordID = nil
         mediaImportDismissalDestination = nil
         isShowingMediaImport = true
+      }
+    }
+    .task(id: detailRecordID) {
+      guard let detailRecordID else {
+        loadedDetailRecord = nil
+        return
+      }
+      if let record = appState.recordings.first(where: { $0.id == detailRecordID }) {
+        loadedDetailRecord = record
+        return
+      }
+      loadedDetailRecord = await appState.loadRecordingDetail(recordID: detailRecordID)
+      if let loadedDetailRecord {
+        appState.adoptRecordingDetail(loadedDetailRecord)
       }
     }
     .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: appState.actionFeedback?.id)
@@ -304,6 +325,11 @@ struct WorkspaceView: View {
     destination.apply(to: router)
   }
 
+  private var detailRecordID: UUID? {
+    if case .recording(let id) = router.route { return id }
+    return nil
+  }
+
   private var livePreviewPresentation: LiveTranscriptPreviewPresentation? {
     LiveTranscriptPreviewPresentation.make(
       isRecording: appState.isRecording || appState.liveTranscriptionState == .requestingPermission,
@@ -318,17 +344,27 @@ struct WorkspaceView: View {
     switch router.route {
     case .library:
       WorkspaceLibraryEmptyState(
-        hasRecordings: !appState.recordings.isEmpty,
+        hasRecordings: !appState.recordingSummaries.isEmpty || !appState.recordings.isEmpty,
         showModelInstall: !appState.hasInstalledLocalModelPack,
+        canStartRecording: appState.canStartRecording,
+        canImportMedia: appState.canImportMedia,
+        hydrationError: appState.recordingHydrationError,
         startRecording: { appState.startRecording() },
         importMedia: {
           importedRecordID = nil
           mediaImportDismissalDestination = nil
           isShowingMediaImport = true
-        })
+        },
+        retryHydration: { appState.retryRecordingHydration() })
     case .recording(let id):
       if let record = appState.recordings.first(where: { $0.id == id }) {
         RecordingDetailView(record: record)
+      } else if let loadedDetailRecord, loadedDetailRecord.id == id {
+        RecordingDetailView(record: loadedDetailRecord)
+      } else if appState.isHydratingRecordings {
+        WorkspaceEmptyState(
+          title: "正在打开素材", systemImage: "arrow.triangle.2.circlepath",
+          message: "正在读取这条素材的详情，原始音频不会被修改。")
       } else {
         WorkspaceEmptyState(
           title: "录音不存在", systemImage: "questionmark.folder", message: "这条录音可能已被删除。")
@@ -465,6 +501,8 @@ private struct WorkspaceSidebar: View {
   @State private var query = ""
   @State private var materialFilter: WorkspaceMaterialFilter = .all
   @State private var pendingDeletion: RecordingRecord?
+  @State private var renamingRecord: RecordingRecord?
+  @State private var renameDraft = ""
 
   var body: some View {
     VStack(spacing: 0) {
@@ -531,7 +569,25 @@ private struct WorkspaceSidebar: View {
         pendingDeletion = nil
       }
     } message: { record in
-      Text("“\(record.title)”的原音频、原文和相关本机文件会一起移到 macOS 废纸篓，可从 Finder 恢复。")
+      Text("“\(record.displayTitle)”的原音频、原文和相关本机文件会一起移到 macOS 废纸篓，可从 Finder 恢复。")
+    }
+    .alert(
+      "重命名素材",
+      isPresented: Binding(
+        get: { renamingRecord != nil },
+        set: { if !$0 { renamingRecord = nil } }
+      ),
+      presenting: renamingRecord
+    ) { record in
+      TextField("素材名称", text: $renameDraft)
+      Button("取消", role: .cancel) { renamingRecord = nil }
+      Button("保存") {
+        if appState.renameRecording(recordID: record.id, title: renameDraft) {
+          renamingRecord = nil
+        }
+      }
+    } message: { record in
+      Text("当前名称：\(record.displayTitle)。名称仅影响素材显示和导出文件名。")
     }
   }
 
@@ -590,18 +646,17 @@ private struct WorkspaceSidebar: View {
           Image(systemName: "square.and.arrow.down")
         }
         .buttonStyle(.woiceBorderless)
+        .disabled(!appState.canImportMedia)
         .accessibilityLabel("导入音视频")
         .help("导入音频或视频")
         Button(role: .destructive) {
-          guard let selectedRecordID,
-            let record = appState.recordings.first(where: { $0.id == selectedRecordID })
-          else { return }
-          pendingDeletion = record
+          guard let selectedRecordID else { return }
+          requestDeletion(recordID: selectedRecordID)
         } label: {
           Image(systemName: "trash")
         }
         .buttonStyle(.woiceBorderless)
-        .disabled(selectedRecordID == nil)
+        .disabled(selectedRecordID == nil || !appState.canMutateRecordings)
         .accessibilityLabel("删除所选素材")
         .help("将所选素材移到废纸篓")
       }
@@ -616,40 +671,50 @@ private struct WorkspaceSidebar: View {
       }
       .pickerStyle(.menu)
       .padding(.horizontal, 10)
-      let filteredRecords = appState.recordings.filter {
-        materialFilter.matches($0.materialStatus) && recordingMatchesSearchQuery($0, query: query)
-      }
-      if filteredRecords.isEmpty {
-        Text(query.isEmpty ? "还没有素材" : "没有匹配结果")
-          .font(.caption)
-          .foregroundStyle(.secondary)
-          .padding(.horizontal, 10)
-          .padding(.vertical, 8)
+      if appState.recordingSummaries.count >= 250 {
+        summaryLibraryList
       } else {
-        List(selection: $selectedRecordID) {
-          ForEach(filteredRecords) { record in
-            WorkspaceRecordingRow(record: record)
-              .tag(record.id)
-              .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                Button("移到废纸篓", systemImage: "trash", role: .destructive) {
-                  pendingDeletion = record
-                }
-              }
-              .contextMenu {
-                Button("移到废纸篓", systemImage: "trash", role: .destructive) {
-                  pendingDeletion = record
-                }
-              }
-              .accessibilityLabel(
-                "\(record.title)，\(record.sourceKind.label)，\(record.materialStatus.label)")
-          }
+        let filteredRecords = appState.recordings.filter {
+          materialFilter.matches($0.materialStatus) && recordingMatchesSearchQuery($0, query: query)
         }
-        .listStyle(.sidebar)
-        .onDeleteCommand {
-          guard let selectedRecordID,
-            let record = appState.recordings.first(where: { $0.id == selectedRecordID })
-          else { return }
-          pendingDeletion = record
+        if filteredRecords.isEmpty {
+          Text(query.isEmpty ? "还没有素材" : "没有匹配结果")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+        } else {
+          List(selection: $selectedRecordID) {
+            ForEach(filteredRecords) { record in
+              WorkspaceRecordingRow(record: record)
+                .tag(record.id)
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                  Button("移到废纸篓", systemImage: "trash", role: .destructive) {
+                    pendingDeletion = record
+                  }
+                  .disabled(!appState.canMutateRecordings)
+                }
+                .contextMenu {
+                  Button("重命名", systemImage: "pencil") {
+                    renameDraft = record.displayTitle
+                    renamingRecord = record
+                  }
+                  .disabled(!appState.canMutateRecordings)
+                  Button("移到废纸篓", systemImage: "trash", role: .destructive) {
+                    pendingDeletion = record
+                  }
+                  .disabled(!appState.canMutateRecordings)
+                }
+                .accessibilityLabel(
+                  "\(record.displayTitle)，\(record.sourceKind.label)，\(record.materialStatus.label)"
+                )
+            }
+          }
+          .listStyle(.sidebar)
+          .onDeleteCommand {
+            guard let selectedRecordID else { return }
+            requestDeletion(recordID: selectedRecordID)
+          }
         }
       }
     }
@@ -680,7 +745,7 @@ private struct WorkspaceSidebar: View {
             router.show(recordID: record.id)
           } label: {
             VStack(alignment: .leading, spacing: 3) {
-              Text(record.title).lineLimit(2)
+              Text(record.displayTitle).lineLimit(2)
               Label(
                 ProcessingTaskProjection.activeTask(in: record.processingTasks)?.status.label
                   ?? record.materialStatus.label,
@@ -696,7 +761,7 @@ private struct WorkspaceSidebar: View {
           }
           .buttonStyle(.plain)
           .accessibilityLabel(
-            "\(record.title)，\(ProcessingTaskProjection.activeTask(in: record.processingTasks)?.status.label ?? record.materialStatus.label)"
+            "\(record.displayTitle)，\(ProcessingTaskProjection.activeTask(in: record.processingTasks)?.status.label ?? record.materialStatus.label)"
           )
           .accessibilityHint("打开录音详情查看处理任务")
         }
@@ -726,6 +791,117 @@ private struct WorkspaceSidebar: View {
         .accessibilityHint("打开设置：\(section.title)")
       }
     }
+  }
+
+  @ViewBuilder
+  private var summaryLibraryList: some View {
+    let filteredSummaries = appState.recordingSummaries.filter {
+      materialFilter.matches($0.materialStatus) && summaryMatchesSearchQuery($0, query: query)
+    }
+    if filteredSummaries.isEmpty {
+      Text(query.isEmpty ? "还没有素材" : "没有匹配结果")
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+    } else {
+      List(selection: $selectedRecordID) {
+        ForEach(filteredSummaries) { summary in
+          WorkspaceRecordingSummaryRow(summary: summary)
+            .tag(summary.id)
+            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+              Button("移到废纸篓", systemImage: "trash", role: .destructive) {
+                requestDeletion(recordID: summary.id)
+              }
+              .disabled(!appState.canMutateRecordings)
+            }
+            .contextMenu {
+              Button("重命名", systemImage: "pencil") {
+                beginRename(recordID: summary.id, fallbackTitle: summary.displayTitle)
+              }
+              .disabled(!appState.canMutateRecordings)
+              Button("移到废纸篓", systemImage: "trash", role: .destructive) {
+                requestDeletion(recordID: summary.id)
+              }
+              .disabled(!appState.canMutateRecordings)
+            }
+        }
+      }
+      .listStyle(.sidebar)
+      .onAppear { MaterialPerformanceInstrumentation.event(.summaryPresented) }
+      .onDeleteCommand {
+        guard let selectedRecordID else { return }
+        requestDeletion(recordID: selectedRecordID)
+      }
+    }
+  }
+
+  private func requestDeletion(recordID: UUID) {
+    guard appState.canMutateRecordings else {
+      let message =
+        appState.isHydratingRecordings
+        ? "正在读取素材库，请稍后再删除素材。"
+        : "素材详情读取失败，请先点击“重新读取”后再删除素材。"
+      appState.presentActionFeedback(.progress(message))
+      return
+    }
+    if let record = appState.recordings.first(where: { $0.id == recordID }) {
+      pendingDeletion = record
+      return
+    }
+    Task { @MainActor in
+      guard let record = await appState.loadRecordingDetail(recordID: recordID) else { return }
+      appState.adoptRecordingDetail(record)
+      pendingDeletion = record
+    }
+  }
+
+  private func beginRename(recordID: UUID, fallbackTitle: String) {
+    guard appState.canMutateRecordings else {
+      let message =
+        appState.isHydratingRecordings
+        ? "正在读取素材库，请稍后再重命名。"
+        : "素材详情读取失败，请先点击“重新读取”后再重命名。"
+      appState.presentActionFeedback(.progress(message))
+      return
+    }
+    renameDraft = fallbackTitle
+    if let record = appState.recordings.first(where: { $0.id == recordID }) {
+      renamingRecord = record
+      return
+    }
+    Task { @MainActor in
+      guard let record = await appState.loadRecordingDetail(recordID: recordID) else { return }
+      appState.adoptRecordingDetail(record)
+      renameDraft = record.displayTitle
+      renamingRecord = record
+    }
+  }
+}
+
+private struct WorkspaceRecordingSummaryRow: View {
+  let summary: RecordingSummary
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 5) {
+      Text(summary.displayTitle)
+        .lineLimit(2)
+      HStack {
+        Label(summary.materialStatus.label, systemImage: summary.materialStatus.systemImage)
+        if summary.hasSystemAudio {
+          Label("双轨", systemImage: "speaker.wave.2")
+        }
+        Spacer()
+        Text(formatDuration(summary.duration)).monospacedDigit()
+      }
+      .font(.caption)
+      .foregroundStyle(summary.materialStatus == .failed ? .red : .secondary)
+      Text(summary.shortDate).font(.caption2).foregroundStyle(.tertiary)
+    }
+    .padding(.vertical, 4)
+    .accessibilityElement(children: .combine)
+    .accessibilityLabel(
+      "\(summary.displayTitle)，\(summary.sourceKind.label)，\(summary.materialStatus.label)")
   }
 }
 
@@ -781,7 +957,7 @@ func recordingMatchesSearchQuery(_ record: RecordingRecord, query: String) -> Bo
   guard !terms.isEmpty else { return true }
 
   var searchableValues = [
-    record.title,
+    record.displayTitle,
     TranscriptTextNormalizer.normalize(record.transcript ?? ""),
     TranscriptTextNormalizer.normalize(record.generatedMarkdown ?? ""),
     record.shortDate,
@@ -798,6 +974,25 @@ func recordingMatchesSearchQuery(_ record: RecordingRecord, query: String) -> Bo
   }
   let searchable = searchableValues.joined(separator: " ")
   return terms.allSatisfy { searchable.localizedCaseInsensitiveContains($0) }
+}
+
+func summaryMatchesSearchQuery(_ summary: RecordingSummary, query: String) -> Bool {
+  let terms = query.split(whereSeparator: { $0.isWhitespace }).map(String.init)
+    .filter { !$0.isEmpty }
+  guard !terms.isEmpty else { return true }
+  let searchable = [
+    summary.displayTitle,
+    summary.shortDate,
+    summary.materialStatus.label,
+    summary.materialStatus.rawValue,
+    summary.sourceKind.label,
+    summary.sourceKind.rawValue,
+  ].map { $0.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current) }
+  return terms.allSatisfy { term in
+    let normalized = term.folding(
+      options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+    return searchable.contains { $0.localizedCaseInsensitiveContains(normalized) }
+  }
 }
 
 private struct WorkspaceRecordingRow: View {
@@ -817,7 +1012,7 @@ private struct WorkspaceRecordingRow: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 5) {
       HStack(alignment: .firstTextBaseline, spacing: 6) {
-        Text(record.title).lineLimit(2)
+        Text(record.displayTitle).lineLimit(2)
         Spacer(minLength: 4)
         Image(systemName: transcriptStateImage ?? record.materialStatus.systemImage)
           .foregroundStyle(materialStatusColor)
@@ -855,8 +1050,12 @@ private struct WorkspaceRecordingRow: View {
 private struct WorkspaceLibraryEmptyState: View {
   let hasRecordings: Bool
   let showModelInstall: Bool
+  let canStartRecording: Bool
+  let canImportMedia: Bool
+  let hydrationError: String?
   let startRecording: () -> Void
   let importMedia: () -> Void
+  let retryHydration: () -> Void
 
   var body: some View {
     VStack(spacing: 14) {
@@ -871,11 +1070,30 @@ private struct WorkspaceLibraryEmptyState: View {
           : "开始录音或导入音视频，原件会先保存在本机。"
       )
       .foregroundStyle(.secondary)
+      if let hydrationError {
+        VStack(alignment: .leading, spacing: 6) {
+          Label("素材详情暂不可用", systemImage: "exclamationmark.triangle.fill")
+            .foregroundStyle(.orange)
+            .font(.headline)
+          Text(hydrationError)
+            .font(.callout)
+            .foregroundStyle(.secondary)
+          Button("重新读取", systemImage: "arrow.clockwise", action: retryHydration)
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+        }
+        .frame(maxWidth: 440, alignment: .leading)
+        .padding(12)
+        .background(.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
+        .accessibilityElement(children: .combine)
+      }
       HStack(spacing: 10) {
         Button("开始录音", systemImage: "mic.fill", action: startRecording)
           .buttonStyle(.borderedProminent)
+          .disabled(!canStartRecording)
         Button("导入音视频…", systemImage: "square.and.arrow.down", action: importMedia)
           .buttonStyle(.bordered)
+          .disabled(!canImportMedia)
       }
       if showModelInstall {
         RecommendedModelInstallCard(entryPoint: .workspace)
@@ -910,7 +1128,7 @@ private struct WorkspaceProcessingList: View {
                 router.show(recordID: record.id)
               } label: {
                 VStack(alignment: .leading, spacing: 6) {
-                  Text(record.title).lineLimit(2)
+                  Text(record.displayTitle).lineLimit(2)
                   if let task = ProcessingTaskProjection.activeTask(in: record.processingTasks) {
                     Label(task.status.label, systemImage: task.status.systemImage)
                       .font(.caption)
@@ -932,7 +1150,7 @@ private struct WorkspaceProcessingList: View {
               }
               .buttonStyle(.plain)
               .accessibilityLabel(
-                "\(record.title)，\(ProcessingTaskProjection.activeTask(in: record.processingTasks)?.status.label ?? record.materialStatus.label)"
+                "\(record.displayTitle)，\(ProcessingTaskProjection.activeTask(in: record.processingTasks)?.status.label ?? record.materialStatus.label)"
               )
               .accessibilityHint("打开录音详情查看处理任务")
             }
@@ -1109,7 +1327,7 @@ private struct WorkspaceProcessingOverview: View {
             let task = ProcessingTaskProjection.resumableTask(in: record.processingTasks)
             HStack(spacing: 10) {
               Label(
-                record.title,
+                record.displayTitle,
                 systemImage: task?.status.systemImage ?? record.materialStatus.systemImage
               )
               .lineLimit(2)
@@ -1124,7 +1342,7 @@ private struct WorkspaceProcessingOverview: View {
             .background(.quaternary.opacity(0.45), in: RoundedRectangle(cornerRadius: 10))
             .accessibilityElement(children: .combine)
             .accessibilityLabel(
-              "\(record.title)，\(task?.status.label ?? record.materialStatus.label)，可继续处理"
+              "\(record.displayTitle)，\(task?.status.label ?? record.materialStatus.label)，可继续处理"
             )
           }
         }

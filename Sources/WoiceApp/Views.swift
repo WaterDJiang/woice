@@ -26,7 +26,7 @@ struct HistoryView: View {
       List(selection: $selectedID) {
         ForEach(filtered) { record in
           VStack(alignment: .leading, spacing: 5) {
-            Text(record.title).lineLimit(2)
+            Text(record.displayTitle).lineLimit(2)
             HStack {
               Label(
                 appState.audioFileExists(for: record) ? "已保存" : "缺少音频",

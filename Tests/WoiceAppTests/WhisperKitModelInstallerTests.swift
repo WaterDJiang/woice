@@ -213,7 +213,31 @@ func installedWhisperKitRecordsAndTranscribes() async throws {
     return
   }
 
-  let state = AppState()
+  // Do not couple this Journey to the user's current model selection. The
+  // first half of `make acceptance-whisperkit` installs Tiny in App Support;
+  // this test then injects that verified provider into an isolated workspace.
+  // Live Speech preview is a separate product capability and the SwiftPM test
+  // host does not carry the app's NSSpeechRecognitionUsageDescription.
+  let sourceRoot = WorkspaceStore().rootURL
+  let sourceModelStore = ModelPackStore(rootURL: sourceRoot)
+  let manifest = try #require(
+    await sourceModelStore.inventory().first(where: {
+      $0.manifest.providerID == "com.woice.whisperkit"
+    })?.manifest)
+  let modelFolder = try await sourceModelStore.installedDirectory(for: manifest)
+  let provider = try WhisperKitTranscriptionService(
+    manifest: manifest, modelFolder: modelFolder)
+  let isolatedRoot = FileManager.default.temporaryDirectory.appendingPathComponent(
+    "woice-installed-whisperkit-recording-\(UUID().uuidString)", isDirectory: true)
+  defer { try? FileManager.default.removeItem(at: isolatedRoot) }
+  var settings = AppSettings.default
+  settings.captureSystemAudio = false
+  settings.enableLiveTranscription = false
+  settings.asrProviderSelection = .onDevice
+  settings.asrEndpoint = ""
+  let isolatedStore = WorkspaceStore(storageRootURL: isolatedRoot)
+  try isolatedStore.saveSettings(settings)
+  let state = AppState(store: isolatedStore, localTranscription: provider)
   #expect(state.localASRModel.providerID == "com.woice.whisperkit")
   let expectedModelID = state.localASRModel.modelID
   let expectedModelVersion = state.localASRModel.version

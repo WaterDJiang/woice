@@ -31,7 +31,7 @@ v0.1.3 不只支持 Qwen。Offline 为了控制体积，只预先放入 Qwen 权
 
 ### TestFlight / App Store 版本
 
-`0.1.4 (Build 5)` 使用签名模型 Catalog 提供按需下载。Catalog 会先由 App 验证 Ed25519 签名，再允许逐文件下载、校验和安装。模型权重不随 Store 包上传；首次打开且没有模型时，工作台会明确提示先下载语音转换模型。推荐策略为低于 16 GiB 选择 Tiny、16～31 GiB 选择 Qwen3-ASR 0.6B、32 GiB 及以上选择 Large-v3；目标模型尚未进入线上签名 Catalog 时会安全回退到可下载模型。下载必须由用户点击确认。
+`0.1.4 (Build 7)` 使用签名模型 Catalog 提供按需下载。Catalog 会先由 App 验证 Ed25519 签名，再允许逐文件下载、校验和安装。已生成的 Catalog v2 包含 WhisperKit Tiny、Qwen3-ASR 0.6B 4-bit 和 WhisperKit Large-v3；模型权重不随 Store 包上传。首次打开且没有模型时，工作台会明确提示先下载语音转换模型；下载必须由用户点击确认。
 
 ## 产品边界
 

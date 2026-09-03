@@ -671,6 +671,60 @@ public enum SystemAudioCaptureTarget: String, Codable, Equatable, Hashable, Send
   }
 }
 
+/// A bounded projection used by the material list. It intentionally excludes
+/// transcript text, timestamp segments, artifacts and task payloads so a large
+/// library can render its first screen without decoding every full record.
+public struct RecordingSummary: Identifiable, Codable, Equatable, Hashable, Sendable {
+  public let id: UUID
+  public let createdAt: Date
+  public let audioFileName: String
+  public let duration: TimeInterval
+  public let displayTitle: String
+  public let sourceKind: RecordingSourceKind
+  public let hasSystemAudio: Bool
+  public let materialStatus: RecordingMaterialStatus
+  public let processingError: String?
+
+  public init(
+    id: UUID,
+    createdAt: Date,
+    audioFileName: String,
+    duration: TimeInterval,
+    displayTitle: String,
+    sourceKind: RecordingSourceKind,
+    hasSystemAudio: Bool,
+    materialStatus: RecordingMaterialStatus,
+    processingError: String? = nil
+  ) {
+    self.id = id
+    self.createdAt = createdAt
+    self.audioFileName = audioFileName
+    self.duration = duration
+    self.displayTitle = displayTitle
+    self.sourceKind = sourceKind
+    self.hasSystemAudio = hasSystemAudio
+    self.materialStatus = materialStatus
+    self.processingError = processingError
+  }
+
+  public init(record: RecordingRecord) {
+    self.init(
+      id: record.id,
+      createdAt: record.createdAt,
+      audioFileName: record.audioFileName,
+      duration: record.duration,
+      displayTitle: record.displayTitle,
+      sourceKind: record.sourceKind,
+      hasSystemAudio: record.systemAudioFileName != nil,
+      materialStatus: record.materialStatus,
+      processingError: record.processingError)
+  }
+
+  public var shortDate: String {
+    createdAt.formatted(date: .abbreviated, time: .shortened)
+  }
+}
+
 public enum ProcessingBlockReason: String, Codable, Equatable, Hashable, Sendable {
   case noModelSelected
   case modelUnavailable
@@ -810,6 +864,9 @@ public struct RecordingRecord: Identifiable, Codable, Hashable, Sendable {
   public let originalMediaFileName: String?
   public let originalMediaSHA256: String?
   public let originalMediaByteCount: Int64?
+  /// A user-authored title. `nil` means the deterministic display-title
+  /// fallback is active; it is intentionally separate from the raw filename.
+  public var userTitle: String?
   public var duration: TimeInterval
   public var transcript: String?
   public var generatedMarkdown: String?
@@ -833,7 +890,8 @@ public struct RecordingRecord: Identifiable, Codable, Hashable, Sendable {
     voiceSegments: [VoiceSegment]? = nil,
     transcriptArtifacts: [TranscriptArtifact] = [], activeTranscriptArtifactID: UUID? = nil,
     sourceKind: RecordingSourceKind = .recorded, originalMediaFileName: String? = nil,
-    originalMediaSHA256: String? = nil, originalMediaByteCount: Int64? = nil
+    originalMediaSHA256: String? = nil, originalMediaByteCount: Int64? = nil,
+    userTitle: String? = nil
   ) {
     self.id = id
     self.createdAt = createdAt
@@ -850,6 +908,7 @@ public struct RecordingRecord: Identifiable, Codable, Hashable, Sendable {
     self.originalMediaFileName = originalMediaFileName
     self.originalMediaSHA256 = originalMediaSHA256
     self.originalMediaByteCount = originalMediaByteCount
+    self.userTitle = userTitle
     self.duration = duration
     self.transcript = transcript
     self.generatedMarkdown = generatedMarkdown
@@ -866,7 +925,8 @@ public struct RecordingRecord: Identifiable, Codable, Hashable, Sendable {
     case id, createdAt, audioFileName, systemAudioFileName, systemAudioBufferCount,
       systemAudioPeakLevel, systemAudioDuration, systemAudioStartOffset, meetingMixFileName,
       meetingTranscriptionMode, systemAudioCaptureTarget, sourceKind, originalMediaFileName,
-      originalMediaSHA256, originalMediaByteCount, duration, transcript, generatedMarkdown
+      originalMediaSHA256, originalMediaByteCount, userTitle, duration, transcript,
+      generatedMarkdown
     case processingError, systemAudioError, transcriptSegments, transcriptArtifacts,
       activeTranscriptArtifactID, voiceSegments, processingTasks
   }
@@ -896,6 +956,7 @@ public struct RecordingRecord: Identifiable, Codable, Hashable, Sendable {
     originalMediaSHA256 = try container.decodeIfPresent(String.self, forKey: .originalMediaSHA256)
     originalMediaByteCount = try container.decodeIfPresent(
       Int64.self, forKey: .originalMediaByteCount)
+    userTitle = try container.decodeIfPresent(String.self, forKey: .userTitle)
     duration = try container.decode(TimeInterval.self, forKey: .duration)
     transcript = try container.decodeIfPresent(String.self, forKey: .transcript)
     generatedMarkdown = try container.decodeIfPresent(String.self, forKey: .generatedMarkdown)
@@ -912,25 +973,45 @@ public struct RecordingRecord: Identifiable, Codable, Hashable, Sendable {
       try container.decodeIfPresent([ProcessingTask].self, forKey: .processingTasks) ?? []
   }
 
-  public var title: String {
-    if let transcript {
-      let readable = TranscriptTextNormalizer.normalize(transcript)
-      if !readable.isEmpty {
-        return String(readable.prefix(40))
-      }
+  /// Stable user-facing name shared by list, detail, search, export and RPC.
+  public var displayTitle: String {
+    if let userTitle {
+      let normalized = userTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+      if !normalized.isEmpty { return normalized }
     }
-    if let originalMediaFileName, !originalMediaFileName.isEmpty {
-      let basename = URL(fileURLWithPath: originalMediaFileName)
-        .deletingPathExtension().lastPathComponent
-      if sourceKind != .recorded, let marker = basename.range(of: ".source.") {
+    if sourceKind != .recorded, let originalMediaFileName, !originalMediaFileName.isEmpty {
+      let basename = URL(fileURLWithPath: originalMediaFileName).lastPathComponent
+      if let marker = basename.range(of: ".source.") {
         let importedName = String(basename[marker.upperBound...])
-        if !importedName.isEmpty, importedName != basename {
-          return importedName
-        }
+        if !importedName.isEmpty { return importedName }
       }
       return basename
     }
-    return "未命名录音"
+    if let transcript {
+      let readable = TranscriptTextNormalizer.normalize(transcript)
+      if !readable.isEmpty { return String(readable.prefix(40)) }
+    }
+    return
+      "未命名录音 · \(createdAt.formatted(.dateTime.month(.twoDigits).day(.twoDigits).hour(.twoDigits(amPM: .omitted)).minute(.twoDigits)))"
+  }
+
+  /// Backwards-compatible spelling for existing call sites. New UI and
+  /// integrations should use `displayTitle` explicitly.
+  public var title: String { displayTitle }
+
+  public static func normalizedUserTitle(_ value: String) throws -> String? {
+    let normalized = value.trimmingCharacters(in: .whitespacesAndNewlines)
+    if normalized.isEmpty { return nil }
+    guard
+      !normalized.unicodeScalars.contains(where: { scalar in
+        scalar.value < 0x20 || (0x7F...0x9F).contains(scalar.value)
+          || scalar.value == 0x2028 || scalar.value == 0x2029
+      })
+    else {
+      throw RecordingTitleError.invalidCharacters
+    }
+    guard normalized.count <= 120 else { throw RecordingTitleError.tooLong }
+    return normalized
   }
 
   public var shortDate: String {
@@ -968,6 +1049,18 @@ public struct RecordingRecord: Identifiable, Codable, Hashable, Sendable {
     if hasPending { return .processing }
     if hasFailure || processingError != nil { return .failed }
     return .saved
+  }
+}
+
+public enum RecordingTitleError: LocalizedError, Equatable, Sendable {
+  case invalidCharacters
+  case tooLong
+
+  public var errorDescription: String? {
+    switch self {
+    case .invalidCharacters: "名称不能包含换行或控制字符。"
+    case .tooLong: "名称不能超过 120 个字符。"
+    }
   }
 }
 

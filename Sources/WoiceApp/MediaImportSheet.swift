@@ -220,7 +220,7 @@ struct MediaImportSheet: View {
   @ViewBuilder
   private func importedContent(_ record: RecordingRecord) -> some View {
     VStack(alignment: .leading, spacing: 14) {
-      Label(record.title, systemImage: record.sourceKind.systemImage)
+      Label(record.displayTitle, systemImage: record.sourceKind.systemImage)
         .font(.title3.weight(.semibold))
       Text("\(record.sourceKind.label) · \(formatDuration(record.duration)) · 原件已保存")
         .font(.callout)
@@ -263,12 +263,16 @@ struct MediaImportSheet: View {
         .help(transcribeButtonTitle(record))
         Group {
           if let backgroundCloseTitle {
-            Button(backgroundCloseTitle) {
+            Button {
               closeSheet()
+            } label: {
+              Label(backgroundCloseTitle, systemImage: "xmark.circle")
             }
             .buttonStyle(.bordered)
+            .keyboardShortcut(.cancelAction)
             .accessibilityLabel(backgroundCloseTitle)
             .accessibilityHint("关闭窗口，任务会继续，不会取消")
+            .help("关闭浮窗，转写任务会继续")
           } else {
             Button("稍后处理") {
               closeSheet(after: .recording(record.id))

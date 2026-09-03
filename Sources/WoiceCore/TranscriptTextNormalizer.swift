@@ -33,4 +33,16 @@ public enum TranscriptTextNormalizer {
       .joined(separator: "\n")
       .trimmingCharacters(in: .whitespacesAndNewlines)
   }
+
+  /// Splits a normalized transcript into bounded render units. The source
+  /// string remains unchanged; callers can keep it for copy/export while a
+  /// lazy stack only instantiates the chunks near the visible viewport.
+  public static func chunks(_ text: String, maxCharacters: Int = 1_200) -> [String] {
+    guard maxCharacters > 0, !text.isEmpty else { return text.isEmpty ? [] : [text] }
+    let characters = Array(text)
+    return stride(from: 0, to: characters.count, by: maxCharacters).map { start in
+      let end = min(start + maxCharacters, characters.count)
+      return String(characters[start..<end])
+    }
+  }
 }

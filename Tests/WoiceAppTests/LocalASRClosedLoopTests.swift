@@ -200,6 +200,70 @@ func failedLocalTranscriptionCanRetryAfterModelSwitchWithoutDuplicateCalls() asy
   #expect(state.recordings.first?.transcriptArtifacts.count == 2)
 }
 
+@Test("已完成的本机转写任务可再次转写且不重复启动")
+@MainActor
+func completedLocalTranscriptionCanBeExplicitlyRetried() async throws {
+  let root = FileManager.default.temporaryDirectory.appendingPathComponent(
+    "woice-local-asr-completed-retry-" + UUID().uuidString, isDirectory: true)
+  defer { try? FileManager.default.removeItem(at: root) }
+
+  let store = WorkspaceStore(storageRootURL: root)
+  let audioURL = store.recordingsURL.appendingPathComponent("completed.wav")
+  let format = try #require(AVAudioFormat(standardFormatWithSampleRate: 16_000, channels: 1))
+  let file = try AVAudioFile(forWriting: audioURL, settings: format.settings)
+  let buffer = try #require(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 16_000))
+  buffer.frameLength = 16_000
+  try file.write(from: buffer)
+
+  let recordID = UUID()
+  let record = RecordingRecord(
+    id: recordID, createdAt: Date(), audioFileName: audioURL.lastPathComponent, duration: 1,
+    transcript: "上一版本机原文", generatedMarkdown: nil, processingError: nil,
+    processingTasks: [
+      ProcessingTask(
+        kind: .transcription,
+        idempotencyKey: "\(recordID.uuidString.lowercased()):transcription",
+        status: .completed,
+        providerID: "com.woice.whisperkit",
+        modelID: "openai-whisper-tiny",
+        modelVersion: "tiny-revision",
+        dataLocation: .onDevice,
+        capability: .transcription)
+    ])
+  try store.saveRecordings([record])
+
+  let provider = DelayedFixtureLocalASR()
+  let state = AppState(store: store, localTranscription: provider)
+  state.settings.asrProviderSelection = .onDevice
+  state.settings.asrEndpoint = ""
+  let before = try FileSHA256.digest(url: audioURL)
+  let loaded = try #require(state.recordings.first)
+  state.requestTranscription(for: loaded)
+  state.requestTranscription(for: loaded)
+
+  for _ in 0..<60 {
+    if await provider.transcribeCallCount > 0 { break }
+    try await Task.sleep(for: .milliseconds(25))
+  }
+  for _ in 0..<60 {
+    if state.recordings.first?.processingTasks.first?.status == .completed,
+      state.recordings.first?.transcript == "Large 模型重转写成功"
+    {
+      break
+    }
+    try await Task.sleep(for: .milliseconds(25))
+  }
+
+  let updated = try #require(state.recordings.first)
+  #expect(await provider.transcribeCallCount == 1)
+  #expect(updated.processingTasks.first?.status == .completed)
+  #expect(updated.transcript == "Large 模型重转写成功")
+  #expect(updated.transcriptArtifacts.count == 2)
+  #expect(updated.transcriptArtifacts.first?.text == "上一版本机原文")
+  #expect(updated.transcriptArtifacts.last?.text == "Large 模型重转写成功")
+  #expect(try FileSHA256.digest(url: audioURL) == before)
+}
+
 @Test("失败的外部任务切回本机后重试会刷新实际 Provider 快照")
 @MainActor
 func failedExternalTranscriptionRetriesWithSelectedLocalProvider() async throws {

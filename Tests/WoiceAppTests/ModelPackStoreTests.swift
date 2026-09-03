@@ -181,6 +181,41 @@ func modelPackStoreFailsClosedOnChecksumMismatch() async throws {
   #expect(try await store.inventory().isEmpty)
 }
 
+@Test("库存扫描隔离损坏版本并保留有效模型")
+func modelPackInventorySkipsCorruptVersion() async throws {
+  let root = FileManager.default.temporaryDirectory.appendingPathComponent(
+    "woice-model-inventory-isolation-\(UUID().uuidString)", isDirectory: true)
+  defer { try? FileManager.default.removeItem(at: root) }
+  let source = root.appendingPathComponent("source", isDirectory: true)
+  try FileManager.default.createDirectory(
+    at: source.appendingPathComponent("weights", isDirectory: true),
+    withIntermediateDirectories: true)
+  let bytes = Data(repeating: 0x37, count: 64)
+  try bytes.write(to: source.appendingPathComponent("weights/model.bin"))
+  let validManifest = try storeFixtureManifest(
+    data: bytes, version: "1.0.0", providerID: "com.woice.whisperkit")
+  _ = try await ModelPackStore(rootURL: root).install(
+    manifest: validManifest, from: source)
+
+  let corruptManifest = try storeFixtureManifest(
+    data: bytes, version: "2.0.0", providerID: "com.woice.whisperkit")
+  let corruptDirectory = root.appendingPathComponent("Models", isDirectory: true)
+    .appendingPathComponent(corruptManifest.packID, isDirectory: true)
+    .appendingPathComponent(corruptManifest.version, isDirectory: true)
+  try FileManager.default.createDirectory(
+    at: corruptDirectory.appendingPathComponent("weights", isDirectory: true),
+    withIntermediateDirectories: true)
+  try Data(repeating: 0x99, count: bytes.count).write(
+    to: corruptDirectory.appendingPathComponent("weights/model.bin"))
+  try JSONEncoder.woice.encode(corruptManifest).write(
+    to: corruptDirectory.appendingPathComponent("manifest.json"))
+
+  let entries = try await ModelPackStore(rootURL: root).inventory()
+  #expect(entries.count == 1)
+  #expect(entries.first?.manifest == validManifest)
+  #expect(entries.first?.isCurrent == true)
+}
+
 @Test("模型包拒绝符号链接文件")
 func modelPackStoreRejectsSymbolicLinks() async throws {
   let root = FileManager.default.temporaryDirectory.appendingPathComponent(

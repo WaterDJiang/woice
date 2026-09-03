@@ -57,6 +57,26 @@ struct ModelCatalogTransportTests {
     #expect(request.value(forHTTPHeaderField: "Accept") == "application/json")
   }
 
+  @Test("Catalog Fetcher 兼容 GitHub Raw 的 text/plain JSON")
+  func fetcherAcceptsGitHubRawContentType() async throws {
+    let url = URL(string: "https://raw.githubusercontent.com/example/catalog.json")!
+    CatalogStubURLProtocol.response = (
+      HTTPURLResponse(
+        url: url, statusCode: 200, httpVersion: nil,
+        headerFields: ["Content-Type": "text/plain; charset=utf-8"]
+      )!,
+      Data(#"{"catalog":true}"#.utf8)
+    )
+    let configuration = URLSessionConfiguration.ephemeral
+    configuration.protocolClasses = [CatalogStubURLProtocol.self]
+    let client = ModelCatalogFetcher(session: URLSession(configuration: configuration))
+
+    let data = try await client.fetch(
+      from: url, policy: ModelCatalogFetchPolicy(allowedHosts: ["raw.githubusercontent.com"]))
+
+    #expect(data == Data(#"{"catalog":true}"#.utf8))
+  }
+
   @Test("Catalog Fetcher 拒绝不安全地址、凭据和未允许主机")
   func fetcherRejectsUnsafeURLsWithoutRequest() async {
     let policy = ModelCatalogFetchPolicy(allowedHosts: ["catalog.example.test"])

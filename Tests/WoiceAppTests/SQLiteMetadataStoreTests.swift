@@ -1,4 +1,5 @@
 import Foundation
+import SQLite3
 import Testing
 import WoiceCore
 
@@ -57,6 +58,191 @@ func sqliteStoreMigratesLegacyRecordings() throws {
   }
 }
 
+@Test("SQLite v5 数据库升级到摘要投影时保留原始 payload")
+@MainActor
+func sqliteV5DatabaseUpgradePreservesRecordingPayload() throws {
+  let root = sqliteTestRoot("v5-upgrade")
+  defer { try? FileManager.default.removeItem(at: root) }
+  try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+  let databaseURL = root.appendingPathComponent("woice.sqlite3")
+  let record = sqliteTestRecord()
+  let payload = try JSONEncoder.woice.encode(record)
+
+  var database: OpaquePointer?
+  let openResult = databaseURL.path.withCString { path in
+    sqlite3_open_v2(
+      path, &database, SQLITE_OPEN_CREATE | SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX, nil)
+  }
+  guard openResult == SQLITE_OK, let database else {
+    if let database { sqlite3_close(database) }
+    throw WoiceError.storageFailure("无法创建 v5 测试数据库。")
+  }
+  defer { sqlite3_close(database) }
+  let schema = """
+    CREATE TABLE recordings(
+      id TEXT PRIMARY KEY,
+      created_at REAL NOT NULL,
+      audio_file_name TEXT NOT NULL,
+      duration REAL NOT NULL,
+      payload_json BLOB NOT NULL
+    );
+    CREATE TABLE processing_jobs(
+      idempotency_key TEXT PRIMARY KEY,
+      recording_id TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      status TEXT NOT NULL,
+      attempt INTEGER NOT NULL,
+      created_at REAL NOT NULL,
+      updated_at REAL NOT NULL,
+      last_error TEXT,
+      lease_owner TEXT,
+      lease_expires_at REAL
+    );
+    PRAGMA user_version=5;
+    """
+  guard sqlite3_exec(database, schema, nil, nil, nil) == SQLITE_OK else {
+    throw WoiceError.storageFailure("无法写入 v5 测试数据库结构。")
+  }
+  var statement: OpaquePointer?
+  let insertSQL =
+    "INSERT INTO recordings(id, created_at, audio_file_name, duration, payload_json) VALUES(?, ?, ?, ?, ?)"
+  guard sqlite3_prepare_v2(database, insertSQL, -1, &statement, nil) == SQLITE_OK,
+    let statement
+  else { throw WoiceError.storageFailure("无法准备 v5 测试记录。") }
+  defer { sqlite3_finalize(statement) }
+  let transientDestructor = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
+  record.id.uuidString.withCString { value in
+    _ = sqlite3_bind_text(statement, 1, value, -1, transientDestructor)
+  }
+  _ = sqlite3_bind_double(statement, 2, record.createdAt.timeIntervalSince1970)
+  record.audioFileName.withCString { value in
+    _ = sqlite3_bind_text(statement, 3, value, -1, transientDestructor)
+  }
+  _ = sqlite3_bind_double(statement, 4, record.duration)
+  payload.withUnsafeBytes { bytes in
+    _ = sqlite3_bind_blob(
+      statement, 5, bytes.baseAddress, Int32(payload.count), transientDestructor)
+  }
+  guard sqlite3_step(statement) == SQLITE_DONE else {
+    throw WoiceError.storageFailure("无法写入 v5 测试记录。")
+  }
+
+  let migrated = try SQLiteMetadataStore(databaseURL: databaseURL)
+  #expect(try migrated.loadRecordings() == [record])
+  #expect(try migrated.loadRecordingSummaries().first?.displayTitle == record.audioFileName)
+  // The first AppState hydration replaces the conservative filename seed with
+  // the exact immutable payload projection.
+  try migrated.saveRecording(record)
+  #expect(try migrated.loadRecordingSummaries().first?.displayTitle == record.displayTitle)
+}
+
+@Test("SQLite 迁移前副本保留原始音频 SHA 与 Transcript Artifact 数量")
+@MainActor
+func sqliteMigrationPreservesAudioDigestAndArtifactCount() throws {
+  let root = sqliteTestRoot("migration-integrity")
+  defer { try? FileManager.default.removeItem(at: root) }
+  try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+
+  let base = sqliteTestRecord()
+  let audioURL = root.appendingPathComponent(base.audioFileName)
+  let originalBytes = Data("immutable imported audio fixture".utf8)
+  try originalBytes.write(to: audioURL, options: .atomic)
+  let originalDigest = try FileSHA256.digest(url: audioURL)
+  let artifact = TranscriptArtifact(
+    parentRecordingID: base.id,
+    text: "迁移前的原文",
+    providerID: "com.woice.fixture",
+    modelID: "fixture-model",
+    modelVersion: "fixture-v1")
+  let record = RecordingRecord(
+    id: base.id,
+    createdAt: base.createdAt,
+    audioFileName: base.audioFileName,
+    duration: base.duration,
+    transcript: artifact.text,
+    generatedMarkdown: base.generatedMarkdown,
+    processingError: base.processingError,
+    transcriptSegments: base.transcriptSegments,
+    processingTasks: base.processingTasks,
+    transcriptArtifacts: [artifact],
+    activeTranscriptArtifactID: artifact.id,
+    sourceKind: .importedVideo,
+    originalMediaFileName: "会议原件.mp4",
+    originalMediaSHA256: originalDigest,
+    originalMediaByteCount: Int64(originalBytes.count))
+  let payload = try JSONEncoder.woice.encode(record)
+
+  let databaseURL = root.appendingPathComponent("woice.sqlite3")
+  var database: OpaquePointer?
+  let openResult = databaseURL.path.withCString { path in
+    sqlite3_open_v2(
+      path, &database, SQLITE_OPEN_CREATE | SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX, nil)
+  }
+  guard openResult == SQLITE_OK, let database else {
+    if let database { sqlite3_close(database) }
+    throw WoiceError.storageFailure("无法创建迁移完整性测试数据库。")
+  }
+  defer { sqlite3_close(database) }
+  let schema = """
+    CREATE TABLE recordings(
+      id TEXT PRIMARY KEY,
+      created_at REAL NOT NULL,
+      audio_file_name TEXT NOT NULL,
+      duration REAL NOT NULL,
+      payload_json BLOB NOT NULL
+    );
+    CREATE TABLE processing_jobs(
+      idempotency_key TEXT PRIMARY KEY,
+      recording_id TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      status TEXT NOT NULL,
+      attempt INTEGER NOT NULL,
+      created_at REAL NOT NULL,
+      updated_at REAL NOT NULL,
+      last_error TEXT,
+      lease_owner TEXT,
+      lease_expires_at REAL
+    );
+    PRAGMA user_version=5;
+    """
+  guard sqlite3_exec(database, schema, nil, nil, nil) == SQLITE_OK else {
+    throw WoiceError.storageFailure("无法写入迁移完整性测试结构。")
+  }
+
+  var statement: OpaquePointer?
+  let insertSQL =
+    "INSERT INTO recordings(id, created_at, audio_file_name, duration, payload_json) VALUES(?, ?, ?, ?, ?)"
+  guard sqlite3_prepare_v2(database, insertSQL, -1, &statement, nil) == SQLITE_OK,
+    let statement
+  else { throw WoiceError.storageFailure("无法准备迁移完整性测试记录。") }
+  defer { sqlite3_finalize(statement) }
+  let transientDestructor = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
+  record.id.uuidString.withCString { value in
+    _ = sqlite3_bind_text(statement, 1, value, -1, transientDestructor)
+  }
+  _ = sqlite3_bind_double(statement, 2, record.createdAt.timeIntervalSince1970)
+  record.audioFileName.withCString { value in
+    _ = sqlite3_bind_text(statement, 3, value, -1, transientDestructor)
+  }
+  _ = sqlite3_bind_double(statement, 4, record.duration)
+  payload.withUnsafeBytes { bytes in
+    _ = sqlite3_bind_blob(
+      statement, 5, bytes.baseAddress, Int32(payload.count), transientDestructor)
+  }
+  guard sqlite3_step(statement) == SQLITE_DONE else {
+    throw WoiceError.storageFailure("无法写入迁移完整性测试记录。")
+  }
+
+  let migrated = try SQLiteMetadataStore(databaseURL: databaseURL)
+  let loaded = try migrated.loadRecordings()
+  #expect(loaded.count == 1)
+  #expect(loaded.first?.transcriptArtifacts.count == 1)
+  #expect(loaded.first?.activeTranscriptArtifactID == artifact.id)
+  #expect(loaded.first?.originalMediaSHA256 == originalDigest)
+  #expect(loaded.first?.originalMediaByteCount == Int64(originalBytes.count))
+  #expect(try FileSHA256.digest(url: audioURL) == originalDigest)
+}
+
 @Test("SQLite Job Lease 防止抢占并支持过期恢复")
 @MainActor
 func sqliteJobLeaseIsDurable() throws {
@@ -89,6 +275,28 @@ func sqliteJobLeaseIsDurable() throws {
       idempotencyKey: taskKey, owner: "owner-c", now: now.addingTimeInterval(12), duration: 10))
 }
 
+@Test("SQLite 摘要投影只读取列表字段并随单条素材更新")
+@MainActor
+func sqliteRecordingSummaryProjectionStaysBounded() throws {
+  let root = sqliteTestRoot("summaries")
+  defer { try? FileManager.default.removeItem(at: root) }
+  let database = try SQLiteMetadataStore(databaseURL: root.appendingPathComponent("woice.sqlite3"))
+  var record = sqliteTestRecord()
+  record.userTitle = "季度复盘"
+  try database.saveRecording(record)
+
+  let summary = try #require(database.loadRecordingSummaries().first)
+  #expect(summary.id == record.id)
+  #expect(summary.displayTitle == "季度复盘")
+  #expect(summary.duration == record.duration)
+  #expect(summary.materialStatus == record.materialStatus)
+
+  record.userTitle = "季度复盘（修订）"
+  try database.saveRecording(record)
+  #expect(try database.loadRecordingSummaries().first?.displayTitle == "季度复盘（修订）")
+  #expect(try database.loadRecordings().first?.transcript == record.transcript)
+}
+
 @Test("SQLite 迁移标记阻止数据库为空时重复导入旧索引")
 @MainActor
 func sqliteLegacyImportIsNotRepeated() throws {
@@ -114,6 +322,47 @@ func sqliteJobIdempotencyIsUnique() throws {
   try database.saveRecordings([record])
   try database.saveRecordings([record])
   #expect(try database.loadRecordings().count == 1)
+}
+
+@Test("SQLite Recording 事务失败时回滚素材、Job 与摘要投影")
+@MainActor
+func sqliteRecordingTransactionRollsBackAfterInjectedFailure() throws {
+  let root = sqliteTestRoot("transaction-rollback")
+  defer { try? FileManager.default.removeItem(at: root) }
+  let databaseURL = root.appendingPathComponent("woice.sqlite3")
+  let database = try SQLiteMetadataStore(databaseURL: databaseURL)
+  let existing = sqliteTestRecord()
+  let rejected = sqliteTestRecord()
+  try database.saveRecording(existing)
+
+  var triggerDatabase: OpaquePointer?
+  let openResult = databaseURL.path.withCString { path in
+    sqlite3_open_v2(
+      path, &triggerDatabase,
+      SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX, nil)
+  }
+  guard openResult == SQLITE_OK, let triggerDatabase else {
+    if let triggerDatabase { sqlite3_close(triggerDatabase) }
+    throw WoiceError.storageFailure("无法打开事务故障注入连接。")
+  }
+  defer { sqlite3_close(triggerDatabase) }
+
+  let triggerSQL = """
+    CREATE TRIGGER reject_recording_insert
+    BEFORE INSERT ON recordings
+    WHEN NEW.id = '\(rejected.id.uuidString)'
+    BEGIN SELECT RAISE(ABORT, 'injected database commit failure'); END;
+    """
+  guard sqlite3_exec(triggerDatabase, triggerSQL, nil, nil, nil) == SQLITE_OK else {
+    throw WoiceError.storageFailure("无法安装事务故障注入触发器。")
+  }
+
+  #expect(throws: (any Error).self) {
+    try database.saveRecording(rejected)
+  }
+  #expect(try database.loadRecordings() == [existing])
+  #expect(try database.loadRecordingSummaries().map(\.id) == [existing.id])
+  #expect(try database.loadRecordingSummaries().contains { $0.id == rejected.id } == false)
 }
 
 @Test("SQLite 持久化模型下载任务并在重启后暂停")

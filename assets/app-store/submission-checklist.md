@@ -1,24 +1,35 @@
-# Woice Mac App Store 提交检查
+# Woice Mac App Store 提交检查（Build 7）
+
+> 结论：仓库代码、资源和本机 Store 预检可继续；以下“外部”项目必须在 App Store Connect、实体 Mac 或法律/账号侧完成后，才可点击 Submit for Review。
 
 ## 已准备
 
 - [x] App Icon 1024×1024 与 macOS 1x/2x 尺寸族。
 - [x] SVG 主标、单色主标、文字组合和 Icon Composer 分层源稿。
-- [x] 商店文案草案、截图顺序和审核说明骨架。
+- [x] Build 7 商店文案、截图顺序和英文 Review Notes（少于 4000 字符）。
 
 ## 发布前必须完成
 
 - [x] 已在正式 Xcode Target 接入 `assets/brand/exports/AppIcon.xcassets`，并通过 `make xcode-build-store` 与 AppIcon 资源门禁。
-- [ ] 使用最终签名 Build 采集 1–10 张 Mac 16:10 截图，导出为不透明 PNG/JPEG；当前推荐 `2560×1600`。
-- [ ] 确认 App Name、Subtitle、描述、关键词、分类、版权信息。
-- [ ] 补齐隐私政策 URL、支持 URL、营销 URL（如使用）。
+- [x] 已有 1 张真实产品截图：`screenshots/build6/01-material-detail-1280x800.png`，1280×800、不透明 PNG；Build 7 需重新采集或确认画面未受改动。
+- [ ] 在 App Store Connect 确认 App Name、Subtitle、描述、关键词、分类、版权信息。
+- [x] 隐私政策 URL 与支持 URL 已有公开地址；营销 URL 为可选项，提交前确认可访问性。
 - [x] 本机 Bundle 已包含 `PrivacyInfo.xcprivacy`；[Apple 上架资料快照](apple-submission-reference.md)已记录待法律/最终 SDK 审计的项目。
-- [ ] 完成 Developer ID / App Store 签名、公证和上传 Build；确认版本号、Build 号与 Bundle ID 关联正确。
-- [ ] 完成年龄分级、出口合规、内容权利和审核测试步骤。
+- [x] 完成 Apple Distribution 签名 Archive 和 `destination=export` 的本地 App Store Connect 导出包；深度验签、版本、Bundle ID、双架构和零模型门禁通过。
+- [ ] 上传 Build 7，并确认 App Store Connect 处理完成且可选。
+- [ ] 完成年龄分级、出口合规、第三方内容权利、价格/税务和审核联系人。
+- [x] 审核测试步骤已写入 `metadata-draft.md`；上传前必须在实体 Mac 运行并记录结果。
 - [ ] 从干净用户环境复验：无 Agent 时仍可录音、转写、复听、搜索和导出；失败时原始素材仍安全。
+- [ ] 录制从启动 App 开始的实体 Mac 审核视频；若展示模型下载，包含 Qwen3-ASR 的实际可用路径。
 
 ## 交付证据
 
 - 截图文件名、像素尺寸、色彩空间和 alpha 检查结果。
 - 上传 Build 的版本号、Build 号、签名、公证和 App Store Connect 处理状态。
 - 隐私政策与商店文案的最终 URL/版本记录。
+
+## 当前停止条件
+
+- `CFBundleVersion` 已递增到 7；Build 6 不得再次提交。
+- 本机已生成并验签 Catalog v2，包含 Tiny、Qwen3-ASR 和 Large-v3；公开地址仍是 v1，推送并回读 v2 前不能声称 Qwen 已可下载。
+- 未取得账号主体、版权人、审核联系人、价格/税务、年龄评级、出口合规和实机录屏证据前，不标记为“已完成提交”。

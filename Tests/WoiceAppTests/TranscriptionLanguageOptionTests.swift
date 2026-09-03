@@ -7,6 +7,8 @@ func transcriptionLanguageOptionsPreserveLegacyCodes() {
   #expect(TranscriptionLanguageOption.forCode("") == .automatic)
   #expect(TranscriptionLanguageOption.forCode("zh").code == "zh")
   #expect(TranscriptionLanguageOption.forCode("zh-CN").displayName == "简体中文")
+  #expect(TranscriptionLanguageOption.forCode("yue").displayName == "粤语")
+  #expect(TranscriptionLanguageOption.forCode("Cantonese").code == "yue")
   #expect(TranscriptionLanguageOption.forCode("en-US").code == "en")
 
   let unknown = TranscriptionLanguageOption.forCode("x-private")

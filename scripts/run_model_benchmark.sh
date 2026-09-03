@@ -20,6 +20,27 @@ if [[ ! -d "$audio_directory" ]]; then
 fi
 
 cd "$project_root"
+
+if [[ "${WOICE_BENCHMARK_INCLUDE_QWEN:-0}" == "1" ]]; then
+  metallib_path="${WOICE_MLX_METALLIB:-}"
+  if [[ -z "$metallib_path" ]]; then
+    metallib_path="$({
+      find .build/xcode-derived .build/xcode-direct-derived \
+        -path '*/mlx-swift_Cmlx.bundle/Contents/Resources/default.metallib' \
+        -type f -print 2>/dev/null || true
+    } | head -n 1)"
+  fi
+  if [[ -z "$metallib_path" || ! -f "$metallib_path" ]]; then
+    echo "Qwen 基准缺少 MLX Metal shader：请先运行 make xcode-build-store，或显式设置 WOICE_MLX_METALLIB。" >&2
+    exit 1
+  fi
+  swift_bin_path="$(swift build --show-bin-path)"
+  test_bin_path="$swift_bin_path/WoicePackageTests.xctest/Contents/MacOS"
+  mkdir -p "$test_bin_path"
+  ln -sf "$(cd "$(dirname "$metallib_path")" && pwd)/$(basename "$metallib_path")" \
+    "$test_bin_path/mlx.metallib"
+fi
+
 if (( strict )); then
   WOICE_RUN_MODEL_BENCHMARK=1 \
   WOICE_BENCHMARK_AUDIO_DIR="$audio_directory" \

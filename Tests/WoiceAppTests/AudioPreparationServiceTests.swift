@@ -44,6 +44,40 @@ func meetingMixIsDeterministicAndKeepsSources() throws {
   #expect(try Data(contentsOf: systemURL) == systemBytesBefore)
 }
 
+@Test("转写音频标准化在重复调用时保留非静音内容")
+func transcriptionNormalizationIsRepeatableForResampledInput() throws {
+  let root = FileManager.default.temporaryDirectory.appendingPathComponent(
+    "woice-transcription-normalize-\(UUID().uuidString)", isDirectory: true)
+  defer { try? FileManager.default.removeItem(at: root) }
+  try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+
+  let sourceURL = root.appendingPathComponent("source-24k.wav")
+  try writeTone(to: sourceURL, frequency: 440, amplitude: 0.2, sampleRate: 24_000)
+
+  let normalizedURLs = (1...2).map { root.appendingPathComponent("normalized-\($0).wav") }
+  for outputURL in normalizedURLs {
+    try AudioPreparationService.prepareTranscriptionAudio(
+      sourceURL: sourceURL, outputURL: outputURL)
+  }
+
+  for outputURL in normalizedURLs {
+    let file = try AVAudioFile(forReading: outputURL)
+    #expect(file.processingFormat.sampleRate == 16_000)
+    #expect(file.processingFormat.channelCount == 1)
+    #expect(file.length > 12_000)
+    let buffer = try #require(
+      AVAudioPCMBuffer(
+        pcmFormat: file.processingFormat, frameCapacity: AVAudioFrameCount(file.length)))
+    try file.read(into: buffer, frameCount: AVAudioFrameCount(file.length))
+    let samples = try #require(buffer.floatChannelData?[0])
+    let peak =
+      UnsafeBufferPointer(start: samples, count: Int(buffer.frameLength))
+      .map { abs($0) }
+      .max() ?? 0
+    #expect(peak > 0.05)
+  }
+}
+
 private func readMonoSamples(from file: AVAudioFile) throws -> [Float] {
   file.framePosition = 0
   let frameCount = AVAudioFrameCount(file.length)

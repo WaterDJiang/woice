@@ -35,6 +35,7 @@ import WoiceCore
     private struct ConnectorMaterialSummary: Codable {
       let artifactID: String
       let recordingID: String
+      let displayTitle: String
       let createdAt: Date
       let duration: TimeInterval
       let status: String
@@ -179,6 +180,7 @@ import WoiceCore
       return [
         "artifact_id": "recording:\(record.id.uuidString)",
         "recording_id": record.id.uuidString,
+        "display_title": record.displayTitle,
         "created_at": record.createdAt.formatted(.iso8601),
         "duration": String(record.duration),
         "status": record.materialStatus.rawValue,
@@ -204,6 +206,7 @@ import WoiceCore
         return ConnectorMaterialSummary(
           artifactID: "recording:\(record.id.uuidString)",
           recordingID: record.id.uuidString,
+          displayTitle: record.displayTitle,
           createdAt: record.createdAt,
           duration: record.duration,
           status: record.materialStatus.rawValue,

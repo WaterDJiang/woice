@@ -26,7 +26,7 @@ enum SQLiteMetadataStoreError: LocalizedError, Equatable {
 /// and deterministic; no audio or network work is performed here.
 @MainActor
 final class SQLiteMetadataStore {
-  static let schemaVersion = 5
+  static let schemaVersion = 6
 
   let databaseURL: URL
   nonisolated(unsafe) private var database: OpaquePointer?
@@ -79,6 +79,43 @@ final class SQLiteMetadataStore {
     }
     try applyJobProjection(to: &records)
     return records
+  }
+
+  func loadRecordingSummaries() throws -> [RecordingSummary] {
+    let statement = try prepare(
+      """
+      SELECT recording_id, created_at, audio_file_name, duration, display_title,
+             source_kind, has_system_audio, material_status, processing_error
+      FROM recording_summaries
+      ORDER BY created_at DESC, recording_id DESC
+      """
+    )
+    defer { sqlite3_finalize(statement) }
+    var summaries: [RecordingSummary] = []
+    while sqlite3_step(statement) == SQLITE_ROW {
+      guard
+        let idText = textColumn(statement, index: 0),
+        let id = UUID(uuidString: idText),
+        let audioFileName = textColumn(statement, index: 2),
+        let displayTitle = textColumn(statement, index: 4),
+        let sourceKindText = textColumn(statement, index: 5),
+        let sourceKind = RecordingSourceKind(rawValue: sourceKindText),
+        let statusText = textColumn(statement, index: 7),
+        let materialStatus = RecordingMaterialStatus(rawValue: statusText)
+      else { throw SQLiteMetadataStoreError.invalidPayload }
+      summaries.append(
+        RecordingSummary(
+          id: id,
+          createdAt: Date(timeIntervalSince1970: sqlite3_column_double(statement, 1)),
+          audioFileName: audioFileName,
+          duration: sqlite3_column_double(statement, 3),
+          displayTitle: displayTitle,
+          sourceKind: sourceKind,
+          hasSystemAudio: sqlite3_column_int(statement, 6) != 0,
+          materialStatus: materialStatus,
+          processingError: optionalTextColumn(statement, index: 8)))
+    }
+    return summaries
   }
 
   func loadModelDownloadTasks() throws -> [ModelDownloadTask] {
@@ -295,6 +332,7 @@ final class SQLiteMetadataStore {
       let currentRecordingIDs = Set(records.map { $0.id.uuidString })
       for id in existingRecordingIDs where !currentRecordingIDs.contains(id) {
         try executeDelete(table: "recordings", keyColumn: "id", value: id)
+        try executeDelete(table: "recording_summaries", keyColumn: "recording_id", value: id)
       }
 
       let existingJobKeys = try stringColumnValues(
@@ -328,7 +366,45 @@ final class SQLiteMetadataStore {
         for task in record.processingTasks {
           try upsertJob(task, recordingID: record.id.uuidString)
         }
+        try upsertSummary(RecordingSummary(record: record))
       }
+      try execute("COMMIT")
+      secureDatabaseFiles()
+    } catch {
+      try? execute("ROLLBACK")
+      throw error
+    }
+  }
+
+  /// Persists one changed recording without rewriting the complete material
+  /// collection. Title edits and task state transitions use this path so a
+  /// long transcript never becomes part of an unrelated list mutation.
+  func saveRecording(_ record: RecordingRecord) throws {
+    try execute("BEGIN IMMEDIATE TRANSACTION")
+    do {
+      let payload = try JSONEncoder.woice.encode(record)
+      let statement = try prepare(
+        """
+        INSERT INTO recordings(id, created_at, audio_file_name, duration, payload_json)
+        VALUES(?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          created_at=excluded.created_at,
+          audio_file_name=excluded.audio_file_name,
+          duration=excluded.duration,
+          payload_json=excluded.payload_json
+        """
+      )
+      defer { sqlite3_finalize(statement) }
+      try bindText(record.id.uuidString, to: statement, index: 1)
+      try bindDouble(record.createdAt.timeIntervalSince1970, to: statement, index: 2)
+      try bindText(record.audioFileName, to: statement, index: 3)
+      try bindDouble(record.duration, to: statement, index: 4)
+      try bindBlob(payload, to: statement, index: 5)
+      try step(statement)
+      for task in record.processingTasks {
+        try upsertJob(task, recordingID: record.id.uuidString)
+      }
+      try upsertSummary(RecordingSummary(record: record))
       try execute("COMMIT")
       secureDatabaseFiles()
     } catch {
@@ -447,7 +523,10 @@ final class SQLiteMetadataStore {
 
   private func configure() throws {
     try execute("PRAGMA journal_mode=WAL")
-    try execute("PRAGMA synchronous=NORMAL")
+    // Recording metadata and the session Journal are durability-critical.
+    // FULL retains WAL throughput while requiring each committed transaction
+    // to reach stable storage before the UI reports success.
+    try execute("PRAGMA synchronous=FULL")
     try execute("PRAGMA foreign_keys=ON")
     try execute("PRAGMA busy_timeout=5000")
   }
@@ -575,6 +654,44 @@ final class SQLiteMetadataStore {
           "ALTER TABLE model_download_jobs ADD COLUMN intents_json BLOB NOT NULL DEFAULT '[]'"
         )
         try execute("PRAGMA user_version=5")
+        currentVersion = 5
+      }
+      if currentVersion == 5 {
+        try execute(
+          """
+          CREATE TABLE IF NOT EXISTS recording_summaries(
+            recording_id TEXT PRIMARY KEY REFERENCES recordings(id) ON DELETE CASCADE,
+            created_at REAL NOT NULL,
+            audio_file_name TEXT NOT NULL,
+            duration REAL NOT NULL,
+            display_title TEXT NOT NULL,
+            source_kind TEXT NOT NULL,
+            has_system_audio INTEGER NOT NULL,
+            material_status TEXT NOT NULL,
+            processing_error TEXT,
+            updated_at REAL NOT NULL
+          )
+          """
+        )
+        try execute(
+          "CREATE INDEX IF NOT EXISTS recording_summaries_updated_index ON recording_summaries(created_at DESC, recording_id DESC)"
+        )
+        // Seed a bounded, filename-based projection for pre-v6 databases.
+        // The deferred payload hydration pass replaces these conservative
+        // values with the exact source/status projection without blocking the
+        // first list frame on JSON decoding.
+        try execute(
+          """
+          INSERT OR IGNORE INTO recording_summaries(
+            recording_id, created_at, audio_file_name, duration, display_title,
+            source_kind, has_system_audio, material_status, processing_error, updated_at
+          )
+          SELECT id, created_at, audio_file_name, duration, audio_file_name,
+                 'recorded', 0, 'saved', NULL, created_at
+          FROM recordings
+          """
+        )
+        try execute("PRAGMA user_version=6")
       }
     } catch {
       throw SQLiteMetadataStoreError.migrationFailed(error.localizedDescription)
@@ -615,6 +732,39 @@ final class SQLiteMetadataStore {
     try bindDouble(task.createdAt.timeIntervalSince1970, to: statement, index: 6)
     try bindDouble(task.updatedAt.timeIntervalSince1970, to: statement, index: 7)
     try bindOptionalText(task.lastError, to: statement, index: 8)
+    try step(statement)
+  }
+
+  private func upsertSummary(_ summary: RecordingSummary) throws {
+    let statement = try prepare(
+      """
+      INSERT INTO recording_summaries(
+        recording_id, created_at, audio_file_name, duration, display_title,
+        source_kind, has_system_audio, material_status, processing_error, updated_at
+      ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(recording_id) DO UPDATE SET
+        created_at=excluded.created_at,
+        audio_file_name=excluded.audio_file_name,
+        duration=excluded.duration,
+        display_title=excluded.display_title,
+        source_kind=excluded.source_kind,
+        has_system_audio=excluded.has_system_audio,
+        material_status=excluded.material_status,
+        processing_error=excluded.processing_error,
+        updated_at=excluded.updated_at
+      """
+    )
+    defer { sqlite3_finalize(statement) }
+    try bindText(summary.id.uuidString, to: statement, index: 1)
+    try bindDouble(summary.createdAt.timeIntervalSince1970, to: statement, index: 2)
+    try bindText(summary.audioFileName, to: statement, index: 3)
+    try bindDouble(summary.duration, to: statement, index: 4)
+    try bindText(summary.displayTitle, to: statement, index: 5)
+    try bindText(summary.sourceKind.rawValue, to: statement, index: 6)
+    try bindInt(summary.hasSystemAudio ? 1 : 0, to: statement, index: 7)
+    try bindText(summary.materialStatus.rawValue, to: statement, index: 8)
+    try bindOptionalText(summary.processingError, to: statement, index: 9)
+    try bindDouble(Date().timeIntervalSince1970, to: statement, index: 10)
     try step(statement)
   }
 

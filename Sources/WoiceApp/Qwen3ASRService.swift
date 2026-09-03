@@ -27,6 +27,38 @@ enum Qwen3ASRError: LocalizedError, Equatable, Sendable {
   }
 }
 
+/// Prevents converter/container padding tails from entering autoregressive
+/// decoding. A fully silent recording still produces an empty-result failure;
+/// only a short, final, silent remainder is skipped.
+enum QwenAudioSignalDetector {
+  static let peakThreshold: Float = 0.01
+  static let rmsThreshold: Float = 0.001
+  static let maxTrailingFrameCount = 2_048
+
+  static func hasUsableSignal(_ samples: [Float]) -> Bool {
+    guard !samples.isEmpty else { return false }
+    var peak: Float = 0
+    var sumSquares: Double = 0
+    for sample in samples {
+      let magnitude = abs(sample)
+      peak = max(peak, magnitude)
+      sumSquares += Double(sample) * Double(sample)
+    }
+    let rms = sqrt(sumSquares / Double(samples.count))
+    return peak >= peakThreshold || rms >= Double(rmsThreshold)
+  }
+
+  static func shouldSkipTrailingChunk(_ samples: [Float], isTrailingChunk: Bool) -> Bool {
+    guard isTrailingChunk, samples.count <= maxTrailingFrameCount else { return false }
+    // AVAudioConverter can leave a short non-zero DC/noise tail. It is not
+    // speech, even when the RMS-only check sees enough energy. Keep a quiet
+    // but audible final utterance (the peak threshold is intentionally lower
+    // than normal speech) while rejecting converter padding.
+    let peak = samples.map { abs($0) }.max() ?? 0
+    return !hasUsableSignal(samples) || peak < peakThreshold
+  }
+}
+
 /// Serializes the non-Sendable MLX graph and keeps model loading/inference off
 /// the main actor. A model pack remains data-only; this session is the sole
 /// in-process boundary that turns verified Qwen files into executable code.
@@ -129,23 +161,47 @@ private final class Qwen3ASRSession: @unchecked Sendable {
 
         let samples = Array(
           UnsafeBufferPointer(start: channel, count: Int(buffer.frameLength)))
-        let text = TranscriptTextNormalizer.normalize(
-          model.transcribe(
-            audio: samples,
-            sampleRate: sampleRate,
-            language: qwenLanguage(for: language)))
+        let start = Double(frameOffset) / Double(sampleRate)
+        let end =
+          Double(frameOffset + AVAudioFramePosition(buffer.frameLength))
+          / Double(sampleRate)
+        let isTrailingChunk = audioFile.framePosition >= audioFile.length
+        frameOffset += AVAudioFramePosition(buffer.frameLength)
+        // AVAudioFile may expose a short converter-padding tail after the
+        // actual audio. Do not send that tail to Qwen: it can produce a
+        // spurious empty/hallucinated chunk and fail an otherwise valid file.
+        if QwenAudioSignalDetector.shouldSkipTrailingChunk(
+          samples, isTrailingChunk: isTrailingChunk)
+        {
+          continue
+        }
+        let rawText = model.transcribe(
+          audio: samples,
+          sampleRate: sampleRate,
+          language: qwenLanguage(for: language))
+        let text: String
+        do {
+          text = try QwenOutputParser.parse(rawText).text
+        } catch let error as QwenOutputParserError {
+          // A chunk with no readable text is a valid no-op in a long
+          // recording, including background noise. It must not discard
+          // already committed text; a non-empty chunk that fails quality
+          // checks still fails closed. If every chunk is empty, the final
+          // guard below returns LocalASRError.emptyResult.
+          if QwenOutputParser.shouldSkipEmptyChunk(for: error) {
+            continue
+          }
+          throw error
+        }
         if !text.isEmpty {
           chunks.append(text)
-          let start = Double(frameOffset) / Double(sampleRate)
-          let end =
-            Double(frameOffset + AVAudioFramePosition(buffer.frameLength))
-            / Double(sampleRate)
           segments.append(TranscriptSegment(start: start, end: end, text: text))
         }
-        frameOffset += AVAudioFramePosition(buffer.frameLength)
       }
 
-      let text = TranscriptTextNormalizer.normalize(chunks.joined(separator: "\n"))
+      guard !chunks.isEmpty else { throw LocalASRError.emptyResult }
+      let mergedOutput = try QwenOutputParser.parse(chunks.joined(separator: "\n")).text
+      let text = TranscriptTextNormalizer.normalize(mergedOutput)
       guard !text.isEmpty else { throw LocalASRError.emptyResult }
       return TranscriptionResult(text: text, segments: segments)
     } catch let error as Qwen3ASRError {

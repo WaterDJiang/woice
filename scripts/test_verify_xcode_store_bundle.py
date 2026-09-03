@@ -33,6 +33,8 @@ class XcodeStoreBundleTests(unittest.TestCase):
         with (contents / "Info.plist").open("wb") as handle:
             plistlib.dump(
                 {
+                    "CFBundleShortVersionString": "0.1.0",
+                    "CFBundleVersion": "1",
                     "CFBundleIdentifier": "com.water.woice",
                     "CFBundleDisplayName": "Woice",
                     "CFBundleName": "Woice",

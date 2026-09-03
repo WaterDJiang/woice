@@ -99,6 +99,7 @@ enum RecordingStoragePolicy {
 private final class AudioWriter: @unchecked Sendable {
   private let lock = NSLock()
   private var file: AVAudioFile?
+  private let bufferNormalizer: RecordingAudioBufferNormalizer
   private let sampleRate: Double
   private var frameCount: AVAudioFramePosition = 0
   private var bufferCount = 0
@@ -112,31 +113,53 @@ private final class AudioWriter: @unchecked Sendable {
   private let segmentDirectory: URL?
   private var segmentIndex = 0
   private var segmentStartFrame: AVAudioFramePosition?
+  private var rollingChunkWriter: RollingPCMChunkWriter?
+  private let durableChunkObserver: (@Sendable (RecordingChunkCommit) -> Void)?
+  private var durabilityError: String?
 
   init(
     url: URL, format: AVAudioFormat,
     audioBufferObserver: (@Sendable (AVAudioPCMBuffer) -> Void)? = nil,
     segmentDirectory: URL? = nil,
-    segmentObserver: (@Sendable (RecordedAudioSegment) -> Void)? = nil
+    segmentObserver: (@Sendable (RecordedAudioSegment) -> Void)? = nil,
+    sessionID: UUID? = nil,
+    durableChunkDirectory: URL? = nil,
+    durableChunkTrack: AudioTrackKind? = nil,
+    durableChunkObserver: (@Sendable (RecordingChunkCommit) -> Void)? = nil
   ) throws {
+    let bufferNormalizer = try RecordingAudioBufferNormalizer(inputFormat: format)
+    let writeFormat = bufferNormalizer.outputFormat
     let settings =
       url.pathExtension.lowercased() == "m4a"
       ? RecordingAudioFormat.aacSettings(
-        sampleRate: format.sampleRate, channelCount: Int(format.channelCount), bitRate: 64_000)
-      : format.settings
+        sampleRate: writeFormat.sampleRate,
+        channelCount: Int(writeFormat.channelCount),
+        bitRate: 64_000)
+      : writeFormat.settings
     file =
       if url.pathExtension.lowercased() == "m4a" {
         try AVAudioFile(
-          forWriting: url, settings: settings, commonFormat: format.commonFormat,
-          interleaved: format.isInterleaved)
+          forWriting: url, settings: settings, commonFormat: writeFormat.commonFormat,
+          interleaved: writeFormat.isInterleaved)
       } else {
         try AVAudioFile(forWriting: url, settings: settings)
       }
-    sampleRate = format.sampleRate
-    activityMonitor = AudioActivityMonitor(sampleRate: format.sampleRate)
+    self.bufferNormalizer = bufferNormalizer
+    sampleRate = writeFormat.sampleRate
+    activityMonitor = AudioActivityMonitor(sampleRate: writeFormat.sampleRate)
     self.audioBufferObserver = audioBufferObserver
     self.segmentDirectory = segmentDirectory
     self.segmentObserver = segmentObserver
+    self.durableChunkObserver = durableChunkObserver
+    if let sessionID, let durableChunkDirectory, let durableChunkTrack {
+      rollingChunkWriter = try RollingPCMChunkWriter(
+        sessionID: sessionID,
+        track: durableChunkTrack,
+        directoryURL: durableChunkDirectory,
+        format: writeFormat)
+    } else {
+      rollingChunkWriter = nil
+    }
     if let segmentDirectory {
       try FileManager.default.createDirectory(
         at: segmentDirectory, withIntermediateDirectories: true)
@@ -150,23 +173,27 @@ private final class AudioWriter: @unchecked Sendable {
       return
     }
     var observer: (@Sendable (AVAudioPCMBuffer) -> Void)?
+    var observedBuffer: AVAudioPCMBuffer?
     var completedSegment: RecordedAudioSegment?
+    var committedChunks: [RecordingChunkCommit] = []
     do {
-      try file.write(from: buffer)
+      let normalizedBuffer = try bufferNormalizer.normalize(buffer)
+      try file.write(from: normalizedBuffer)
       let previousActivity = activityMonitor.snapshot()
-      frameCount += AVAudioFramePosition(buffer.frameLength)
+      frameCount += AVAudioFramePosition(normalizedBuffer.frameLength)
       bufferCount += 1
-      currentPeakLevel = peakLevel(in: buffer)
+      currentPeakLevel = peakLevel(in: normalizedBuffer)
       peakLevel = max(peakLevel, currentPeakLevel)
       let activity = activityMonitor.consume(
-        frameCount: buffer.frameLength, peakLevel: currentPeakLevel)
+        frameCount: normalizedBuffer.frameLength, peakLevel: currentPeakLevel)
       if previousActivity.state != .active, activity.state == .active {
         startSegmentLocked(
-          format: buffer.format, startFrame: frameCount - AVAudioFramePosition(buffer.frameLength))
+          format: normalizedBuffer.format,
+          startFrame: frameCount - AVAudioFramePosition(normalizedBuffer.frameLength))
       }
       if activity.state == .active || previousActivity.state == .active {
         do {
-          try segmentFile?.write(from: buffer)
+          try segmentFile?.write(from: normalizedBuffer)
         } catch {
           // Segment files are an optimization. A failed segment must not make
           // the source recording fail; the stopped WAV remains the fallback.
@@ -179,13 +206,22 @@ private final class AudioWriter: @unchecked Sendable {
           voiceEnd: activity.segments.last?.end
             ?? Double(frameCount) / sampleRate)
       }
+      do {
+        committedChunks = try rollingChunkWriter?.append(normalizedBuffer) ?? []
+      } catch {
+        durabilityError = error.localizedDescription
+      }
       observer = audioBufferObserver
+      observedBuffer = normalizedBuffer
     } catch {
       writeError = error.localizedDescription
     }
     lock.unlock()
-    observer?(buffer)
+    if let observedBuffer { observer?(observedBuffer) }
     if let completedSegment { segmentObserver?(completedSegment) }
+    if let durableChunkObserver {
+      for chunk in committedChunks { durableChunkObserver(chunk) }
+    }
   }
 
   func snapshot() -> AudioWriterSnapshot {
@@ -199,6 +235,12 @@ private final class AudioWriter: @unchecked Sendable {
       errorDescription: writeError,
       activity: activityMonitor.snapshot()
     )
+  }
+
+  var lastDurabilityError: String? {
+    lock.lock()
+    defer { lock.unlock() }
+    return durabilityError
   }
 
   /// Stops new writes and commits the container header before the file is
@@ -217,11 +259,22 @@ private final class AudioWriter: @unchecked Sendable {
       ? nil
       : finishSegmentLocked(
         voiceEnd: activity.segments.last?.end ?? Double(frameCount) / sampleRate)
+    var committedChunks: [RecordingChunkCommit] = []
+    do {
+      committedChunks = try rollingChunkWriter?.finish() ?? []
+    } catch {
+      durabilityError = error.localizedDescription
+    }
+    rollingChunkWriter = nil
     if #available(macOS 15.0, *) {
       file.close()
     }
     self.file = nil
+    let durableChunkObserver = self.durableChunkObserver
     lock.unlock()
+    if let durableChunkObserver {
+      for chunk in committedChunks { durableChunkObserver(chunk) }
+    }
     return completedSegment
   }
 
@@ -300,6 +353,7 @@ final class RecordingService {
   private(set) var currentURL: URL?
   private(set) var isRecording = false
   private(set) var lastWriteError: String?
+  private(set) var lastDurabilityError: String?
   private var segmentObserver: (@Sendable (RecordedAudioSegment) -> Void)?
   private var cachedInputFormat: MicrophoneInputFormat?
 
@@ -362,7 +416,10 @@ final class RecordingService {
   func start(
     to url: URL,
     audioBufferObserver: (@Sendable (AVAudioPCMBuffer) -> Void)? = nil,
-    segmentObserver: (@Sendable (RecordedAudioSegment) -> Void)? = nil
+    segmentObserver: (@Sendable (RecordedAudioSegment) -> Void)? = nil,
+    sessionID: UUID? = nil,
+    durableChunkDirectory: URL? = nil,
+    durableChunkObserver: (@Sendable (RecordingChunkCommit) -> Void)? = nil
   ) async throws {
     guard !isRecording else { return }
     try validateStorageCapacity(for: url)
@@ -381,7 +438,11 @@ final class RecordingService {
       format: format,
       audioBufferObserver: audioBufferObserver,
       segmentDirectory: Self.segmentDirectory(for: url),
-      segmentObserver: segmentObserver)
+      segmentObserver: segmentObserver,
+      sessionID: sessionID,
+      durableChunkDirectory: durableChunkDirectory,
+      durableChunkTrack: .microphone,
+      durableChunkObserver: durableChunkObserver)
     // CoreAudio invokes this on RealtimeMessenger.mServiceQueue, never MainActor.
     // Build the closure from a nonisolated factory; forming it inside this
     // @MainActor method would make Swift insert a runtime executor check in the
@@ -400,6 +461,7 @@ final class RecordingService {
     currentURL = url
     isRecording = true
     lastWriteError = nil
+    lastDurabilityError = nil
     self.segmentObserver = segmentObserver
     do {
       try await waitForFirstAudioBuffer(from: audioWriter)
@@ -485,6 +547,9 @@ final class RecordingService {
     let snapshot = writer?.snapshot()
     let finalSegment = writer?.finish()
     lastWriteError = snapshot?.errorDescription
+    // `finish()` closes the tail block and can surface a durability error;
+    // read it only after finalization rather than losing that last failure.
+    lastDurabilityError = writer?.lastDurabilityError
     let result = (
       currentURL,
       snapshot?.duration ?? 0,

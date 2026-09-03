@@ -1,7 +1,74 @@
 {
   "catalogID": "woice-model-catalog",
-  "catalogVersion": 1,
+  "catalogVersion": 2,
   "entries": [
+    {
+      "architecture": "arm64",
+      "capabilities": [
+        "transcription",
+        "timestamps"
+      ],
+      "displayName": "Qwen3-ASR 0.6B（本机）",
+      "downloadBaseURL": "https://huggingface.co",
+      "files": [
+        {
+          "byteCount": 708236945,
+          "downloadURL": "https://huggingface.co/mlx-community/Qwen3-ASR-0.6B-4bit/resolve/313d850181767edf09f00a9c289becca70e58cd0/model.safetensors",
+          "relativePath": "model.safetensors",
+          "sha256": "70c7e67e588062adce4f10796e47ad42ead51c6671eda61a0987eae38ca95ddf"
+        },
+        {
+          "byteCount": 1671853,
+          "downloadURL": "https://huggingface.co/mlx-community/Qwen3-ASR-0.6B-4bit/resolve/313d850181767edf09f00a9c289becca70e58cd0/merges.txt",
+          "relativePath": "merges.txt",
+          "sha256": "8831e4f1a044471340f7c0a83d7bd71306a5b867e95fd870f74d0c5308a904d5"
+        },
+        {
+          "byteCount": 2776833,
+          "downloadURL": "https://huggingface.co/mlx-community/Qwen3-ASR-0.6B-4bit/resolve/313d850181767edf09f00a9c289becca70e58cd0/vocab.json",
+          "relativePath": "vocab.json",
+          "sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
+        },
+        {
+          "byteCount": 12487,
+          "downloadURL": "https://huggingface.co/mlx-community/Qwen3-ASR-0.6B-4bit/resolve/313d850181767edf09f00a9c289becca70e58cd0/tokenizer_config.json",
+          "relativePath": "tokenizer_config.json",
+          "sha256": "4942d005604266809309cabc9f4e9cb89ce855d59b14681fdc0e1cc62ea26c4c"
+        },
+        {
+          "byteCount": 1008,
+          "downloadURL": "https://huggingface.co/mlx-community/Qwen3-ASR-0.6B-4bit/resolve/313d850181767edf09f00a9c289becca70e58cd0/README.md",
+          "relativePath": "README.md",
+          "sha256": "4d54132d09a2d3d12410ef13c94d7afcfc936bdca8239a3e6cd0797d6a28dd1c"
+        }
+      ],
+      "isRecommended": false,
+      "license": {
+        "identifier": "Apache-2.0",
+        "noticePath": "README.md",
+        "sourceURL": "https://huggingface.co/mlx-community/Qwen3-ASR-0.6B-4bit"
+      },
+      "minimumOS": "14.0",
+      "modelID": "qwen3-asr-0.6b-4bit",
+      "packID": "com.woice.qwen3.asr.0.6b.4bit",
+      "platform": "macOS",
+      "provenance": {
+        "conversionRevision": "0.3.1",
+        "conversionTool": "mlx-audio",
+        "derivedFormat": "MLX safetensors 4-bit",
+        "sourceURL": "https://huggingface.co/Qwen/Qwen3-ASR-0.6B-hf",
+        "upstreamModelID": "Qwen/Qwen3-ASR-0.6B-hf",
+        "upstreamRevision": "7f1569a48a89f3e3f4dc3a5c9d28bddd903bc76c",
+        "upstreamSHA256": "d3f212dd20abecd315d830bc54ae3865e56ebfc3276484e57b771288ba27fd35"
+      },
+      "providerID": "com.woice.qwen3-asr",
+      "runtimeID": "com.woice.qwen3-asr",
+      "schemaVersion": 1,
+      "size": 712699126,
+      "storeCompatible": true,
+      "transport": "inProcess",
+      "version": "313d850181767edf09f00a9c289becca70e58cd0"
+    },
     {
       "architecture": "arm64",
       "capabilities": [
@@ -339,11 +406,11 @@
       "version": "0f63a7800b00dd0226abd051b906c246e1907482"
     }
   ],
-  "generatedAt": "2026-08-30T09:10:51Z",
+  "generatedAt": "2026-09-03T03:03:34Z",
   "schemaVersion": 1,
   "signature": {
     "algorithm": "Ed25519",
     "keyID": "woice-release-2026-08",
-    "value": "nW3rzD/fWKfkS9Gd/NT2/jFXuKAylxmKCZ93TJX2ql09qeSiYCz0v0Al6XXaNmoVZ9jc8dhwVu4t4QdRUHIYCQ=="
+    "value": "BV8Op68FEeFyMas/4flpKVu/krIsyR7+qoF5jtM6UFQxz71c+SDsnhpeA+v34CYzxZIw7okh4jiv7l6zuiO6BA=="
   }
 }

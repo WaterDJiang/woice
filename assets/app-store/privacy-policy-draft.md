@@ -1,6 +1,8 @@
-# Woice 隐私政策草案
+# Woice 隐私政策发布核对稿
 
-> 状态：本地审核草案，不是线上生效的隐私政策 URL。发布前必须由产品负责人和法律主体确认并部署到公开 HTTPS 地址。
+> 正式公开页面为仓库根目录 [`PRIVACY.md`](../../PRIVACY.md)，当前 URL：
+> `https://github.com/WaterDJiang/woice/blob/main/PRIVACY.md`。
+> 本文件用于 App Store Connect 内容核对；法律主体仍需确认最终发布责任和联系方式。
 
 ## 收集与处理
 
@@ -23,5 +25,11 @@
 
 ## 联系方式
 
-- 隐私问题联系地址：`<发布前补正式邮箱>`
-- 生效日期：`<发布前补日期>`
+- 隐私问题：通过 [Woice GitHub Issues](https://github.com/WaterDJiang/woice/issues) 联系项目维护者。
+- 提醒用户不要在 Issue 中提交真实录音、完整转录、API Key 或其他敏感信息。
+
+## 发布前核对
+
+- App Store Connect 的隐私政策 URL 与上方公开 URL 完全一致。
+- 若法律主体要求正式邮箱或公司地址，先更新根目录 `PRIVACY.md`，再更新商店资料；不得只在后台填写与公开政策不一致的信息。
+- 若增加账户、遥测、崩溃分析、广告或默认云端转写，必须同步更新本政策和 App Privacy 答卷。

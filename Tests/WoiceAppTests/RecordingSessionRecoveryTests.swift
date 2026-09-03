@@ -106,6 +106,37 @@ func interruptedSystemOnlyRecordingPreservesSourceSemantics() throws {
   #expect(record.meetingTranscriptionMode == nil)
 }
 
+@Test("异常退出恢复双轨仅系统音频时切换主引用且不伪造麦克风")
+@MainActor
+func interruptedDualTrackRecordingRecoversSurvivingSystemTrack() throws {
+  let root = FileManager.default.temporaryDirectory.appendingPathComponent(
+    "woice-session-recovery-dual-system-only-\(UUID().uuidString)", isDirectory: true)
+  defer { try? FileManager.default.removeItem(at: root) }
+  let store = WorkspaceStore(storageRootURL: root)
+  let id = UUID()
+  let missingMicrophoneName = "\(id.uuidString).m4a"
+  let systemURL = store.recordingsURL.appendingPathComponent("\(id.uuidString).system.m4a")
+  try writeRecoveryFixture(to: systemURL)
+  try store.saveRecordingSession(
+    RecordingSessionJournal(
+      id: id,
+      createdAt: Date(timeIntervalSince1970: 1_750_000_090),
+      audioFileName: missingMicrophoneName,
+      systemAudioFileName: systemURL.lastPathComponent,
+      captureMicrophone: true,
+      captureSystemAudio: true,
+      meetingTranscriptionMode: .standardMix))
+
+  let state = AppState(store: store)
+  let record = try #require(state.recordings.first)
+  #expect(record.audioFileName == systemURL.lastPathComponent)
+  #expect(state.systemAudioFileExists(for: record))
+  #expect(!state.microphoneAudioFileExists(for: record))
+  #expect(record.meetingMixFileName == nil)
+  #expect(record.meetingTranscriptionMode == .sourceSeparated)
+  #expect(record.processingTasks.isEmpty)
+}
+
 @Test("Journal 存在但没有可读音频时不创建伪造录音")
 @MainActor
 func invalidInterruptedRecordingJournalFailsClosed() throws {

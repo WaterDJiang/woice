@@ -1,8 +1,8 @@
 # Woice Mac App Store 上架计划
 
-> 状态：Apple 账号、Bundle ID、App Store Connect App 记录与 Distribution Archive 已完成；Organizer Validate、上传、元数据、沙盒实测和审核仍待  
+> 状态：`0.1.4 (Build 6)` 因 Guideline 2.1(a) 被拒；`Build 7` 的修复、Catalog v2、商店资料、Apple Distribution Archive 和本地导出包已完成。待 Catalog 推送、截图/录屏、App Store Connect 字段、Build 上传和审核提交  
 > 日期：2026-08-23  
-> 启动条件：WCL-06 先实施不涉及账号、正式签名和上传的本机 Store 切片；该边界已完成，当前已补齐 App ID、签名、描述文件与本机 Archive，但仍不宣称已上传 Build 或提交审核  
+> 启动条件：WCL-06 本机 Store 切片已完成，App ID、签名、描述文件、Build 6 Archive 与上传链已落地；仍不把上传成功描述为已提交审核或已上架  
 > 当前路线图：[当前路线图与计划迁移表](2026-08-22-current-roadmap-and-plan-transition.md)  
 > 相关计划：[M2-08 模型接入与双版本发布](2026-08-22-model-integration.md) · [旧总计划 M1-07 发布门禁](2026-08-22-m0-mvp.md)
 
@@ -12,14 +12,14 @@
 - 保留：官网继续提供 Core/Offline 两种 DMG；现有录音、双轨、默认来源分离转写、`standardMix` 兼容模式、模型版本、素材不可变、Keychain 和外发确认规则全部保留。
 - 迁移：Mac App Store 专属的 Xcode Archive、App Sandbox、Store 能力裁剪、App Store Connect 元数据、TestFlight 和 App Review 全部进入本计划，不再混入 M1-07/M2-08i。
 - 停止：未停止现有开发计划；Store Edition 首版停止暴露任意外部进程 Provider、现有外部 Unix Socket Agent Connector 和自有更新器。
-- 顺序：账号、Bundle ID、App 记录、正式工程和 Distribution Archive 已完成；下一步为 Organizer Validate、上传、元数据、沙盒实测和审核。M2-09 Agent 协作不是上架前置。
+- 顺序：Build 7 本机代码、资源、Catalog、Archive 和导出已完成；下一步为推送并回读 Catalog v2、实机截图/录屏、上传 Build 7、完成账号字段和审核提交。M2-09 Agent 协作不是上架前置。
 
 ## 2. 首版发行裁决
 
 ### 2.1 推荐形态
 
 - Mac App Store 只建立一个 Woice App 记录，不把 Core/Offline 做成两个近似商店 App。
-- 商店首版默认开箱可用，候选方案为内置已验证的 WhisperKit Large-v3，并保留 macOS on-device Speech 作为安全回退。
+- 商店首版不内置第三方模型权重；用户显式点击后，通过签名 Catalog 下载 Tiny、Qwen3-ASR 或 Large-v3，并保留 macOS on-device Speech。
 - 官网继续保留：
   - Core：小体积、不内置 WhisperKit 权重，允许用户配置本机/局域网/云端模型。
   - Offline：内置默认模型，开箱即用。
@@ -29,8 +29,8 @@
 
 - [ ] 开发者主体：个人或公司。
 - [ ] 最终开发者显示名称。
-- [ ] 最终 Bundle ID；首次上传后不再更换。
-- [ ] 商店首版是否内置 Large-v3；若许可证或包体门禁不通过，改为 Tiny + Speech。
+- [x] 最终 Bundle ID 为 `com.water.woice`；首次上传后不再更换。
+- [x] 商店首版零随包模型；第三方模型只经签名 Catalog 按需下载。
 - [ ] 免费、一次性付费或 StoreKit 内购模式。
 - [ ] 首发国家/地区和中文、英文商店页范围。
 - [ ] 是否在首版保留自动粘贴；默认方案为关闭自动粘贴，只保留复制。
@@ -39,15 +39,15 @@
 
 | 项目 | 当前事实 | 上架缺口 |
 |---|---|---|
-| 构建 | SwiftPM 可执行目标；`project.yml` 已生成正式 `Woice.xcodeproj`，`Woice-Store / Release-AppStore` 无签名构建和 Bundle validation 通过；正式 Archive 已生成 | 缺 Organizer Validate 和 App Store Connect 上传链 |
-| 签名 | `Woice-Store.xcarchive` 使用 Apple Distribution 签名，描述文件内嵌且 `codesign --verify --deep --strict` 通过 | 仍需 Organizer Validate、Store 沙盒运行与审核构建确认 |
+| 构建 | SwiftPM 与正式 `Woice.xcodeproj` 门禁通过；`0.1.4 (Build 7)` 双架构、零模型 Distribution Archive 与本地 App Store Connect 导出包已生成 | 待上传 Build 7 并确认 App Store Connect 处理完成且可选 |
+| 签名 | Build 7 Archive 使用与 Profile 指纹精确匹配的 Apple Distribution 身份，描述文件内嵌且 `codesign --verify --deep --strict` 通过 | 仍需 App Store Connect 服务端分析、Store 沙盒运行与审核构建确认 |
 | 沙盒 | `Resources/Woice-Store.entitlements` 已声明最小本机能力；本机 Bundle 静态检查通过 | 仍需正式 Store 签名下的容器、TCC、升级和干净用户运行验收 |
 | 体积 | Core 约 9.4 MB，Offline 约 610 MB | 体积本身可控；仍需模型许可证、包清单和下载体验裁决 |
 | 隐私 | `PrivacyInfo.xcprivacy`、隐私政策草案和 App Privacy 草案已进入工程/商店资料目录 | 缺法律审定、线上隐私政策 URL、App Store Connect 答卷和最终 API 审计 |
-| 模型 | Large-v3 已完成严格基准，默认路由已冻结 | 需确认权重再分发许可证、Store Bundle 清单及审核可测试性 |
+| 模型 | Tiny、Qwen3-ASR 和 Large-v3 本机包的文件大小/SHA-256 验证通过，Catalog v2 已由 Store 内置公钥验签 | 待推送公开 Catalog v2、回读并实测 Qwen 下载 |
 | 外部能力 | Store 编译条件已裁剪 Process Provider、Unix Socket Agent、自动粘贴和自有更新器；正式 Xcode Store Target 无签名构建和可执行文件静态禁用符号检查通过 | Store 签名下仍需复验组合根、沙盒运行和审核构建 |
 | 系统音频 | ScreenCaptureKit 双轨和 meetingMix 已有真实样本验收 | 需在 Store 签名和沙盒下重新完成 TCC/真实会议矩阵 |
-| 商店资产 | 已有 App Icon 和部分商店素材草案 | 缺最终截图、描述、关键词、支持 URL、隐私 URL、审核备注 |
+| 商店资产 | 已有 App Icon、描述/关键词草案；Woice 官网产品页与 GitHub Issues 均已确认公开可访问 | 缺最终截图、公开隐私政策 URL、审核联系人、版权主体及后台最终填写 |
 
 ## 4. 必须准备清单
 
@@ -110,7 +110,7 @@
 
 ### MAS-01：正式 Xcode Store Target
 
-状态：正式工程、Distribution Archive 与本机深度验签已完成；Organizer Validate 和上传待执行。
+状态：正式工程、Build 7 Distribution Archive、本机深度验签与 App Store Connect 导出包已完成；待上传并在版本页选择该 Build。
 
 - 以根目录 `project.yml` 生成正式 macOS App Target，引用现有 SwiftPM 模块，不复制业务实现；生成结果为 `Woice.xcodeproj`，禁止手工编辑 pbxproj。
 - 建立 `Debug`、`Release-Direct`、`Release-AppStore` 配置，避免条件判断散落在 View/Runtime。
@@ -118,7 +118,7 @@
 - 使用当前 App Store 接受的 Xcode/SDK；本机 XcodeGen 2.46.0 已生成工程，实施/提交时仍需重新确认 SDK 与审核基线。
 - 保留当前 SwiftPM 为核心开发真相源；Xcode Target 只承担 App 组合根、Entitlement、资源和发行。
 
-本机退出条件：`make xcode-build-store` 与 `make archive-app-store` 成功，Archive 的签名、Bundle、图标和结构已通过本机门禁；正式退出条件仍为 Organizer Validate 成功并完成 App Store Connect 上传。
+本机退出条件：Build 7 的 `make xcode-build-store`、`make archive-app-store`、Archive 签名/Bundle/图标/结构门禁和 `destination=export` 导出均已成功；正式退出条件剩余上传与 App Store Connect 可选状态。
 
 ### MAS-02：App Sandbox 与数据容器
 
@@ -183,7 +183,7 @@
 
 ### MAS-06：商店页面与素材
 
-状态：已有商店资产与描述草案，Xcode AppIcon 已接入；最终截图、元数据和 URL 仍待。
+状态：已有商店资产与描述草案，Xcode AppIcon 已接入；产品负责人指定 `https://wattter.cn/woice` 为营销 URL，GitHub Issues 为支持 URL；前者当前返回官网首页，后续补独立 Woice 路由；最终截图、公开隐私政策 URL 和后台元数据仍待。
 
 - 复用已定稿 Woice W 波形 App Icon，验证 Finder、Dock、Launchpad 和 Store 展示。
 - 产出 1～10 张真实产品截图：快速录音、会议双轨、本机转写、录音详情、模型设置、素材搜索/导出；尺寸按 Apple 当前 16:10 规格，推荐 `2560×1600`。
@@ -208,7 +208,7 @@
 
 ### MAS-08：提交与审核处理
 
-状态：待实施。
+状态：Build 6 因“检查更新”问题被拒；Build 7 修复、Catalog v2、正式 Archive 和本地导出包已完成，待 Catalog 发布、实体 Mac 验收材料、Build 上传处理和正式提交审核。
 
 - 选择经 TestFlight 验收的唯一 Build。
 - 完成价格、地区、年龄评级、出口合规、隐私和审核联系信息。
@@ -243,7 +243,7 @@ make acceptance-app-store-clean-user
 - `make verify-app-store`：通过，生成并检查 `build/Woice-Store.app`；这是本机 Store Bundle 预检，不是 Apple Archive/App Review。
 - `make acceptance-app-store-sandbox`：通过，证明本机签名 Bundle 的沙盒 Entitlements 和能力裁剪；不证明正式 Store TCC、TestFlight 或审核。
 - `make xcode-build-store`：通过，正式 `Woice.xcodeproj` 的 `Woice-Store / Release-AppStore` 无签名构建和 Bundle validation 通过；不证明 Apple 分发签名或 Archive。
-- `make archive-app-store`：已生成并验证 `build/Woice-Store.xcarchive`；命令仍在缺少正式签名团队或证书时 fail-closed，Organizer Validate/上传尚未执行。
+- `make archive-app-store`：已生成并验证 `build/Woice-Store-0.1.4-build7.xcarchive`；已用 `destination=export` 生成本地 `Woice.pkg`，尚未上传。
 - `make acceptance-app-store-clean-user`：只做显式干净用户路径预检，真实安装/TCC/GUI 仍需人工执行。
 
 ## 8. 审核说明模板要点

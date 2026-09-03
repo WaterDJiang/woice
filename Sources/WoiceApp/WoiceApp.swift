@@ -135,13 +135,33 @@ final class WoiceApp: NSObject, NSApplicationDelegate {
       guard let importSource = WoiceTestRuntimeConfiguration.importSource else { return }
       Task { @MainActor in
         try? await Task.sleep(for: .milliseconds(1_500))
+        // Startup hydrates the summary list before allowing any operation that
+        // can rewrite the complete recordings collection. The isolated
+        // desktop Journey must wait for that fact instead of racing the
+        // fail-closed import guard on a fresh temporary Workspace.
+        for _ in 0..<40 {
+          guard !Task.isCancelled else { return }
+          if self.appState.canImportMedia { break }
+          do {
+            try await Task.sleep(for: .milliseconds(250))
+          } catch {
+            return
+          }
+        }
+        guard self.appState.canImportMedia else { return }
         guard let recordID = await self.appState.importMedia(from: importSource),
           let record = self.appState.recordings.first(where: { $0.id == recordID })
         else { return }
-        self.workspaceRouter.show(recordID: recordID)
+        let shouldTranscribe = WoiceTestRuntimeConfiguration.shouldTranscribeImportedSource
+        if shouldTranscribe {
+          self.appState.requestTranscription(for: record)
+        }
+        if WoiceTestRuntimeConfiguration.shouldPresentImportSheet {
+          self.workspaceRouter.requestMediaImport(recordID: recordID)
+        } else {
+          self.workspaceRouter.show(recordID: recordID)
+        }
         self.workspaceWindowController.show()
-        guard WoiceTestRuntimeConfiguration.shouldTranscribeImportedSource else { return }
-        self.appState.requestTranscription(for: record)
       }
     }
   }

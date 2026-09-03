@@ -16,14 +16,19 @@ func productionModelCatalogVerifies() throws {
   decoder.dateDecodingStrategy = .iso8601
   let catalog = try decoder.decode(ModelCatalog.self, from: data)
   #expect(catalog.catalogID == "woice-model-catalog")
-  #expect(catalog.catalogVersion == 1)
+  #expect(catalog.catalogVersion == 2)
   #expect(
     catalog.entries.map { $0.packID } == [
+      "com.woice.qwen3.asr.0.6b.4bit",
       "com.woice.whisperkit.large-v3",
       "com.woice.whisperkit.tiny",
     ])
   #expect(catalog.entries.allSatisfy { $0.storeCompatible })
-  #expect(catalog.entries.allSatisfy { $0.runtimeID == "com.woice.whisperkit" })
+  let runtimeByPackID = Dictionary(
+    uniqueKeysWithValues: catalog.entries.map { ($0.packID, $0.runtimeID) })
+  #expect(runtimeByPackID["com.woice.qwen3.asr.0.6b.4bit"] == "com.woice.qwen3-asr")
+  #expect(runtimeByPackID["com.woice.whisperkit.large-v3"] == "com.woice.whisperkit")
+  #expect(runtimeByPackID["com.woice.whisperkit.tiny"] == "com.woice.whisperkit")
   #expect(catalog.entries.allSatisfy { $0.files.allSatisfy { $0.downloadURL != nil } })
   try ModelCatalogVerifier.verify(
     catalog,

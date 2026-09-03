@@ -7,7 +7,7 @@ APP_BUNDLE := build/$(DEV_APP_NAME).app
 DIRECT_XCODE_APP := .build/xcode-direct-derived/Build/Products/Release-Direct/$(DEV_APP_NAME).app
 DEV_INSTALL_APP := /Applications/$(DEV_APP_NAME).app
 
-.PHONY: docs-check harness-check appicon-check release-manifest-check model-package-check model-catalog-check local-app-cleanup-check release-verify-remote store-capability-check connectors-check mcp-check project xcode-project xcode-list xcode-build-direct xcode-build-store build test package package-core package-offline package-store package-dmg-core package-dmg-offline release-adhoc release-developer-id model-catalog model-benchmark-fixture model-benchmark model-benchmark-strict install format lint acceptance-core acceptance-whisperkit acceptance-meeting acceptance-meeting-transcription acceptance-settings acceptance-material acceptance-recovery acceptance-catalog acceptance-interruption acceptance-offline-model acceptance-local-provider acceptance-agent-outbound acceptance-agent-inbound acceptance-agent-external-inbound acceptance-workspace-sidebar acceptance-media-import-transcription acceptance-media-import-desktop acceptance-permission-continuity acceptance-stable-upgrade acceptance-launch-window acceptance-accessibility-runtime verify verify-core verify-offline verify-app-store archive-app-store acceptance-app-store-sandbox acceptance-app-store-clean-user
+.PHONY: docs-check harness-check appicon-check release-manifest-check model-package-check model-catalog-check local-app-cleanup-check release-verify-remote store-capability-check connectors-check mcp-check project xcode-project xcode-list xcode-build-direct xcode-build-store build test package package-core package-offline package-store package-dmg-core package-dmg-offline release-adhoc release-developer-id model-catalog model-benchmark-fixture model-benchmark model-benchmark-strict model-benchmark-qwen model-benchmark-qwen-strict model-benchmark-qwen-only-strict model-benchmark-qwen-reference-fixture model-benchmark-qwen-official-reference material-benchmark-fixture material-benchmark install format lint acceptance-core acceptance-whisperkit acceptance-meeting acceptance-meeting-transcription acceptance-settings acceptance-material acceptance-recovery acceptance-catalog acceptance-interruption acceptance-offline-model acceptance-local-provider acceptance-agent-outbound acceptance-agent-inbound acceptance-agent-external-inbound acceptance-workspace-sidebar acceptance-media-import-transcription acceptance-media-import-desktop acceptance-permission-continuity acceptance-stable-upgrade acceptance-launch-window acceptance-accessibility-runtime verify verify-core verify-offline verify-app-store archive-app-store acceptance-app-store-sandbox acceptance-app-store-clean-user
 
 docs-check:
 	@test -f doc/INDEX.md
@@ -76,6 +76,7 @@ docs-check:
 	@test -x scripts/acceptance_stable_upgrade.sh
 	@test -x scripts/acceptance_launch_window.sh
 	@test -f scripts/run_model_benchmark.sh
+	@test -x scripts/fetch_qwen_reference_fixtures.sh
 	@test -f Resources/NOTICES.md
 	@test -f doc/spec/2026-08-22-recording-ui-fix.md
 	@test -f doc/spec/2026-08-22-recording-audio-monitoring-fix.md
@@ -139,6 +140,8 @@ docs-check:
 	@test -f Connectors/McpWoice/src/index.mjs
 	@test -f Connectors/McpWoice/test/server.test.mjs
 	@test -x scripts/create_model_benchmark_fixtures.sh
+	@test -x scripts/create_material_benchmark_fixtures.sh
+	@test -f Tests/WoiceAppTests/MaterialBenchmarkTests.swift
 	@test -f doc/benchmarks/2026-08-23-whisperkit-300s-matrix.md
 	@rg -q '唯一跨计划状态源' doc/plan/INDEX.md
 	@rg -q '旧 M3 生态.*已停止' doc/plan/INDEX.md
@@ -308,9 +311,43 @@ model-benchmark-fixture: docs-check harness-check
 	@test -n "$(WOICE_BENCHMARK_AUDIO_DIR)" || { echo "WOICE_BENCHMARK_AUDIO_DIR 尚未设置；请显式提供 Fixture 输出目录。"; exit 1; }
 	@./scripts/create_model_benchmark_fixtures.sh "$(WOICE_BENCHMARK_AUDIO_DIR)" "$${WOICE_BENCHMARK_MIN_DURATION_SECONDS:-300}"
 
+material-benchmark-fixture: docs-check harness-check
+	@test -n "$(WOICE_MATERIAL_BENCHMARK_DIR)" || { echo "WOICE_MATERIAL_BENCHMARK_DIR 尚未设置；请显式提供 Fixture 输出目录。"; exit 1; }
+	@./scripts/create_material_benchmark_fixtures.sh "$(WOICE_MATERIAL_BENCHMARK_DIR)"
+
+material-benchmark: docs-check harness-check
+	@test -n "$(WOICE_MATERIAL_BENCHMARK_DIR)" || { echo "WOICE_MATERIAL_BENCHMARK_DIR 未设置；不会伪造素材基准。"; exit 1; }
+	@set -euo pipefail; \
+	output_path="$${WOICE_MATERIAL_BENCHMARK_OUTPUT:-build/material-benchmark.json}"; \
+	WOICE_RUN_MATERIAL_BENCHMARK=1 \
+	WOICE_MATERIAL_BENCHMARK_DIR="$(WOICE_MATERIAL_BENCHMARK_DIR)" \
+	WOICE_MATERIAL_BENCHMARK_OUTPUT="$$output_path" \
+	WOICE_ENFORCE_MATERIAL_BENCHMARK="$${WOICE_ENFORCE_MATERIAL_BENCHMARK:-0}" \
+	swift test --no-parallel --filter materialBenchmarkProducesReport
+
 model-benchmark-strict: docs-check harness-check
 	@test -n "$(WOICE_BENCHMARK_AUDIO_DIR)" || { echo "WOICE_BENCHMARK_AUDIO_DIR 尚未设置；不会伪造完整模型基准。"; exit 1; }
 	@WOICE_ENFORCE_MODEL_BENCHMARK=1 WOICE_BENCHMARK_MIN_DURATION_SECONDS="$${WOICE_BENCHMARK_MIN_DURATION_SECONDS:-300}" ./scripts/run_model_benchmark.sh --strict "$(WOICE_BENCHMARK_AUDIO_DIR)" "$(WOICE_BENCHMARK_OUTPUT)"
+
+model-benchmark-qwen: docs-check harness-check xcode-build-store
+	@test -n "$(WOICE_BENCHMARK_AUDIO_DIR)" || { echo "WOICE_BENCHMARK_AUDIO_DIR 尚未设置；不会伪造 Qwen 模型基准。"; exit 1; }
+	@WOICE_BENCHMARK_INCLUDE_QWEN=1 ./scripts/run_model_benchmark.sh "$(WOICE_BENCHMARK_AUDIO_DIR)" "$(WOICE_BENCHMARK_OUTPUT)"
+
+model-benchmark-qwen-strict: docs-check harness-check xcode-build-store
+	@test -n "$(WOICE_BENCHMARK_AUDIO_DIR)" || { echo "WOICE_BENCHMARK_AUDIO_DIR 尚未设置；不会伪造完整 Qwen 模型基准。"; exit 1; }
+	@WOICE_BENCHMARK_INCLUDE_QWEN=1 WOICE_ENFORCE_MODEL_BENCHMARK=1 WOICE_BENCHMARK_MIN_DURATION_SECONDS="$${WOICE_BENCHMARK_MIN_DURATION_SECONDS:-300}" ./scripts/run_model_benchmark.sh --strict "$(WOICE_BENCHMARK_AUDIO_DIR)" "$(WOICE_BENCHMARK_OUTPUT)"
+
+model-benchmark-qwen-only-strict: docs-check harness-check xcode-build-store
+	@test -n "$(WOICE_BENCHMARK_AUDIO_DIR)" || { echo "WOICE_BENCHMARK_AUDIO_DIR 尚未设置；不会伪造 Qwen-only 模型基准。"; exit 1; }
+	@WOICE_BENCHMARK_INCLUDE_QWEN=1 WOICE_BENCHMARK_MODEL_PACK_IDS=com.woice.qwen3.asr.0.6b.4bit WOICE_ENFORCE_MODEL_BENCHMARK=1 WOICE_BENCHMARK_MIN_DURATION_SECONDS="$${WOICE_BENCHMARK_MIN_DURATION_SECONDS:-300}" ./scripts/run_model_benchmark.sh --strict "$(WOICE_BENCHMARK_AUDIO_DIR)" "$(WOICE_BENCHMARK_OUTPUT)"
+
+model-benchmark-qwen-reference-fixture: docs-check harness-check
+	@test -n "$(WOICE_BENCHMARK_AUDIO_DIR)" || { echo "WOICE_BENCHMARK_AUDIO_DIR 尚未设置；不会写入官方参考夹具。"; exit 1; }
+	@./scripts/fetch_qwen_reference_fixtures.sh "$(WOICE_BENCHMARK_AUDIO_DIR)"
+
+model-benchmark-qwen-official-reference: model-benchmark-qwen-reference-fixture xcode-build-store
+	@test -n "$(WOICE_BENCHMARK_OUTPUT)" || { echo "WOICE_BENCHMARK_OUTPUT 尚未设置；不会丢弃官方参考报告。"; exit 1; }
+	@WOICE_BENCHMARK_INCLUDE_QWEN=1 WOICE_BENCHMARK_MODEL_PACK_IDS=com.woice.qwen3.asr.0.6b.4bit ./scripts/run_model_benchmark.sh "$(WOICE_BENCHMARK_AUDIO_DIR)" "$(WOICE_BENCHMARK_OUTPUT)"
 
 install: xcode-build-direct
 	@test -n "$(WOICE_LOCAL_SIGNING_IDENTITY)" || { echo "WOICE_LOCAL_SIGNING_IDENTITY 未设置；拒绝安装 ad hoc Dev App。"; exit 1; }
@@ -368,6 +405,7 @@ acceptance-material: docs-check harness-check
 
 acceptance-recovery: docs-check harness-check
 	@swift test --no-parallel --filter interruptedRecordingJournalRecoversAudio
+	@swift test --no-parallel --filter recordingProcessSIGKILLRecoversCommittedChunks
 	@swift test --no-parallel --filter invalidInterruptedRecordingJournalFailsClosed
 	@swift test --no-parallel --filter sqliteLegacyImportIsNotRepeated
 	@swift test --no-parallel --filter sqliteJobLeaseIsDurable

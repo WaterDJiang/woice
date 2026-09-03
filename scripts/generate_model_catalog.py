@@ -184,6 +184,7 @@ def make_entry(
         raise SystemExit(f"模型清单缺少 NOTICE.txt：{pack_id}")
     notice_file["byteCount"] = len(notice_bytes)
     notice_file["sha256"] = __import__("hashlib").sha256(notice_bytes).hexdigest()
+    total_size = sum(item["byteCount"] for item in transformed_files)
 
     return {
         "schemaVersion": 1,

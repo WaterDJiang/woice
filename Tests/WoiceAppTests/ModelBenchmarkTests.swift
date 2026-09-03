@@ -7,17 +7,20 @@ import WoiceCore
 @testable import WoiceApp
 
 private struct ModelBenchmarkSample: Codable, Sendable {
+  let providerID: String
   let modelID: String
   let modelVersion: String
   let audioName: String
   let category: String
   let audioDuration: TimeInterval
   let elapsed: TimeInterval
-  let realTimeFactor: Double
+  let realTimeFactor: Double?
   let peakResidentBytes: Int64
   let outputIsEmpty: Bool
   let wordErrorRate: Double?
   let error: String?
+  let expectedEmptySignal: Bool
+  let errorCode: String?
 }
 
 private struct ModelBenchmarkReport: Codable, Sendable {
@@ -27,7 +30,8 @@ private struct ModelBenchmarkReport: Codable, Sendable {
   let requiredCategories: [String]
   let missingCategories: [String]
   let minimumAudioDuration: TimeInterval
-  let maxRealTimeFactor: Double
+  let includeQwen: Bool
+  let maxRealTimeFactor: Double?
   let maxPeakResidentBytes: Int64
   let thresholds: Thresholds
 
@@ -54,6 +58,7 @@ func modelBenchmarkProducesReport() async throws {
     return
   }
   let environment = ProcessInfo.processInfo.environment
+  let benchmarkLanguage = environment["WOICE_BENCHMARK_LANGUAGE"] ?? ""
   guard let audioDirectoryPath = environment["WOICE_BENCHMARK_AUDIO_DIR"],
     !audioDirectoryPath.isEmpty
   else {
@@ -71,6 +76,7 @@ func modelBenchmarkProducesReport() async throws {
     return
   }
   let enforcing = environment["WOICE_ENFORCE_MODEL_BENCHMARK"] == "1"
+  let includeQwen = environment["WOICE_BENCHMARK_INCLUDE_QWEN"] == "1"
   let requiredCategories = enforcing ? ["zh", "en", "mixed", "silence", "noise"] : []
   let minimumAudioDuration: TimeInterval = {
     guard enforcing else { return 0 }
@@ -100,27 +106,36 @@ func modelBenchmarkProducesReport() async throws {
     }
   }
 
-  let root = WorkspaceStore().rootURL
+  let root: URL = {
+    if let rawRoot = environment["WOICE_BENCHMARK_MODEL_ROOT"], !rawRoot.isEmpty {
+      return URL(fileURLWithPath: rawRoot, isDirectory: true).standardizedFileURL
+    }
+    return WorkspaceStore().rootURL
+  }()
   let store = ModelPackStore(rootURL: root)
   let inventory = try await store.inventory()
   let requestedIDs = Set(
     (environment["WOICE_BENCHMARK_MODEL_PACK_IDS"] ?? "")
       .split(separator: ",").map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
       .filter { !$0.isEmpty })
+  let allowedProviderIDs: Set<String> =
+    includeQwen
+    ? ["com.woice.whisperkit", "com.woice.qwen3-asr"]
+    : ["com.woice.whisperkit"]
   let manifests =
     inventory
-    .filter { $0.manifest.providerID == "com.woice.whisperkit" }
+    .filter { allowedProviderIDs.contains($0.manifest.providerID) }
     .filter { requestedIDs.isEmpty || requestedIDs.contains($0.manifest.packID) }
     .map(\.manifest)
   guard !manifests.isEmpty else {
-    Issue.record("没有符合条件的已安装 WhisperKit 模型；不会伪造基准结果")
+    Issue.record("没有符合条件的已安装本机模型；不会伪造基准结果")
     return
   }
 
   var samples: [ModelBenchmarkSample] = []
   for manifest in manifests {
     let modelFolder = try await store.installedDirectory(for: manifest)
-    let provider = try WhisperKitTranscriptionService(
+    let provider = try ModelRuntimeRegistry.makeProvider(
       manifest: manifest, modelFolder: modelFolder)
     for audioURL in audioURLs {
       let duration = try audioDuration(of: audioURL)
@@ -135,7 +150,8 @@ func modelBenchmarkProducesReport() async throws {
       }
       let started = ContinuousClock.now
       do {
-        let result = try await provider.transcribe(audioURL: audioURL, language: "")
+        let result = try await provider.transcribe(
+          audioURL: audioURL, language: benchmarkLanguage)
         let elapsed = started.duration(to: .now).timeInterval
         monitor.cancel()
         await sampler.sample()
@@ -143,34 +159,40 @@ func modelBenchmarkProducesReport() async throws {
         let reference = referenceText(for: audioURL)
         samples.append(
           ModelBenchmarkSample(
+            providerID: manifest.providerID,
             modelID: manifest.modelID,
             modelVersion: manifest.version,
             audioName: audioURL.lastPathComponent,
             category: category,
             audioDuration: duration,
             elapsed: elapsed,
-            realTimeFactor: duration > 0 ? elapsed / duration : .infinity,
+            realTimeFactor: duration > 0 ? elapsed / duration : nil,
             peakResidentBytes: peak,
             outputIsEmpty: result.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
             wordErrorRate: reference.map { wordErrorRate(reference: $0, hypothesis: result.text) },
-            error: nil))
+            error: nil,
+            expectedEmptySignal: isExpectedEmptySignalCategory(category),
+            errorCode: nil))
       } catch {
         monitor.cancel()
         await sampler.sample()
         let peak = await sampler.value()
         samples.append(
           ModelBenchmarkSample(
+            providerID: manifest.providerID,
             modelID: manifest.modelID,
             modelVersion: manifest.version,
             audioName: audioURL.lastPathComponent,
             category: category,
             audioDuration: duration,
             elapsed: started.duration(to: .now).timeInterval,
-            realTimeFactor: .infinity,
+            realTimeFactor: nil,
             peakResidentBytes: peak,
             outputIsEmpty: true,
             wordErrorRate: nil,
-            error: error.localizedDescription))
+            error: error.localizedDescription,
+            expectedEmptySignal: isExpectedEmptySignalCategory(category),
+            errorCode: benchmarkErrorCode(error)))
       }
     }
   }
@@ -185,7 +207,8 @@ func modelBenchmarkProducesReport() async throws {
       !Set(samples.map(\.category)).contains($0)
     },
     minimumAudioDuration: minimumAudioDuration,
-    maxRealTimeFactor: samples.map(\.realTimeFactor).max() ?? .infinity,
+    includeQwen: includeQwen,
+    maxRealTimeFactor: samples.compactMap(\.realTimeFactor).max(),
     maxPeakResidentBytes: samples.map(\.peakResidentBytes).max() ?? 0,
     thresholds: .init(maxRealTimeFactor: 1.0, maxPeakResidentBytes: 4 * 1024 * 1024 * 1024))
   let outputURL = URL(
@@ -200,10 +223,30 @@ func modelBenchmarkProducesReport() async throws {
   if enforcing {
     #expect(report.missingCategories.isEmpty)
     #expect(samples.allSatisfy { $0.audioDuration >= minimumAudioDuration })
-    #expect(report.maxRealTimeFactor <= report.thresholds.maxRealTimeFactor)
+    #expect(report.maxRealTimeFactor != nil)
+    #expect((report.maxRealTimeFactor ?? .infinity) <= report.thresholds.maxRealTimeFactor)
     #expect(report.maxPeakResidentBytes <= report.thresholds.maxPeakResidentBytes)
-    #expect(samples.allSatisfy { !$0.outputIsEmpty && $0.error == nil })
+    #expect(samples.allSatisfy(benchmarkSamplePassesStrictOutputGate))
   }
+}
+
+@Test("模型严格基准区分预期空信号与异常输出")
+func modelBenchmarkOutputGateDistinguishesEmptySignal() {
+  #expect(
+    benchmarkSamplePassesStrictOutputGate(
+      makeBenchmarkSample(category: "silence", outputIsEmpty: true, errorCode: "empty_result")))
+  #expect(
+    benchmarkSamplePassesStrictOutputGate(
+      makeBenchmarkSample(category: "noise", outputIsEmpty: true, errorCode: "empty_result")))
+  #expect(
+    !benchmarkSamplePassesStrictOutputGate(
+      makeBenchmarkSample(category: "silence", outputIsEmpty: false, errorCode: nil)))
+  #expect(
+    !benchmarkSamplePassesStrictOutputGate(
+      makeBenchmarkSample(category: "noise", outputIsEmpty: true, errorCode: "error")))
+  #expect(
+    !benchmarkSamplePassesStrictOutputGate(
+      makeBenchmarkSample(category: "zh", outputIsEmpty: true, errorCode: "empty_result")))
 }
 
 private func audioDuration(of url: URL) throws -> TimeInterval {
@@ -228,6 +271,48 @@ private func benchmarkCategory(for url: URL) -> String {
     return category
   }
   return "other"
+}
+
+private func isExpectedEmptySignalCategory(_ category: String) -> Bool {
+  category == "silence" || category == "noise"
+}
+
+private func benchmarkErrorCode(_ error: Error) -> String {
+  if let error = error as? LocalASRError,
+    case .emptyResult = error
+  {
+    return "empty_result"
+  }
+  return "error"
+}
+
+private func benchmarkSamplePassesStrictOutputGate(_ sample: ModelBenchmarkSample) -> Bool {
+  if sample.expectedEmptySignal {
+    return sample.outputIsEmpty && sample.errorCode == "empty_result"
+  }
+  return !sample.outputIsEmpty && sample.error == nil
+}
+
+private func makeBenchmarkSample(
+  category: String,
+  outputIsEmpty: Bool,
+  errorCode: String?
+) -> ModelBenchmarkSample {
+  ModelBenchmarkSample(
+    providerID: "com.woice.test",
+    modelID: "test-model",
+    modelVersion: "test-version",
+    audioName: "\(category)-benchmark.wav",
+    category: category,
+    audioDuration: 300,
+    elapsed: 30,
+    realTimeFactor: 0.1,
+    peakResidentBytes: 1,
+    outputIsEmpty: outputIsEmpty,
+    wordErrorRate: nil,
+    error: errorCode == "error" ? "模拟错误" : (errorCode == "empty_result" ? "本机模型没有识别出文字" : nil),
+    expectedEmptySignal: isExpectedEmptySignalCategory(category),
+    errorCode: errorCode)
 }
 
 private func wordErrorRate(reference: String, hypothesis: String) -> Double {

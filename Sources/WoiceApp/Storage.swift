@@ -6,6 +6,10 @@ struct RecordingSessionJournal: Codable, Equatable, Sendable {
   let createdAt: Date
   let audioFileName: String
   let systemAudioFileName: String?
+  /// The manifest and chunk directory are optional for backwards-compatible
+  /// recovery of sessions created before rolling durability was introduced.
+  let manifestFileName: String?
+  let chunkDirectoryName: String?
   let captureMicrophone: Bool
   let captureSystemAudio: Bool
   let meetingTranscriptionMode: MeetingTranscriptionMode
@@ -15,6 +19,8 @@ struct RecordingSessionJournal: Codable, Equatable, Sendable {
     createdAt: Date,
     audioFileName: String,
     systemAudioFileName: String?,
+    manifestFileName: String? = nil,
+    chunkDirectoryName: String? = nil,
     captureMicrophone: Bool = true,
     captureSystemAudio: Bool,
     meetingTranscriptionMode: MeetingTranscriptionMode
@@ -23,13 +29,16 @@ struct RecordingSessionJournal: Codable, Equatable, Sendable {
     self.createdAt = createdAt
     self.audioFileName = audioFileName
     self.systemAudioFileName = systemAudioFileName
+    self.manifestFileName = manifestFileName
+    self.chunkDirectoryName = chunkDirectoryName
     self.captureMicrophone = captureMicrophone
     self.captureSystemAudio = captureSystemAudio
     self.meetingTranscriptionMode = meetingTranscriptionMode
   }
 
   private enum CodingKeys: String, CodingKey {
-    case id, createdAt, audioFileName, systemAudioFileName, captureMicrophone,
+    case id, createdAt, audioFileName, systemAudioFileName, manifestFileName, chunkDirectoryName,
+      captureMicrophone,
       captureSystemAudio, meetingTranscriptionMode
   }
 
@@ -39,6 +48,8 @@ struct RecordingSessionJournal: Codable, Equatable, Sendable {
     createdAt = try container.decode(Date.self, forKey: .createdAt)
     audioFileName = try container.decode(String.self, forKey: .audioFileName)
     systemAudioFileName = try container.decodeIfPresent(String.self, forKey: .systemAudioFileName)
+    manifestFileName = try container.decodeIfPresent(String.self, forKey: .manifestFileName)
+    chunkDirectoryName = try container.decodeIfPresent(String.self, forKey: .chunkDirectoryName)
     captureMicrophone =
       try container.decodeIfPresent(Bool.self, forKey: .captureMicrophone) ?? true
     captureSystemAudio = try container.decode(Bool.self, forKey: .captureSystemAudio)
@@ -156,6 +167,25 @@ final class WorkspaceStore {
     return loadLegacyRecordings() ?? []
   }
 
+  /// Reads only the bounded list projection. Existing installations whose
+  /// summary table has not been populated are backfilled once from the full
+  /// records; all subsequent launches stay on the projection path.
+  func loadRecordingSummaries() -> [RecordingSummary] {
+    if let sqliteStore {
+      do {
+        let summaries = try sqliteStore.loadRecordingSummaries()
+        let hasRecordings = try sqliteStore.hasRecordings()
+        if !summaries.isEmpty || !hasRecordings { return summaries }
+        let records = try sqliteStore.loadRecordings()
+        try sqliteStore.saveRecordings(records)
+        return try sqliteStore.loadRecordingSummaries()
+      } catch {
+        storageErrorDescription = error.localizedDescription
+      }
+    }
+    return (loadLegacyRecordings() ?? []).map(RecordingSummary.init(record:))
+  }
+
   func loadModelDownloadTasks() -> [ModelDownloadTask] {
     guard let sqliteStore else { return [] }
     do {
@@ -239,6 +269,14 @@ final class WorkspaceStore {
     try data.write(to: indexURL, options: .atomic)
   }
 
+  func saveRecording(_ recording: RecordingRecord) throws {
+    guard let sqliteStore else {
+      throw WoiceError.storageFailure(
+        storageErrorDescription ?? "SQLite 元数据存储不可用。")
+    }
+    try sqliteStore.saveRecording(recording)
+  }
+
   func acquireJobLease(
     idempotencyKey: String, owner: String, duration: TimeInterval = 60
   ) throws -> Bool {
@@ -308,6 +346,30 @@ final class WorkspaceStore {
     try data.write(to: recordingSessionURL, options: .atomic)
   }
 
+  func recordingManifestURL(for sessionID: UUID) -> URL {
+    recordingsURL.appendingPathComponent("\(sessionID.uuidString).manifest.json")
+  }
+
+  func recordingChunkDirectoryURL(for sessionID: UUID) -> URL {
+    recordingsURL.appendingPathComponent("\(sessionID.uuidString).chunks", isDirectory: true)
+  }
+
+  func createRecordingChunkManifest(
+    sessionID: UUID,
+    expectedTracks: [AudioTrackKind],
+    createdAt: Date = Date()
+  ) throws -> RecordingChunkManifestStore {
+    try RecordingChunkManifestStore(
+      rootURL: recordingsURL,
+      sessionID: sessionID,
+      expectedTracks: expectedTracks,
+      createdAt: createdAt)
+  }
+
+  func loadRecordingChunkManifest(for sessionID: UUID) throws -> RecordingChunkManifestStore {
+    try RecordingChunkManifestStore(recovering: recordingManifestURL(for: sessionID))
+  }
+
   func backgroundTranscriptionURL(for recordID: UUID) -> URL {
     recordingsURL.appendingPathComponent(
       "\(recordID.uuidString).background.json", isDirectory: false)
@@ -374,7 +436,7 @@ final class WorkspaceStore {
   func exportURL(for record: RecordingRecord, suffix: String, directory: URL? = nil) -> URL {
     let target = directory ?? rootURL.appendingPathComponent("exports", isDirectory: true)
     try? FileManager.default.createDirectory(at: target, withIntermediateDirectories: true)
-    let safeTitle = record.title
+    let safeTitle = record.displayTitle
       .replacingOccurrences(of: "/", with: "-")
       .replacingOccurrences(of: "\\", with: "-")
       .prefix(40)

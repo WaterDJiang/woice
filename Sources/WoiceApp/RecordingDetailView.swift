@@ -9,13 +9,51 @@ struct RecordingDetailView: View {
   @State private var selectedPlaybackTrack: AudioTrackKind = .microphone
   @State private var isShowingAgentDispatch = false
   @State private var isConfirmingDeletion = false
+  @State private var isEditingTitle = false
+  @State private var titleDraft = ""
+  @State private var normalizedTranscript = ""
+  @State private var normalizedTranscriptChunks: [String] = []
+  @State private var isLoadingTranscript = false
+  @State private var audioMetadata: [AudioTrackKind: AudioMetadataSnapshot] = [:]
 
   var body: some View {
     ScrollView {
       VStack(alignment: .leading, spacing: 20) {
         HStack(alignment: .top) {
           VStack(alignment: .leading, spacing: 5) {
-            Text(record.title).font(.title2.weight(.semibold))
+            if isEditingTitle {
+              HStack(spacing: 8) {
+                TextField("素材名称", text: $titleDraft)
+                  .textFieldStyle(.roundedBorder)
+                  .font(.title2.weight(.semibold))
+                  .onSubmit(saveTitle)
+                  .onExitCommand(perform: cancelTitleEditing)
+                Button("保存", action: saveTitle)
+                  .buttonStyle(.borderedProminent)
+                  .controlSize(.small)
+                  .disabled(!appState.canMutateRecordings)
+                Button("取消", action: cancelTitleEditing)
+                  .buttonStyle(.bordered)
+                  .controlSize(.small)
+              }
+              .accessibilityElement(children: .contain)
+              .accessibilityLabel("重命名素材：当前名称 (record.displayTitle)")
+            } else {
+              HStack(spacing: 8) {
+                Text(record.displayTitle).font(.title2.weight(.semibold))
+                Button {
+                  titleDraft = record.displayTitle
+                  isEditingTitle = true
+                } label: {
+                  Label("重命名", systemImage: "pencil")
+                }
+                .buttonStyle(.borderless)
+                .controlSize(.small)
+                .disabled(!appState.canMutateRecordings)
+                .help("重命名素材")
+                .accessibilityLabel("重命名素材：当前名称 (record.displayTitle)")
+              }
+            }
             Text("\(record.shortDate) · \(formatDuration(record.duration))")
               .font(.caption).foregroundStyle(.secondary)
           }
@@ -34,7 +72,7 @@ struct RecordingDetailView: View {
               }
             #endif
             Button("重新转写") { appState.requestTranscription(for: record) }
-              .disabled(!appState.canTranscribe)
+              .disabled(!appState.canTranscribe || !appState.canMutateRecordings)
             Divider()
             Menu("导出", systemImage: "square.and.arrow.down") {
               exportButton(.microphoneAudio)
@@ -75,6 +113,7 @@ struct RecordingDetailView: View {
               .disabled(!appState.meetingMixFileExists(for: record))
             }
             Button("移到废纸篓", role: .destructive) { isConfirmingDeletion = true }
+              .disabled(!appState.canMutateRecordings)
           } label: {
             Label("操作", systemImage: "ellipsis.circle")
           }
@@ -89,18 +128,33 @@ struct RecordingDetailView: View {
         }
 
         if let transcript = record.transcript, !transcript.isEmpty {
-          let readableTranscript = TranscriptTextNormalizer.normalize(transcript)
+          let readableTranscript = normalizedTranscript
+          let readableTranscriptChunks = normalizedTranscriptChunks
           section("原文", systemImage: "text.alignleft") {
             VStack(alignment: .leading, spacing: 10) {
               Label(transcriptSourceLabel, systemImage: "text.quote")
                 .font(.caption)
                 .foregroundStyle(.secondary)
               ScrollView {
-                Text(readableTranscript)
-                  .textSelection(.enabled)
-                  .frame(maxWidth: .infinity, alignment: .leading)
-                  .padding(.trailing, 8)
+                if isLoadingTranscript && readableTranscript.isEmpty {
+                  HStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
+                    Text("正在准备原文…")
+                      .foregroundStyle(.secondary)
+                  }
+                } else {
+                  LazyVStack(alignment: .leading, spacing: 8) {
+                    ForEach(Array(readableTranscriptChunks.enumerated()), id: \.offset) {
+                      _, chunk in
+                      Text(chunk)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                  }
+                }
               }
+              .textSelection(.enabled)
+              .frame(maxWidth: .infinity, alignment: .leading)
+              .padding(.trailing, 8)
               .frame(minHeight: 180, idealHeight: 260, maxHeight: 320)
               HStack(spacing: 8) {
                 ActionFeedbackButton {
@@ -110,6 +164,7 @@ struct RecordingDetailView: View {
                   Label("复制原文", systemImage: "doc.on.doc")
                 }
                 .buttonStyle(.bordered)
+                .disabled(readableTranscript.isEmpty)
                 ActionFeedbackButton {
                   if appState.pasteTranscript(for: record) {
                     return .success("已粘贴")
@@ -119,6 +174,7 @@ struct RecordingDetailView: View {
                   Label("粘贴到当前应用", systemImage: "rectangle.on.rectangle")
                 }
                 .buttonStyle(.bordered)
+                .disabled(readableTranscript.isEmpty)
               }
               .controlSize(.small)
             }
@@ -174,7 +230,7 @@ struct RecordingDetailView: View {
                 appState.retryProcessing(for: record)
               }
               .buttonStyle(.borderedProminent)
-              .disabled(!appState.canTranscribe)
+              .disabled(!appState.canTranscribe || !appState.canMutateRecordings)
               Text(
                 "本机模型：\(appState.localASRModel.displayName) · 版本 \(appState.localASRModel.version)"
               )
@@ -183,6 +239,7 @@ struct RecordingDetailView: View {
               if record.voiceSegments?.isEmpty == false {
                 Button("按声音片段转写") { appState.requestSegmentTranscription(for: record) }
                   .buttonStyle(.bordered)
+                  .disabled(!appState.canMutateRecordings)
               }
               if !appState.hasInstalledLocalModelPack {
                 RecommendedModelInstallCard(entryPoint: .material, recordingID: record.id)
@@ -266,6 +323,7 @@ struct RecordingDetailView: View {
               if !appState.settings.llmEndpoint.isEmpty {
                 Button("生成 Markdown 笔记") { appState.requestMarkdown(for: record) }
                   .buttonStyle(.bordered)
+                  .disabled(!appState.canMutateRecordings)
               }
             }
           }
@@ -279,7 +337,7 @@ struct RecordingDetailView: View {
               if record.generatedMarkdown == nil {
                 Button("重试 Markdown 笔记") { appState.requestMarkdown(for: record) }
                   .buttonStyle(.bordered)
-                  .disabled(appState.settings.llmEndpoint.isEmpty)
+                  .disabled(appState.settings.llmEndpoint.isEmpty || !appState.canMutateRecordings)
               }
             }
           }
@@ -307,12 +365,14 @@ struct RecordingDetailView: View {
         _ = appState.moveToTrash(record: record)
       }
     } message: {
-      Text("“\(record.title)”的原音频、原文和相关本机文件会一起移到 macOS 废纸篓，可从 Finder 恢复。")
+      Text("“\(record.displayTitle)”的原音频、原文和相关本机文件会一起移到 macOS 废纸篓，可从 Finder 恢复。")
     }
     .onDisappear {
       playback.stop()
     }
     .onAppear {
+      MaterialPerformanceInstrumentation.event(.transcriptViewport)
+      titleDraft = record.displayTitle
       if playbackTrackOptions.contains(where: { $0.kind == .meetingMix }) {
         selectedPlaybackTrack = .meetingMix
       } else if !playbackTrackOptions.contains(where: { $0.kind == selectedPlaybackTrack }),
@@ -321,6 +381,70 @@ struct RecordingDetailView: View {
         selectedPlaybackTrack = first.kind
       }
     }
+    .task(id: transcriptFingerprint) {
+      guard let rawTranscript = record.transcript, !rawTranscript.isEmpty else {
+        normalizedTranscript = ""
+        normalizedTranscriptChunks = []
+        isLoadingTranscript = false
+        return
+      }
+      isLoadingTranscript = true
+      let normalizedResult = await Task.detached(priority: .utility) {
+        let normalized = TranscriptTextNormalizer.normalize(rawTranscript)
+        return (normalized, TranscriptTextNormalizer.chunks(normalized))
+      }.value
+      guard !Task.isCancelled else { return }
+      normalizedTranscript = normalizedResult.0
+      normalizedTranscriptChunks = normalizedResult.1
+      isLoadingTranscript = false
+    }
+    .task(id: audioMetadataFingerprint) {
+      audioMetadata = await appState.loadAudioMetadata(for: record)
+    }
+  }
+
+  private var transcriptFingerprint: String {
+    let activeArtifactID = record.activeTranscriptArtifactID?.uuidString ?? ""
+    return
+      "\(record.id.uuidString):\(record.transcript?.utf8.count ?? 0):\(record.transcriptArtifacts.count):\(activeArtifactID)"
+  }
+
+  private var audioMetadataFingerprint: String {
+    let systemFileName = record.systemAudioFileName ?? ""
+    let meetingMixFileName = record.meetingMixFileName ?? ""
+    return "\(record.id.uuidString):\(record.audioFileName):\(systemFileName):\(meetingMixFileName)"
+  }
+
+  private func hasAudioFile(_ track: AudioTrackKind) -> Bool {
+    if let metadata = audioMetadata[track] { return metadata.exists }
+    switch track {
+    case .microphone: return appState.microphoneAudioFileExists(for: record)
+    case .systemAudio: return appState.systemAudioFileExists(for: record)
+    case .meetingMix: return appState.meetingMixFileExists(for: record)
+    }
+  }
+
+  private var hasPrimaryAudioFile: Bool {
+    record.audioFileName != record.systemAudioFileName
+      ? hasAudioFile(.microphone)
+      : hasAudioFile(.systemAudio)
+  }
+
+  private var primaryAudioByteCount: Int64? {
+    let track: AudioTrackKind =
+      record.audioFileName != record.systemAudioFileName ? .microphone : .systemAudio
+    return audioMetadata[track]?.byteCount ?? appState.audioFileSize(for: record)
+  }
+
+  private func saveTitle() {
+    if appState.renameRecording(recordID: record.id, title: titleDraft) {
+      isEditingTitle = false
+    }
+  }
+
+  private func cancelTitleEditing() {
+    titleDraft = record.displayTitle
+    isEditingTitle = false
   }
 
   private var agentResultJobs: [AgentDispatchJob] {
@@ -400,25 +524,26 @@ struct RecordingDetailView: View {
 
   private var playbackTrackOptions: [PlaybackTrackOption] {
     var options: [PlaybackTrackOption] = []
-    if appState.microphoneAudioFileExists(for: record) {
+    if hasAudioFile(.microphone) {
       options.append(
         PlaybackTrackOption(
           kind: .microphone,
           title: "麦克风",
           systemImage: "mic.fill",
           url: appState.audioURL(for: record),
-          fallbackDuration: record.duration))
+          fallbackDuration: audioMetadata[.microphone]?.duration ?? record.duration))
     }
-    if let url = appState.systemAudioURL(for: record), appState.systemAudioFileExists(for: record) {
+    if let url = appState.systemAudioURL(for: record), hasAudioFile(.systemAudio) {
       options.append(
         PlaybackTrackOption(
           kind: .systemAudio,
           title: "电脑声音",
           systemImage: "speaker.wave.2.fill",
           url: url,
-          fallbackDuration: record.systemAudioDuration ?? record.duration))
+          fallbackDuration: audioMetadata[.systemAudio]?.duration
+            ?? record.systemAudioDuration ?? record.duration))
     }
-    if appState.meetingMixFileExists(for: record) {
+    if hasAudioFile(.meetingMix) {
       let url = appState.meetingMixURL(for: record)
       options.append(
         PlaybackTrackOption(
@@ -426,7 +551,7 @@ struct RecordingDetailView: View {
           title: "会议合成",
           systemImage: "waveform.and.mic",
           url: url,
-          fallbackDuration: record.duration))
+          fallbackDuration: audioMetadata[.meetingMix]?.duration ?? record.duration))
     }
     return options
   }
@@ -622,6 +747,7 @@ struct RecordingDetailView: View {
               Button("重试") { appState.retryProcessing(for: record) }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
+                .disabled(!appState.canMutateRecordings)
             }
           }
           if let reason = task.blockReason {
@@ -699,6 +825,7 @@ struct RecordingDetailView: View {
               }
               .buttonStyle(.bordered)
               .controlSize(.small)
+              .disabled(!appState.canMutateRecordings)
             }
           }
           .accessibilityElement(children: .combine)
@@ -867,7 +994,7 @@ struct RecordingDetailView: View {
       record.sourceKind == .recorded ? "原始录音" : "原始素材",
       systemImage: record.sourceKind.systemImage
     ) {
-      if appState.audioFileExists(for: record) {
+      if hasPrimaryAudioFile {
         VStack(alignment: .leading, spacing: 8) {
           Label("已保存到本机", systemImage: "checkmark.circle.fill")
             .foregroundStyle(.green)
@@ -894,7 +1021,7 @@ struct RecordingDetailView: View {
             Text(record.audioFileName).font(.caption).foregroundStyle(.tertiary)
           }
           DisclosureGroup("技术详情") {
-            if let size = appState.audioFileSize(for: record) {
+            if let size = primaryAudioByteCount {
               Text("原始文件大小：\(ByteCountFormatter.string(fromByteCount: size, countStyle: .file))")
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -910,6 +1037,7 @@ struct RecordingDetailView: View {
           .foregroundStyle(.red)
       }
     }
+    .onAppear { MaterialPerformanceInstrumentation.event(.audioMetadata) }
   }
 
   private var materialStatusColor: Color {

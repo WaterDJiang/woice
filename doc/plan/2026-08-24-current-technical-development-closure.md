@@ -1,12 +1,14 @@
 # Woice 当前技术开发收口计划
 
-> 状态：WCL-00～03、WCL-05、WCL-08 已完成源码与自动门禁；WCL-04 发行验证待凭据；WCL-06 已完成 MAS-03 本机能力裁剪及 Store 本机预检；WCL-07 Runtime、模型包与 Store Bundle 门禁已落地，正式性能矩阵与签名 Catalog 待收口  
+> 状态：已结项为历史计划；不再新增活动工作包  
 > 日期：2026-08-24  
 > 当前基线：双音源选择、AAC/M4A 新录音、会议合成、长素材详情按需加载与录音控制区视觉层级已实现；官网版 `make verify` 通过 208 项 Swift 测试 / 14 个 Suite，Store 条件通过 186 项 Swift 测试 / 11 个 Suite，PI/MCP、构建、Core 打包和本机 Store Bundle 预检均通过；`Woice-Store / Release-AppStore` Xcode 无签名构建通过。  
 > 历史诊断：2026-08-24 早先的原生 macOS 回归曾出现真实麦克风 0 帧/CoreAudio IPC 挂起；后续音频宿主恢复并完成完整回归。该次仅保留为诊断记录，不作为当前产品代码失败结论。  
 > 问题证据：[01-workspace-sidebar-layout.png](../audit/2026-08-24-workspace-sidebar-layout/01-workspace-sidebar-layout.png)  
 > 迁移来源：[工作区侧栏与权限连续性优化计划](2026-08-23-workspace-sidebar-and-permission-continuity.md)  
 > 进度真相源：[当前计划进度复核](2026-08-23-plan-progress-review.md)
+
+> 结项迁移（2026-09-01）：WCL-00～03、WCL-05、WCL-08 保持已完成；WCL-07 的 Qwen 输出正确性、模型质量/性能和正式推荐准入迁入[素材命名、耐久性、详情性能与 Qwen 输出质量开发计划](2026-09-01-material-naming-durability-detail-performance-qwen-quality.md)；WCL-04 只保留 Developer ID/公证外部阻塞，WCL-06 继续由 Mac App Store 专项计划承接。本文此后只作历史证据，不再作为活动开发入口。
 
 > 当前更新（2026-08-24 19:20）：早先的真实麦克风 0 帧/CoreAudio IPC 环境问题已恢复；新增 `AppState.prepareForTermination()` 真实录音清理集成测试，`make acceptance-core`、官网 `make verify`（201 项 Swift 测试 / 13 个 Suite）和 Store 条件回归（179 项 / 10 个 Suite）均通过。此前回归边界仅保留为诊断历史，不作为当前代码失败结论。
 

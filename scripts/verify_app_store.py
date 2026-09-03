@@ -152,6 +152,7 @@ def verify(app: Path, project_root: Path) -> None:
     if not app.is_dir() or not executable.is_file():
         raise StoreBundleError(f"Store Bundle 或可执行文件缺失：{app}")
     info = read_plist(contents / "Info.plist")
+    source_info = read_plist(project_root / "Resources/Info.plist")
     if info.get("CFBundleIdentifier") != "com.water.woice":
         raise StoreBundleError("Store Bundle ID 必须是 com.water.woice。")
     if info.get("CFBundleDisplayName") != "Woice" or info.get("CFBundleName") != "Woice":
@@ -160,6 +161,14 @@ def verify(app: Path, project_root: Path) -> None:
         raise StoreBundleError("Store Bundle 的 App Channel 必须是 store。")
     if info.get("CFBundlePackageType") != "APPL":
         raise StoreBundleError("Store Bundle 不是 macOS App。")
+    for key in ("CFBundleShortVersionString", "CFBundleVersion"):
+        expected = source_info.get(key)
+        if not isinstance(expected, str) or not expected:
+            raise StoreBundleError(f"发行源 Info.plist 缺少 {key}。")
+        if info.get(key) != expected:
+            raise StoreBundleError(
+                f"Store Bundle 的 {key} 与发行源不一致：{info.get(key)!r} != {expected!r}。"
+            )
     if info.get("LSApplicationCategoryType") != "public.app-category.productivity":
         raise StoreBundleError(
             "Store Bundle 缺少有效的 App Store 类别：public.app-category.productivity。"
@@ -210,6 +219,10 @@ def verify(app: Path, project_root: Path) -> None:
     distribution = read_json(resources / "DistributionManifest.json")
     if distribution.get("flavor") != "store":
         raise StoreBundleError("DistributionManifest 不是 store edition。")
+    if distribution.get("appVersion") != info.get("CFBundleShortVersionString"):
+        raise StoreBundleError("DistributionManifest 的 appVersion 与 Bundle 版本不一致。")
+    if distribution.get("buildVersion") != info.get("CFBundleVersion"):
+        raise StoreBundleError("DistributionManifest 的 buildVersion 与 Bundle Build 不一致。")
     if distribution.get("capabilityProfile") != EXPECTED_CAPABILITIES:
         raise StoreBundleError("Store capability profile 与关闭边界不一致。")
     bundled_model_ids = distribution.get("bundledModelPackIDs")

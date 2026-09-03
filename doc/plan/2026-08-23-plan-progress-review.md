@@ -1,8 +1,10 @@
 # Woice 当前计划进度复核
 
+> 状态：历史进度快照；2026-09-01 后的活动开发状态以 [MRQ 计划](2026-09-01-material-naming-durability-detail-performance-qwen-quality.md)为准。
+
 > 复核日期：2026-08-25  
 > 本轮补充：麦克风首帧门禁、非阻塞输入状态探测与退出音频资源清理代码已实现；`make acceptance-core`、`make verify` 和 Store 条件回归已恢复通过，真实音频宿主不再是当前 P0 阻塞。
-> 结论：双音源选择、AAC/M4A 新录音、会议合成、长素材详情按需加载和录音控制视觉层级已实现。用户已明确允许引入 Apache-2.0 原生 Swift/MLX Runtime；WCL-07 的一键安装、Qwen Provider、固定模型包来源/SHA、Notice/SBOM、原生模型加载和 Core/Store Bundle 门禁已验证，`swift test --quiet` 通过 214 项 / 14 个 Suite。正式性能矩阵、签名 Catalog、真实录音与 Store 签名/沙盒仍待。[当前技术开发收口计划](2026-08-24-current-technical-development-closure.md)是唯一活动开发来源；真实会议声源、50 分钟以上素材和视觉体验仍只作人工提醒。
+> 历史结论：双音源选择、AAC/M4A 新录音、会议合成、长素材详情按需加载和录音控制视觉层级已实现。用户已明确允许引入 Apache-2.0 原生 Swift/MLX Runtime；WCL-07 的一键安装、Qwen Provider、固定模型包来源/SHA、Notice/SBOM、原生模型加载和 Core/Store Bundle 门禁已验证，`swift test --quiet` 通过 214 项 / 14 个 Suite。该时点正式性能矩阵、签名 Catalog、真实录音与 Store 签名/沙盒仍待；后续迁移以文件头为准。
 
 > 结论更新（19:20）：以上 197/175 与 0 帧内容是复核开始时的历史边界；之后已完成音频宿主恢复，并新增退出清理集成测试；官网 `make verify` 通过 201 项 / 13 个 Suite，Store 条件通过 179 项 / 10 个 Suite，WCL-03 已关闭。
 
@@ -11,7 +13,7 @@
 ## 1. 本次复核范围
 
 - 当前路线图：R0 录音核心、M2-01 双轨、M2-03 Artifact/恢复、M2-08 模型与发行、M2-09 Agent 协作。
-- 新增专项：工作区侧栏与权限连续性（WPC，历史实施与证据记录）、当前技术开发收口（WCL，唯一活动开发计划）、菜单栏/设置/快捷键/Dock 与转写连续性（MSS-07R）。
+- 当时新增专项：工作区侧栏与权限连续性（WPC）、当前技术开发收口（WCL）、菜单栏/设置/快捷键/Dock 与转写连续性（MSS-07R）；这些状态均为历史快照。
 - 发行基线：当前安装包为源码构建 `0.1.0 (Build 1)`；此前 Markdown 导出目录快捷键修复 A `2026082407` → B `2026082408` 的覆盖安装证据 `/private/tmp/woice-stable-ab-20260824-markdown-edit` 保留。CLI 文字默认与素材废纸篓的 A `2026082405` → B `2026082406`、可靠双轨、原文来源分离与 Build `2026082332` 的导入、VoiceOver、工作台证据仍作为相邻功能回归证据保留。
 
 ## 2. 已完成并有证据的内容

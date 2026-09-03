@@ -16,7 +16,7 @@ func titleUsesTranscript() {
   #expect(record.title == "这是一个用于验证 Woice 历史记录标题的固定测试原文内容")
 }
 
-@Test("空转写使用未命名录音")
+@Test("空转写使用带时间的未命名录音")
 func emptyTranscriptUsesFallbackTitle() {
   let record = RecordingRecord(
     id: UUID(),
@@ -27,7 +27,7 @@ func emptyTranscriptUsesFallbackTitle() {
     generatedMarkdown: nil,
     processingError: nil
   )
-  #expect(record.title == "未命名录音")
+  #expect(record.displayTitle.hasPrefix("未命名录音 · "))
 }
 
 @Test("Markdown 笔记解析要点和待办并保留顺序")

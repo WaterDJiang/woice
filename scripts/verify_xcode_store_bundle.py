@@ -115,6 +115,12 @@ def verify(app: Path) -> None:
         raise XcodeStoreBundleError("Xcode Store Bundle 的 App Channel 必须是 store。")
     if info.get("CFBundlePackageType") != "APPL":
         raise XcodeStoreBundleError("Xcode Store Bundle 不是 macOS App。")
+    if not isinstance(info.get("CFBundleShortVersionString"), str) or not info[
+        "CFBundleShortVersionString"
+    ]:
+        raise XcodeStoreBundleError("Xcode Store Bundle 缺少版本号。")
+    if not isinstance(info.get("CFBundleVersion"), str) or not info["CFBundleVersion"]:
+        raise XcodeStoreBundleError("Xcode Store Bundle 缺少 Build 号。")
     if info.get("LSApplicationCategoryType") != "public.app-category.productivity":
         raise XcodeStoreBundleError(
             "Xcode Store Bundle 缺少有效的 App Store 类别：public.app-category.productivity。"
@@ -163,6 +169,10 @@ def verify(app: Path) -> None:
     distribution = read_json(resources / "DistributionManifest.json")
     if distribution.get("flavor") != "store":
         raise XcodeStoreBundleError("Xcode Store Bundle 的 DistributionManifest 不是 store edition。")
+    if distribution.get("appVersion") != info.get("CFBundleShortVersionString"):
+        raise XcodeStoreBundleError("DistributionManifest 的 appVersion 与 Bundle 版本不一致。")
+    if distribution.get("buildVersion") != info.get("CFBundleVersion"):
+        raise XcodeStoreBundleError("DistributionManifest 的 buildVersion 与 Bundle Build 不一致。")
     if distribution.get("capabilityProfile") != EXPECTED_CAPABILITIES:
         raise XcodeStoreBundleError("Xcode Store Bundle 的 Store 能力清单不符合边界。")
     if distribution.get("bundledModelPackIDs") != []:

@@ -59,6 +59,7 @@ public struct TranscriptionLanguageOption: Hashable, Identifiable, Sendable {
     automatic,
     .init(code: "zh", displayName: "简体中文", detail: "zh"),
     .init(code: "zh-TW", displayName: "繁體中文", detail: "zh-TW"),
+    .init(code: "yue", displayName: "粤语", detail: "yue"),
     .init(code: "en", displayName: "English", detail: "en"),
     .init(code: "ja", displayName: "日本語", detail: "ja"),
     .init(code: "ko", displayName: "한국어", detail: "ko"),
@@ -85,18 +86,20 @@ public struct TranscriptionLanguageOption: Hashable, Identifiable, Sendable {
       return common[1]
     case "zh-tw", "zh-hk", "zh-hant":
       return common[2]
-    case "en", "en-us", "en-gb":
+    case "yue", "zh-yue", "cantonese":
       return common[3]
-    case "ja", "ja-jp":
+    case "en", "en-us", "en-gb":
       return common[4]
-    case "ko", "ko-kr":
+    case "ja", "ja-jp":
       return common[5]
-    case "es", "es-es", "es-419":
+    case "ko", "ko-kr":
       return common[6]
-    case "fr", "fr-fr":
+    case "es", "es-es", "es-419":
       return common[7]
-    case "de", "de-de":
+    case "fr", "fr-fr":
       return common[8]
+    case "de", "de-de":
+      return common[9]
     default:
       return .init(code: trimmed, displayName: "当前配置", detail: trimmed)
     }

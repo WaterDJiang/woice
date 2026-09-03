@@ -8,9 +8,11 @@
 > 保留：所有被矩阵标为继续或已有基础的原工作包与验收证据；专项规格的验收编号可继续使用  
 > 迁移：双轨采集事实和时钟对齐到 M2-01/M2-03，默认双轨分别转写合并与兼容 `meetingMix` 单次 ASR 到 M2-08a/b/h/i，统一回放与原文版本到 M1-04/M2-03，Agent/MCP/PI 剩余工作到 M2-09  
 > 停止：内置 LLM/TTS Provider 扩展和旧 M3 插件生态  
-> 顺序：R0 核心收口 -> M2-08 -> R2 素材库收口 -> M2-09
+> 顺序：既有 R0/R1/R2 基线 -> MRQ 素材质量增量 -> 发行专项；M2-09 保持后置
 
 > 最新复核（2026-08-24）：当前安装包为源码构建 `0.1.0 (Build 1)`，此前稳定包 Build `2026082408` 保留为历史证据；最新官网版 `make verify` 通过 201 项 Swift 测试 / 13 个 Suite，Store 条件通过 179 个测试 / 10 个 Suite，PI/MCP、构建、模型门禁和本机 Store Bundle/Entitlements/能力裁剪预检通过。旧 WPC 的技术开发缺口已迁入[当前技术开发收口计划](2026-08-24-current-technical-development-closure.md)；Store 签名 Archive、Apple 账号/签名和真实用户人工体验仍只作后续条件。
+
+> 最新迁移（2026-09-01）：旧 WCL 收口计划已结项为历史。新的唯一活动产品开发计划为[素材命名、耐久性、详情性能与 Qwen 输出质量开发计划](2026-09-01-material-naming-durability-detail-performance-qwen-quality.md)，按 MRQ-00～05 承接导入/自定义标题、块级掉电恢复、详情首屏和 Qwen 输出质量。Developer ID、公证、Catalog 私钥、Store/TestFlight/审核继续是独立发行条件，不与 MRQ 重复编号。
 
 ## 1. 使用规则
 
@@ -33,7 +35,7 @@ R0 录音与素材核心收口
 
 严格按上图执行。M2-09a 也必须等 M2-08 和 R2 退出检查通过后开始，避免“先做 Agent 契约”挤占录音、模型或素材库收口。
 
-[当前技术开发收口计划](2026-08-24-current-technical-development-closure.md)是跨现有产品阶段的技术收口入口，不新增产品能力阶段，也不改变 R0 -> R1 -> R2 -> R3 的架构顺序。WCL-01～04 收口核心代码与发行工程；WCL-05 保持 Agent 后置；WCL-06 已完成本机 MAS-03/Store 工程切片；WCL-07 新增本机模型一键安装与 Store-compatible Qwen Runtime。真实用户与人工体验验收不进入开发工作包。
+[当前技术开发收口计划](2026-08-24-current-technical-development-closure.md)已经完成历史收口，不再接收新工作。[MRQ 计划](2026-09-01-material-naming-durability-detail-performance-qwen-quality.md)只在既有 R0/R1/R2 基线上增加素材质量工作，不改变 Agent 后置边界；其实施顺序为 Qwen 正确性 -> 标题 -> 块级耐久 -> 详情/模型性能 -> 发行回归。
 
 Mac App Store 上架是独立发行轨，当前状态为“待实施”，不插入上述产品实施顺序。用户明确启动后，账号、Bundle ID、隐私和素材准备可以独立进行；Store 工程改造与提交必须遵守[Mac App Store 上架计划](2026-08-23-mac-app-store-launch.md)的退出条件。该计划不替代 M1-07 的官网 Developer ID/公证，也不替代 M2-08i 的 Core/Offline 发行门禁。
 

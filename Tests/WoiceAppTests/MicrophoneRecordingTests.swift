@@ -36,6 +36,58 @@ func microphoneCaptureFailureExplainsNextAction() {
   #expect(WoiceError.noAudio.localizedDescription.contains("检查麦克风或系统音频输入"))
 }
 
+@Test("三声道交错麦克风缓冲可规范化后写入 AAC")
+func threeChannelInterleavedMicrophoneBufferWritesAAC() throws {
+  let channelLayout = try #require(
+    AVAudioChannelLayout(layoutTag: kAudioChannelLayoutTag_MPEG_3_0_A))
+  let inputFormat = AVAudioFormat(
+    commonFormat: .pcmFormatFloat32,
+    sampleRate: 48_000,
+    interleaved: true,
+    channelLayout: channelLayout)
+  let normalizer = try RecordingAudioBufferNormalizer(inputFormat: inputFormat)
+  #expect(normalizer.outputFormat.sampleRate == 48_000)
+  #expect(normalizer.outputFormat.channelCount == 2)
+  #expect(!normalizer.outputFormat.isInterleaved)
+
+  let input = try #require(
+    AVAudioPCMBuffer(pcmFormat: inputFormat, frameCapacity: 4_096))
+  input.frameLength = 4_096
+  let output = try normalizer.normalize(input)
+  #expect(output.frameLength > 0)
+  #expect(output.format.channelCount == 2)
+  #expect(!output.format.isInterleaved)
+
+  let url = FileManager.default.temporaryDirectory.appendingPathComponent(
+    "woice-three-channel-aac-\(UUID().uuidString).m4a")
+  defer { try? FileManager.default.removeItem(at: url) }
+  let file = try AVAudioFile(
+    forWriting: url,
+    settings: RecordingAudioFormat.aacSettings(
+      sampleRate: output.format.sampleRate,
+      channelCount: Int(output.format.channelCount),
+      bitRate: 64_000),
+    commonFormat: output.format.commonFormat,
+    interleaved: output.format.isInterleaved)
+  try file.write(from: output)
+  if #available(macOS 15.0, *) { file.close() }
+  #expect(try AVAudioFile(forReading: url).length > 0)
+
+  let chunkDirectory = FileManager.default.temporaryDirectory.appendingPathComponent(
+    "woice-three-channel-chunks-\(UUID().uuidString)", isDirectory: true)
+  defer { try? FileManager.default.removeItem(at: chunkDirectory) }
+  let chunkWriter = try RollingPCMChunkWriter(
+    sessionID: UUID(),
+    track: .microphone,
+    directoryURL: chunkDirectory,
+    format: output.format,
+    chunkDuration: 1)
+  #expect(try chunkWriter.append(output).isEmpty)
+  let commits = try chunkWriter.finish()
+  #expect(commits.count == 1)
+  #expect(try AVAudioFile(forReading: commits[0].url).length > 0)
+}
+
 @Test("退出时只要有音频资源就必须先执行清理")
 func terminationPolicyRequiresAudioCleanup() {
   #expect(
@@ -67,6 +119,7 @@ func microphoneStatusReportsUsableInput() async {
 @Test("麦克风输入自检写入临时 WAV 并返回帧")
 @MainActor
 func microphoneInputCheckReportsCapturedFrames() async throws {
+  guard ProcessInfo.processInfo.environment["WOICE_REQUIRE_MIC_AUDIO"] == "1" else { return }
   guard AVAudioApplication.shared.recordPermission == .granted else { return }
   let result = try await RecordingService().runMicrophoneCheck()
   #expect(result.bufferCount > 0)
@@ -132,6 +185,7 @@ private final class AudioBufferCounter: @unchecked Sendable {
 @Test("AVAudioEngine 麦克风录音服务在已授权 Mac 上可写入帧")
 @MainActor
 func microphoneRecordingServiceWritesFrames() async throws {
+  guard ProcessInfo.processInfo.environment["WOICE_REQUIRE_MIC_AUDIO"] == "1" else { return }
   guard AVAudioApplication.shared.recordPermission == .granted else { return }
   let url = FileManager.default.temporaryDirectory.appendingPathComponent(
     "woice-microphone-smoke.wav")
@@ -173,6 +227,7 @@ func microphoneRecordingServiceWritesFrames() async throws {
 @Test("麦克风录音停止后重新创建输入 Engine 仍可收帧")
 @MainActor
 func microphoneRecordingServiceRecreatesInputEngine() async throws {
+  guard ProcessInfo.processInfo.environment["WOICE_REQUIRE_MIC_AUDIO"] == "1" else { return }
   guard AVAudioApplication.shared.recordPermission == .granted else { return }
 
   let recorder = RecordingService()
@@ -194,6 +249,7 @@ func microphoneRecordingServiceRecreatesInputEngine() async throws {
 @Test("麦克风 tap 可将同一帧安全投递给实时预览")
 @MainActor
 func microphoneRecordingServiceFansOutAudioBuffers() async throws {
+  guard ProcessInfo.processInfo.environment["WOICE_REQUIRE_MIC_AUDIO"] == "1" else { return }
   guard AVAudioApplication.shared.recordPermission == .granted else { return }
 
   let url = FileManager.default.temporaryDirectory.appendingPathComponent(

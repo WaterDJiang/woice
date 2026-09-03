@@ -91,9 +91,16 @@ actor ModelPackStore {
     for manifest in resolvedBundledManifests {
       let directory = bundledDirectoryURL(for: manifest)
       guard fileManager.fileExists(atPath: directory.path) else { continue }
-      try validatePackContents(
-        manifest: manifest, directory: directory,
-        policy: manifest.storeCompatible ? .storeCatalog : .localImport)
+      // Inventory is a projection, not the trust boundary used to execute a
+      // model. Isolate one broken bundled version so another valid version
+      // remains visible; `bundledDirectory(for:)` still validates strictly.
+      do {
+        try validatePackContents(
+          manifest: manifest, directory: directory,
+          policy: manifest.storeCompatible ? .storeCatalog : .localImport)
+      } catch {
+        continue
+      }
       entries[InventoryIdentity(packID: manifest.packID, version: manifest.version)] =
         ModelPackInventoryEntry(
           manifest: manifest, location: .bundled, isCurrent: false, state: .installed)
@@ -120,9 +127,16 @@ actor ModelPackStore {
         guard isDirectory(versionDirectory), isSafeChild(versionDirectory, of: packDirectory),
           let manifest = try? readManifest(at: versionDirectory)
         else { continue }
-        try validatePackContents(
-          manifest: manifest, directory: versionDirectory,
-          policy: manifest.storeCompatible ? .storeCatalog : .localImport)
+        // A corrupt version must not hide healthy versions from Settings.
+        // Keep the strict validation for every admitted entry and skip only
+        // this version when its contents are incomplete or mismatched.
+        do {
+          try validatePackContents(
+            manifest: manifest, directory: versionDirectory,
+            policy: manifest.storeCompatible ? .storeCatalog : .localImport)
+        } catch {
+          continue
+        }
         entries[InventoryIdentity(packID: manifest.packID, version: manifest.version)] =
           ModelPackInventoryEntry(
             manifest: manifest,

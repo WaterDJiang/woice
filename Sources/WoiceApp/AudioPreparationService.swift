@@ -212,7 +212,9 @@ enum AudioPreparationService {
       case .error:
         throw AudioPreparationError.conversionFailed("转换器返回错误。")
       case .haveData, .inputRanDry:
-        if outputBuffer.frameLength == 0, source.framePosition >= source.length { return }
+        if outputBuffer.frameLength == 0, source.framePosition >= source.length {
+          return
+        }
       @unknown default:
         throw AudioPreparationError.conversionFailed("转换器返回未知状态。")
       }

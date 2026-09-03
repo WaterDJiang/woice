@@ -1,5 +1,6 @@
 import AVFoundation
 import Foundation
+import SQLite3
 import Testing
 import WoiceCore
 
@@ -61,6 +62,94 @@ private final class RetryingTranscriptionURLProtocol: URLProtocol {
   }
 
   override func stopLoading() {}
+}
+
+@Test("素材详情 hydrate 未完成时阻止录音导入，避免空集合覆盖数据库")
+@MainActor
+func appStateHydrationGatesDestructiveActions() async throws {
+  let root = FileManager.default.temporaryDirectory.appendingPathComponent(
+    "woice-app-state-hydration-gate-\(UUID().uuidString)", isDirectory: true)
+  defer { try? FileManager.default.removeItem(at: root) }
+  let store = WorkspaceStore(storageRootURL: root)
+  let records = (0..<250).map { index in
+    RecordingRecord(
+      id: UUID(),
+      createdAt: Date(timeIntervalSince1970: Double(index)),
+      audioFileName: "material-\(index).m4a",
+      duration: 1,
+      transcript: nil,
+      generatedMarkdown: nil,
+      processingError: nil)
+  }
+  try store.saveRecordings(records)
+
+  let state = AppState(store: store)
+  #expect(state.isHydratingRecordings)
+  #expect(!state.canStartRecording)
+  #expect(!state.canImportMedia)
+  state.startRecording()
+  #expect(!state.isRecording)
+
+  let imported = await state.importMedia(
+    from: root.appendingPathComponent("not-found.wav"))
+  #expect(imported == nil)
+  #expect(store.loadRecordingSummaries().count == 250)
+}
+
+@Test("素材详情 hydrate 失败后保持 fail-closed 并允许显式重试")
+@MainActor
+func appStateHydrationFailureKeepsMutationGateClosed() async throws {
+  let root = FileManager.default.temporaryDirectory.appendingPathComponent(
+    "woice-app-state-hydration-failure-(UUID().uuidString)", isDirectory: true)
+  defer { try? FileManager.default.removeItem(at: root) }
+  let store = WorkspaceStore(storageRootURL: root)
+  let records = (0..<250).map { index in
+    RecordingRecord(
+      id: UUID(),
+      createdAt: Date(timeIntervalSince1970: Double(index)),
+      audioFileName: "material-(index).m4a",
+      duration: 1,
+      transcript: nil,
+      generatedMarkdown: nil,
+      processingError: nil)
+  }
+  try store.saveRecordings(records)
+
+  var database: OpaquePointer?
+  let openResult = store.databaseURL.path.withCString { path in
+    sqlite3_open_v2(
+      path, &database, SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX, nil)
+  }
+  guard openResult == SQLITE_OK, let database else {
+    if let database { sqlite3_close(database) }
+    throw WoiceError.storageFailure("无法打开 hydrate 故障测试数据库。")
+  }
+  defer { sqlite3_close(database) }
+  let corruptID = try #require(records.last?.id.uuidString)
+  let escapedID = corruptID.replacingOccurrences(of: "'", with: "''")
+  let sql = "UPDATE recordings SET payload_json='not-json' WHERE id='\(escapedID)'"
+  guard sqlite3_exec(database, sql, nil, nil, nil) == SQLITE_OK else {
+    throw WoiceError.storageFailure("无法注入 hydrate 故障。")
+  }
+
+  let state = AppState(store: store)
+  let deadline = Date().addingTimeInterval(2)
+  while state.isHydratingRecordings, Date() < deadline {
+    try await Task.sleep(for: .milliseconds(10))
+  }
+  #expect(!state.isHydratingRecordings)
+  #expect(state.recordingHydrationError != nil)
+  #expect(!state.canStartRecording)
+  #expect(!state.canImportMedia)
+  state.startRecording()
+  #expect(!state.isRecording)
+  let imported = await state.importMedia(from: root.appendingPathComponent("not-found.wav"))
+  #expect(imported == nil)
+  let adoptedRecord = try #require(records.first)
+  state.adoptRecordingDetail(adoptedRecord)
+  #expect(!state.renameRecording(recordID: adoptedRecord.id, title: "不应保存"))
+  #expect(!state.moveToTrash(record: adoptedRecord))
+  #expect(store.loadRecordingSummaries().count == 250)
 }
 
 @Test("素材删除打包进入废纸篓且索引同步移除")
@@ -177,9 +266,18 @@ func appStateMeetingModePersistsDualTrackRecord() async throws {
       #expect(record.meetingMixFileName != nil)
       #expect(state.meetingMixFileExists(for: record))
       let meetingMix = try AVAudioFile(forReading: state.meetingMixURL(for: record))
-      #expect(meetingMix.processingFormat.sampleRate == 16_000)
+      // The durable meeting mix is the replay/export artifact: it stays at
+      // 48 kHz AAC/M4A. ASR providers receive a disposable 16 kHz input from
+      // AudioPreparationService. The default source-separated mode still
+      // creates one task per usable original track.
+      #expect(meetingMix.processingFormat.sampleRate == 48_000)
       #expect(meetingMix.processingFormat.channelCount == 1)
-      #expect(record.processingTasks.first?.sourceTrack == .meetingMix)
+      let taskTracks = Set(record.processingTasks.compactMap(\.sourceTrack))
+      #expect(taskTracks.contains(.systemAudio))
+      if state.microphoneAudioFileExists(for: record) {
+        #expect(taskTracks.contains(.microphone))
+      }
+      #expect(record.processingTasks.allSatisfy { $0.meetingTranscriptionMode == .sourceSeparated })
     }
   }
 }

@@ -799,7 +799,14 @@ public struct ModelCatalogFetcher: @unchecked Sendable {
         contentType.split(separator: ";", maxSplits: 1).first.map {
           $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         } ?? ""
-      guard mediaType == "application/json" || mediaType.hasSuffix("+json") else {
+      // GitHub Raw serves JSON files as `text/plain; charset=utf-8`. The
+      // response body still enters the strict JSON/schema/signature checks in
+      // ModelCatalogStore, so accepting this content type does not weaken
+      // Catalog admission.
+      guard
+        mediaType == "application/json" || mediaType.hasSuffix("+json")
+          || mediaType == "text/plain"
+      else {
         throw ModelCatalogTransportError.invalidContentType(contentType)
       }
     }

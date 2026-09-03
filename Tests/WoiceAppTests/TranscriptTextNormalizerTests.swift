@@ -25,4 +25,13 @@ final class TranscriptTextNormalizerTests: XCTestCase {
     XCTAssertEqual(
       TranscriptTextNormalizer.normalize("<|startoftranscript|><|0.00|><|endoftext|>"), "")
   }
+
+  func testChunksPreserveNormalizedTranscriptAndBoundRenderUnits() {
+    let normalized = String(repeating: "中文内容。", count: 17)
+    let chunks = TranscriptTextNormalizer.chunks(normalized, maxCharacters: 10)
+
+    XCTAssertEqual(chunks.joined(), normalized)
+    XCTAssertTrue(chunks.allSatisfy { $0.count <= 10 })
+    XCTAssertGreaterThan(chunks.count, 1)
+  }
 }

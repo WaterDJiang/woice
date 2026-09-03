@@ -22,6 +22,11 @@ final class AcceptanceFixtureTranscriptionService: LocalASRTranscribing, @unchec
     guard FileManager.default.fileExists(atPath: audioURL.path) else {
       throw LocalASRError.audioMissing
     }
+    let delay = WoiceTestRuntimeConfiguration.fixtureTranscriptionDelaySeconds
+    if delay > 0 {
+      try await Task.sleep(for: .milliseconds(Int64((delay * 1_000).rounded())))
+      try Task.checkCancellation()
+    }
     return TranscriptionResult(
       text: "桌面导入验收素材",
       segments: [TranscriptSegment(start: 0, end: 0.5, text: "桌面导入验收素材")])

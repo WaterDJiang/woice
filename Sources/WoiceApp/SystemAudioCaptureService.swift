@@ -21,31 +21,49 @@ struct SystemAudioCaptureResult: Sendable {
 private final class SystemAudioFileWriter: @unchecked Sendable {
   private let lock = NSLock()
   private let url: URL
+  private let sessionID: UUID?
+  private let durableChunkDirectory: URL?
+  private let durableChunkObserver: (@Sendable (RecordingChunkCommit) -> Void)?
   private var file: AVAudioFile?
+  private var rollingChunkWriter: RollingPCMChunkWriter?
   private var frameCount: AVAudioFramePosition = 0
   private var bufferCount = 0
   private var peakLevel: Float = 0
+  private var sampleRate: Double = 0
   private var writeError: String?
+  private var durabilityError: String?
 
-  init(url: URL) {
+  init(
+    url: URL,
+    sessionID: UUID? = nil,
+    durableChunkDirectory: URL? = nil,
+    durableChunkObserver: (@Sendable (RecordingChunkCommit) -> Void)? = nil
+  ) {
     self.url = url
+    self.sessionID = sessionID
+    self.durableChunkDirectory = durableChunkDirectory
+    self.durableChunkObserver = durableChunkObserver
   }
 
   func append(_ sampleBuffer: CMSampleBuffer) {
     lock.lock()
-    defer { lock.unlock() }
     guard CMSampleBufferDataIsReady(sampleBuffer), CMSampleBufferGetNumSamples(sampleBuffer) > 0
-    else { return }
+    else {
+      lock.unlock()
+      return
+    }
     guard let formatDescription = CMSampleBufferGetFormatDescription(sampleBuffer),
       let streamDescription = CMAudioFormatDescriptionGetStreamBasicDescription(
         formatDescription),
       let format = AVAudioFormat(streamDescription: streamDescription)
     else {
       writeError = "无法读取系统音频格式。"
+      lock.unlock()
       return
     }
     if file == nil {
       do {
+        sampleRate = format.sampleRate
         var settings =
           url.pathExtension.lowercased() == "m4a"
           ? RecordingAudioFormat.aacSettings(
@@ -62,12 +80,24 @@ private final class SystemAudioFileWriter: @unchecked Sendable {
           } else {
             try AVAudioFile(forWriting: url, settings: settings)
           }
+        if let sessionID, let durableChunkDirectory {
+          rollingChunkWriter = try RollingPCMChunkWriter(
+            sessionID: sessionID,
+            track: .systemAudio,
+            directoryURL: durableChunkDirectory,
+            format: format)
+        }
       } catch {
         writeError = error.localizedDescription
+        lock.unlock()
         return
       }
     }
-    guard let file else { return }
+    guard let file else {
+      lock.unlock()
+      return
+    }
+    var committedChunks: [RecordingChunkCommit] = []
     do {
       try withAudioBufferList(sampleBuffer) { bufferList, frameLength in
         guard
@@ -82,9 +112,15 @@ private final class SystemAudioFileWriter: @unchecked Sendable {
         bufferCount += 1
         peakLevel = max(
           peakLevel, peakLevel(in: bufferList, format: format, frameLength: frameLength))
+        committedChunks = try rollingChunkWriter?.append(pcmBuffer) ?? []
       }
     } catch {
       writeError = error.localizedDescription
+      if rollingChunkWriter != nil { durabilityError = error.localizedDescription }
+    }
+    lock.unlock()
+    if let durableChunkObserver {
+      for chunk in committedChunks { durableChunkObserver(chunk) }
     }
   }
 
@@ -97,14 +133,13 @@ private final class SystemAudioFileWriter: @unchecked Sendable {
   func snapshot() -> SystemAudioCaptureResult {
     lock.lock()
     defer { lock.unlock() }
-    let sampleRate = file?.fileFormat.sampleRate ?? 0
     return SystemAudioCaptureResult(
       url: bufferCount > 0 ? url : nil,
       duration: sampleRate > 0 ? Double(frameCount) / sampleRate : 0,
       bufferCount: bufferCount,
       peakLevel: peakLevel,
       target: nil,
-      errorDescription: writeError
+      errorDescription: writeError ?? durabilityError
     )
   }
 
@@ -114,12 +149,28 @@ private final class SystemAudioFileWriter: @unchecked Sendable {
   /// reference.
   func finish() {
     lock.lock()
-    defer { lock.unlock() }
-    guard let file else { return }
+    guard file != nil else {
+      lock.unlock()
+      return
+    }
+    var committedChunks: [RecordingChunkCommit] = []
+    do { committedChunks = try rollingChunkWriter?.finish() ?? [] } catch {
+      durabilityError = error.localizedDescription
+    }
+    rollingChunkWriter = nil
+    guard let file else {
+      lock.unlock()
+      return
+    }
     if #available(macOS 15.0, *) {
       file.close()
     }
     self.file = nil
+    let durableChunkObserver = self.durableChunkObserver
+    lock.unlock()
+    if let durableChunkObserver {
+      for chunk in committedChunks { durableChunkObserver(chunk) }
+    }
   }
 
   private func withAudioBufferList(
@@ -214,7 +265,12 @@ final class SystemAudioCaptureService {
   private(set) var isCapturing = false
   private(set) var captureTarget: SystemAudioCaptureTarget?
 
-  func start(to url: URL) async throws {
+  func start(
+    to url: URL,
+    sessionID: UUID? = nil,
+    durableChunkDirectory: URL? = nil,
+    durableChunkObserver: (@Sendable (RecordingChunkCommit) -> Void)? = nil
+  ) async throws {
     guard !isCapturing else { return }
     let content: SCShareableContent
     do {
@@ -249,7 +305,11 @@ final class SystemAudioCaptureService {
     configuration.excludesCurrentProcessAudio = true
     configuration.width = 2
     configuration.height = 2
-    let writer = SystemAudioFileWriter(url: url)
+    let writer = SystemAudioFileWriter(
+      url: url,
+      sessionID: sessionID,
+      durableChunkDirectory: durableChunkDirectory,
+      durableChunkObserver: durableChunkObserver)
     let output = SystemAudioStreamOutput(writer: writer)
     let stream = SCStream(filter: filter, configuration: configuration, delegate: output)
     let queue = DispatchQueue(label: "com.woice.system-audio", qos: .userInitiated)
@@ -290,8 +350,8 @@ final class SystemAudioCaptureService {
       errorDescription = error.localizedDescription
     }
     if let output { try? stream.removeStreamOutput(output, type: .audio) }
-    let result = writer.snapshot()
     writer.finish()
+    let result = writer.snapshot()
     self.stream = nil
     self.output = nil
     self.writer = nil

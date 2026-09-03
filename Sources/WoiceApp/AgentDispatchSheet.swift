@@ -228,7 +228,7 @@ import WoiceCore
 
     private var materialCard: some View {
       VStack(alignment: .leading, spacing: 8) {
-        Label(record.title, systemImage: "waveform")
+        Label(record.displayTitle, systemImage: "waveform")
           .font(.body.weight(.medium))
         Text("\(record.shortDate) · \(formatDuration(record.duration))")
           .font(.caption)

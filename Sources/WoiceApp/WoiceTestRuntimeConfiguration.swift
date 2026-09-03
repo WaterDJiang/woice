@@ -26,6 +26,26 @@ enum WoiceTestRuntimeConfiguration {
       || argumentValue(for: "--woice-test-transcription") == "fixture"
   }
 
+  /// Test-only switch used by the isolated media-import desktop Journey. A
+  /// normal launch never presents an import sheet from command-line state.
+  static var shouldPresentImportSheet: Bool {
+    guard isEnabled else { return false }
+    return environment["WOICE_TEST_PRESENT_IMPORT_SHEET"] == "1"
+      || arguments.contains("--woice-test-present-import-sheet")
+  }
+
+  /// Keeps the fixture task in a visible running state long enough for the
+  /// desktop Journey to exercise the background-close action. This value is
+  /// deliberately bounded and ignored unless the fixture Provider is active.
+  static var fixtureTranscriptionDelaySeconds: TimeInterval {
+    guard isEnabled, usesFixtureTranscription else { return 0 }
+    let raw =
+      environment["WOICE_TEST_TRANSCRIPTION_DELAY_SECONDS"]
+      ?? argumentValue(for: "--woice-test-transcription-delay")
+    guard let raw, let value = TimeInterval(raw), value.isFinite, value > 0 else { return 0 }
+    return min(value, 60)
+  }
+
   static var importSource: URL? {
     guard isEnabled else { return nil }
     let rawSource =
