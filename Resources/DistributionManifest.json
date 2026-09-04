@@ -1,6 +1,6 @@
 {
   "appVersion": "0.1.4",
-  "buildVersion": "7",
+  "buildVersion": "8",
   "bundledModelPackIDs": [],
   "capabilityProfile": {
     "allowsAutomaticPaste": false,

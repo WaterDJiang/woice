@@ -1,6 +1,6 @@
 # Woice 隐私政策
 
-生效日期：2026 年 9 月 1 日
+生效日期：2026 年 9 月 4 日
 
 Woice 是一款本地优先的 macOS 录音、转写与语音素材管理工具。本政策说明 Woice 如何处理录音、转录、模型和配置数据。
 
@@ -14,8 +14,18 @@ Woice 是一款本地优先的 macOS 录音、转写与语音素材管理工具�
 ## 麦克风与系统声音
 
 - Woice 只会在你点击可见按钮或使用已配置快捷键后开始录音。
-- 会议模式默认关闭。你主动开启后，Woice 可使用 ScreenCaptureKit 获取系统声音，但不会读取或保存屏幕图像。
+- 会议模式默认关闭。只有你主动开启会议模式并开始录音后，Woice 才使用 ScreenCaptureKit 获取所选显示器或可见窗口正在播放的系统声音。
+- Woice 只注册 ScreenCaptureKit 的音频输出。它不捕获、读取或保存屏幕像素、截图、视频、窗口文本、键盘输入或鼠标操作。
+- 系统声音数据是录音期间的本机 PCM 音频样本。Woice 仅用它来本机保存、回放、合成会议音轨和执行用户选择的转录。
 - 麦克风和系统声音可作为独立原始音轨保存；统一回放文件和重转录结果属于可重新生成的派生内容。
+
+## 系统声音的使用、共享与保留
+
+- 系统声音和最小必要的录音元数据（如开始时间、时长和用户选择的声音来源类型）保存在 Woice 的本机 App Container 中，作为 App 管理的素材库和恢复数据，直到你在 App 内删除它们。
+- App Store 版中，导出音频、转录、JSON 或 Markdown 时，你必须通过 macOS 标准“另存为”面板选择可访问的保存位置。
+- Woice 默认不向任何第三方共享系统声音。只有你主动配置外部转录服务、选择相应素材并确认发送后，所选音频才会发送到你指定的服务；该服务的处理和保留受其隐私政策约束。
+
+**Screen/system-audio disclosure for App Review:** "Woice registers only the audio output of ScreenCaptureKit after the user explicitly enables Meeting Mode and starts recording. Woice does not capture, read, or store screen pixels, screenshots, video, window text, keystrokes, or pointer activity. System-audio samples are stored locally in the app-managed library for playback, mixing, and user-selected transcription, and are not shared with a third party unless the user explicitly configures an external transcription service, selects the material, and confirms sending it."
 
 ## 模型下载与外部服务
 

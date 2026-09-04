@@ -132,15 +132,26 @@ struct SettingsView: View {
       Group {
         switch activeSection {
         case .recording:
-          RecordingSettingsPane(
-            settings: $draftSettings,
-            recorder: appState.recorder,
-            systemAudioCapability: appState.systemAudioCapability,
-            textInsertion: appState.textInsertion,
-            globalShortcutInstalled: appState.globalShortcutInstalled,
-            globalShortcutCurrent: appState.globalShortcutCurrent,
-            globalShortcutError: appState.globalShortcutError
-          )
+          #if WOICE_APP_STORE
+            RecordingSettingsPane(
+              settings: $draftSettings,
+              recorder: appState.recorder,
+              systemAudioCapability: appState.systemAudioCapability,
+              globalShortcutInstalled: appState.globalShortcutInstalled,
+              globalShortcutCurrent: appState.globalShortcutCurrent,
+              globalShortcutError: appState.globalShortcutError
+            )
+          #else
+            RecordingSettingsPane(
+              settings: $draftSettings,
+              recorder: appState.recorder,
+              systemAudioCapability: appState.systemAudioCapability,
+              textInsertion: appState.textInsertion,
+              globalShortcutInstalled: appState.globalShortcutInstalled,
+              globalShortcutCurrent: appState.globalShortcutCurrent,
+              globalShortcutError: appState.globalShortcutError
+            )
+          #endif
         case .services:
           ProvidersSettingsPane(settings: $draftSettings, appState: appState)
             .onAppear {
@@ -657,7 +668,9 @@ private struct RecordingSettingsPane: View {
   @Binding var settings: AppSettings
   let recorder: RecordingService
   let systemAudioCapability: SystemAudioCapabilityService
-  let textInsertion: TextInsertionService
+  #if !WOICE_APP_STORE
+    let textInsertion: TextInsertionService
+  #endif
   let globalShortcutInstalled: Bool
   let globalShortcutCurrent: RecordingShortcut
   let globalShortcutError: String?
@@ -696,13 +709,9 @@ private struct RecordingSettingsPane: View {
         }
         .pickerStyle(.menu)
         Toggle("转写完成后自动复制原文", isOn: $settings.autoCopyTranscript)
-        Toggle("转写完成后自动粘贴到当前应用", isOn: $settings.autoPasteTranscript)
-          .disabled(!StoreCapabilityProfile.current.allowsAutomaticPaste)
-        if !StoreCapabilityProfile.current.allowsAutomaticPaste {
-          Text("Store 版本首发关闭自动粘贴；仍可在原文区域手动复制或粘贴。")
-            .font(.caption)
-            .foregroundStyle(.secondary)
-        }
+        #if !WOICE_APP_STORE
+          Toggle("转写完成后自动粘贴到当前应用", isOn: $settings.autoPasteTranscript)
+        #endif
         Toggle("录音时显示实时文字", isOn: $settings.enableLiveTranscription)
         Text("开始麦克风录音后，文字会显示在工作台和顶部录音面板。只使用本机能力，不会覆盖最终原文。")
           .font(.caption)
@@ -765,13 +774,15 @@ private struct RecordingSettingsPane: View {
         Text("麦克风和电脑声音由工作台顶部两个按钮独立控制；这里只设置双轨转写方式并检查系统能力。")
       }
 
-      Section {
-        TextInsertionPermissionRow(service: textInsertion)
-      } header: {
-        Label("粘贴权限", systemImage: "rectangle.on.rectangle")
-      } footer: {
-        Text("默认不会申请辅助功能权限。只有你使用粘贴动作或开启自动粘贴后，Woice 才会引导你授权。")
-      }
+      #if !WOICE_APP_STORE
+        Section {
+          TextInsertionPermissionRow(service: textInsertion)
+        } header: {
+          Label("粘贴权限", systemImage: "rectangle.on.rectangle")
+        } footer: {
+          Text("默认不会申请辅助功能权限。只有你使用粘贴动作或开启自动粘贴后，Woice 才会引导你授权。")
+        }
+      #endif
     }
     .formStyle(.grouped)
     .padding(.top, 12)
@@ -1004,50 +1015,52 @@ private struct MicrophoneStatusRow: View {
   }
 }
 
-private struct TextInsertionPermissionRow: View {
-  let service: TextInsertionService
+#if !WOICE_APP_STORE
+  private struct TextInsertionPermissionRow: View {
+    let service: TextInsertionService
 
-  var body: some View {
-    HStack(alignment: .top, spacing: 10) {
-      Image(
-        systemName: service.isAccessibilityTrusted
-          ? "checkmark.circle.fill" : "lock.circle"
-      )
-      .foregroundStyle(service.isAccessibilityTrusted ? Color.green : Color.orange)
-      .frame(width: 20)
-      VStack(alignment: .leading, spacing: 4) {
-        Text(service.isAccessibilityTrusted ? "已允许粘贴到当前应用" : "尚未允许辅助功能粘贴")
-          .font(.callout.weight(.medium))
-        Text(
-          service.isAccessibilityTrusted
-            ? "详情页的“粘贴到当前应用”和自动粘贴已具备系统权限。"
-            : "不授权也可以复制原文；粘贴动作会保留在 Woice 并提示下一步。"
+    var body: some View {
+      HStack(alignment: .top, spacing: 10) {
+        Image(
+          systemName: service.isAccessibilityTrusted
+            ? "checkmark.circle.fill" : "lock.circle"
         )
-        .font(.caption)
-        .foregroundStyle(.secondary)
-        HStack(spacing: 8) {
-          ActionFeedbackButton {
-            service.requestPermission()
-            return .progress("正在打开粘贴权限设置")
-          } label: {
-            Text("请求权限")
+        .foregroundStyle(service.isAccessibilityTrusted ? Color.green : Color.orange)
+        .frame(width: 20)
+        VStack(alignment: .leading, spacing: 4) {
+          Text(service.isAccessibilityTrusted ? "已允许粘贴到当前应用" : "尚未允许辅助功能粘贴")
+            .font(.callout.weight(.medium))
+          Text(
+            service.isAccessibilityTrusted
+              ? "详情页的“粘贴到当前应用”和自动粘贴已具备系统权限。"
+              : "不授权也可以复制原文；粘贴动作会保留在 Woice 并提示下一步。"
+          )
+          .font(.caption)
+          .foregroundStyle(.secondary)
+          HStack(spacing: 8) {
+            ActionFeedbackButton {
+              service.requestPermission()
+              return .progress("正在打开粘贴权限设置")
+            } label: {
+              Text("请求权限")
+            }
+            .buttonStyle(.bordered)
+            ActionFeedbackButton {
+              service.refreshPermission()
+              return .success("粘贴权限状态已刷新")
+            } label: {
+              Label("重新检查", systemImage: "arrow.clockwise")
+            }
+            .buttonStyle(.woiceBorderless)
           }
-          .buttonStyle(.bordered)
-          ActionFeedbackButton {
-            service.refreshPermission()
-            return .success("粘贴权限状态已刷新")
-          } label: {
-            Label("重新检查", systemImage: "arrow.clockwise")
-          }
-          .buttonStyle(.woiceBorderless)
+          .font(.caption)
         }
-        .font(.caption)
+        Spacer()
       }
-      Spacer()
+      .task { service.refreshPermission() }
     }
-    .task { service.refreshPermission() }
   }
-}
+#endif
 
 private struct SystemAudioCapabilityRow: View {
   let service: SystemAudioCapabilityService
@@ -2010,15 +2023,26 @@ private struct StorageSettingsPane: View {
       }
 
       Section {
-        LabeledContent("Markdown 导出目录") {
-          TextField("留空使用默认目录", text: $settings.exportDirectory)
-            .textFieldStyle(.roundedBorder)
-            .frame(minWidth: 360)
-        }
+        #if WOICE_APP_STORE
+          LabeledContent("Markdown 导出") {
+            Text("导出时选择保存位置")
+              .foregroundStyle(.secondary)
+          }
+        #else
+          LabeledContent("Markdown 导出目录") {
+            TextField("留空使用默认目录", text: $settings.exportDirectory)
+              .textFieldStyle(.roundedBorder)
+              .frame(minWidth: 360)
+          }
+        #endif
       } header: {
         Label("导出", systemImage: "square.and.arrow.down")
       } footer: {
-        Text("导出不会删除或覆盖原始 WAV 和原始转录。")
+        #if WOICE_APP_STORE
+          Text("每次导出都使用 macOS 标准“另存为”面板；导出不会覆盖原始素材。")
+        #else
+          Text("导出不会删除或覆盖原始 WAV 和原始转录。")
+        #endif
       }
 
       Section {

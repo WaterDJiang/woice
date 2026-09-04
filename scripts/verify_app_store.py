@@ -37,6 +37,9 @@ FORBIDDEN_STORE_SYMBOLS = (
     "PiConnectorServer",
     "ProcessProviderRunner",
     "ProviderTrustVerifier",
+    "TextInsertionService",
+    "AXIsProcessTrusted",
+    "AXIsProcessTrustedWithOptions",
 )
 
 
@@ -129,6 +132,23 @@ def check_source_contract(project_root: Path) -> None:
     app_source = (project_root / "Sources/WoiceApp/WoiceApp.swift").read_text(encoding="utf-8")
     if "StoreCapabilityProfile.current.allowsExternalAgentConnector" not in app_source:
         raise StoreBundleError("WoiceApp 启动入口没有受 Store 能力配置保护。")
+    insertion_source = (project_root / "Sources/WoiceApp/TextInsertionService.swift").read_text(
+        encoding="utf-8"
+    )
+    if not insertion_source.lstrip().startswith("#if !WOICE_APP_STORE"):
+        raise StoreBundleError("Store 版未在编译期排除辅助功能文本粘贴实现。")
+    detail_source = (project_root / "Sources/WoiceApp/RecordingDetailView.swift").read_text(
+        encoding="utf-8"
+    )
+    if "NSSavePanel" not in detail_source or "exportMaterial(for: record, kind: kind, to:" not in detail_source:
+        raise StoreBundleError("Store 版素材导出未使用标准另存为面板和用户选定目标。")
+    capture_source = (project_root / "Sources/WoiceApp/SystemAudioCaptureService.swift").read_text(
+        encoding="utf-8"
+    )
+    if "addStreamOutput(output, type: .audio" not in capture_source:
+        raise StoreBundleError("系统声音捕获没有明确注册音频输出。")
+    if "addStreamOutput(output, type: .screen" in capture_source:
+        raise StoreBundleError("Store 版不得注册 ScreenCaptureKit 屏幕画面输出。")
 
 
 def check_store_binary_boundary(executable: Path) -> None:

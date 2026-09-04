@@ -1,4 +1,6 @@
+import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 import WoiceCore
 
 struct RecordingDetailView: View {
@@ -61,8 +63,10 @@ struct RecordingDetailView: View {
           Menu {
             Button("复制原文") { appState.copyTranscript(record.transcript ?? "") }
               .disabled(record.transcript?.isEmpty != false)
-            Button("粘贴到当前应用") { appState.pasteTranscript(for: record) }
-              .disabled(record.transcript?.isEmpty != false)
+            #if !WOICE_APP_STORE
+              Button("粘贴到当前应用") { appState.pasteTranscript(for: record) }
+                .disabled(record.transcript?.isEmpty != false)
+            #endif
             #if !WOICE_APP_STORE
               if StoreCapabilityProfile.current.allowsExternalAgentConnector {
                 Button("发送给 Agent（CLI Beta）…", systemImage: "paperplane") {
@@ -89,29 +93,31 @@ struct RecordingDetailView: View {
               exportButton(.markdown)
                 .disabled(record.transcript?.isEmpty != false)
             }
-            Divider()
-            Menu("打开素材", systemImage: "arrow.up.forward.app") {
-              if record.originalMediaFileName != nil {
-                Button("打开导入的原始文件") {
-                  _ = appState.openOriginalMedia(for: record)
+            #if !WOICE_APP_STORE
+              Divider()
+              Menu("打开素材", systemImage: "arrow.up.forward.app") {
+                if record.originalMediaFileName != nil {
+                  Button("打开导入的原始文件") {
+                    _ = appState.openOriginalMedia(for: record)
+                  }
                 }
+                Button("在 Finder 中显示全部音频") {
+                  _ = appState.revealMaterialFiles(for: record)
+                }
+                Button("打开麦克风原始音频") {
+                  _ = appState.openMaterialFile(for: record, track: .microphone)
+                }
+                .disabled(!appState.microphoneAudioFileExists(for: record))
+                Button("打开电脑声音音频") {
+                  _ = appState.openMaterialFile(for: record, track: .systemAudio)
+                }
+                .disabled(!appState.systemAudioFileExists(for: record))
+                Button("打开会议合成音频") {
+                  _ = appState.openMaterialFile(for: record, track: .meetingMix)
+                }
+                .disabled(!appState.meetingMixFileExists(for: record))
               }
-              Button("在 Finder 中显示全部音频") {
-                _ = appState.revealMaterialFiles(for: record)
-              }
-              Button("打开麦克风原始音频") {
-                _ = appState.openMaterialFile(for: record, track: .microphone)
-              }
-              .disabled(!appState.microphoneAudioFileExists(for: record))
-              Button("打开电脑声音音频") {
-                _ = appState.openMaterialFile(for: record, track: .systemAudio)
-              }
-              .disabled(!appState.systemAudioFileExists(for: record))
-              Button("打开会议合成音频") {
-                _ = appState.openMaterialFile(for: record, track: .meetingMix)
-              }
-              .disabled(!appState.meetingMixFileExists(for: record))
-            }
+            #endif
             Button("移到废纸篓", role: .destructive) { isConfirmingDeletion = true }
               .disabled(!appState.canMutateRecordings)
           } label: {
@@ -165,16 +171,18 @@ struct RecordingDetailView: View {
                 }
                 .buttonStyle(.bordered)
                 .disabled(readableTranscript.isEmpty)
-                ActionFeedbackButton {
-                  if appState.pasteTranscript(for: record) {
-                    return .success("已粘贴")
+                #if !WOICE_APP_STORE
+                  ActionFeedbackButton {
+                    if appState.pasteTranscript(for: record) {
+                      return .success("已粘贴")
+                    }
+                    return .failure(appState.errorMessage ?? "粘贴未完成")
+                  } label: {
+                    Label("粘贴到当前应用", systemImage: "rectangle.on.rectangle")
                   }
-                  return .failure(appState.errorMessage ?? "粘贴未完成")
-                } label: {
-                  Label("粘贴到当前应用", systemImage: "rectangle.on.rectangle")
-                }
-                .buttonStyle(.bordered)
-                .disabled(readableTranscript.isEmpty)
+                  .buttonStyle(.bordered)
+                  .disabled(readableTranscript.isEmpty)
+                #endif
               }
               .controlSize(.small)
             }
@@ -455,7 +463,19 @@ struct RecordingDetailView: View {
 
   private func exportButton(_ kind: RecordingExportKind) -> some View {
     Button {
-      exportedURL = appState.exportMaterial(for: record, kind: kind)
+      #if WOICE_APP_STORE
+        let panel = NSSavePanel()
+        panel.title = "导出\(kind.title)"
+        panel.message = "选择一个你可以直接访问的位置来保存文件。"
+        panel.nameFieldStringValue = appState.suggestedExportFilename(for: record, kind: kind)
+        if let contentType = UTType(filenameExtension: kind.fileExtension) {
+          panel.allowedContentTypes = [contentType]
+        }
+        guard panel.runModal() == .OK, let destination = panel.url else { return }
+        exportedURL = appState.exportMaterial(for: record, kind: kind, to: destination)
+      #else
+        exportedURL = appState.exportMaterial(for: record, kind: kind)
+      #endif
     } label: {
       Label(kind.title, systemImage: kind.systemImage)
     }

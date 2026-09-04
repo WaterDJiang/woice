@@ -47,11 +47,24 @@ func materialExportsKeepOriginalRecordingImmutable() throws {
   let sourceBefore = try Data(contentsOf: audioURL)
   let hashBefore = SHA256.hash(data: sourceBefore)
 
+  let exportDirectory = root.appendingPathComponent("user-selected", isDirectory: true)
+  try FileManager.default.createDirectory(at: exportDirectory, withIntermediateDirectories: true)
   let audioExport = try #require(
-    state.exportMaterial(for: record, kind: .microphoneAudio))
-  let textExport = try #require(state.exportMaterial(for: record, kind: .transcriptText))
-  let jsonExport = try #require(state.exportMaterial(for: record, kind: .transcriptJSON))
-  let markdownExport = try #require(state.exportMaterial(for: record, kind: .markdown))
+    state.exportMaterial(
+      for: record, kind: .microphoneAudio,
+      to: exportDirectory.appendingPathComponent("audio.wav")))
+  let textExport = try #require(
+    state.exportMaterial(
+      for: record, kind: .transcriptText,
+      to: exportDirectory.appendingPathComponent("transcript.txt")))
+  let jsonExport = try #require(
+    state.exportMaterial(
+      for: record, kind: .transcriptJSON,
+      to: exportDirectory.appendingPathComponent("transcript.json")))
+  let markdownExport = try #require(
+    state.exportMaterial(
+      for: record, kind: .markdown,
+      to: exportDirectory.appendingPathComponent("note.md")))
   let audioExportData = try Data(contentsOf: audioExport)
 
   #expect(FileManager.default.fileExists(atPath: audioExport.path))
@@ -89,9 +102,32 @@ func materialTextExportsRequireTranscript() throws {
   try store.saveRecordings([record])
   let state = AppState(store: store)
 
-  #expect(state.exportMaterial(for: record, kind: .transcriptText) == nil)
+  #expect(
+    state.exportMaterial(
+      for: record, kind: .transcriptText,
+      to: root.appendingPathComponent("transcript.txt")) == nil)
   #expect(state.errorMessage == WoiceError.transcriptMissing.localizedDescription)
 }
+
+#if WOICE_APP_STORE
+  @Test("Store 版无用户选定位置时禁止向容器导出用户文件")
+  @MainActor
+  func storeMaterialExportRequiresUserSelectedDestination() throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(
+      "woice-store-export-gate-\(UUID().uuidString)", isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+
+    let store = WorkspaceStore(storageRootURL: root)
+    let record = RecordingRecord(
+      id: UUID(), createdAt: Date(), audioFileName: "unused.wav", duration: 1,
+      transcript: "需要用户选择位置", generatedMarkdown: nil, processingError: nil)
+    try store.saveRecordings([record])
+    let state = AppState(store: store)
+
+    #expect(state.exportMaterial(for: record, kind: .transcriptText) == nil)
+    #expect(!FileManager.default.fileExists(atPath: root.appendingPathComponent("exports").path))
+  }
+#endif
 
 @Test("外部打开素材对缺失文件 fail-closed")
 @MainActor

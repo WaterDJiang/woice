@@ -39,6 +39,9 @@ FORBIDDEN_SYMBOLS = (
     "PiConnectorServer",
     "ProcessProviderRunner",
     "ProviderTrustVerifier",
+    "TextInsertionService",
+    "AXIsProcessTrusted",
+    "AXIsProcessTrustedWithOptions",
 )
 
 

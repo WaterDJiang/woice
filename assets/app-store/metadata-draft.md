@@ -1,4 +1,4 @@
-# Woice App Store Connect 元数据与审核资料（Build 7 候选）
+# Woice App Store Connect 元数据与审核资料（Build 8 候选）
 
 > 语言：简体中文主版本；Review Notes 使用英文。
 > 状态：代码和本机 Store 预检已完成；账号主体、版权、价格/税务、年龄评级、出口合规、实机截图/录屏和后台提交动作必须在 App Store Connect 逐项确认。
@@ -40,7 +40,7 @@ Woice 无需账户即可完成录音、复听、素材管理和本机转写。�
 
 `录音,转写,语音,素材,会议,备忘,搜索,音频,本机,上下文`
 
-## 0.1.4 版本更新说明（Build 7）
+## 0.1.4 版本更新说明（Build 8）
 
 - 修复“检查更新”在部分网络环境下错误提示的问题
 - 修复部分多声道麦克风录音无法保存的问题
@@ -48,41 +48,35 @@ Woice 无需账户即可完成录音、复听、素材管理和本机转写。�
 - 支持素材自定义名称，并保留导入文件名
 - 加强异常退出后的录音恢复与素材详情加载速度
 - 支持对已完成的本机任务重新转写，同时保留旧原文
+- App Store 版导出统一使用 macOS 标准“另存为”面板
+- App Store 版移除辅助功能权限请求和自动粘贴功能
 
 ## Review Notes（英文，少于 4000 字符）
 
 Hello App Review Team,
 
-Thank you for the report. We reproduced the issue in Version 0.1.4 (Build 6) on a MacBook Air (15-inch, M3, 2024) running macOS 26.6.1 with an active Internet connection.
+Thank you for the review. We addressed both Guideline 2.4.5 issues in Version 0.1.4 (Build 8):
 
-Root cause: when “检查更新” was tapped, Woice fetched its signed model catalog from GitHub Raw. GitHub returned valid JSON with the Content-Type `text/plain; charset=utf-8`. Build 6 accepted only JSON media types, so it displayed an error before catalog validation.
+- User files: every audio, transcript, JSON, or Markdown export in the App Store build now uses the standard macOS Save panel. The user selects an accessible destination. The App Store UI no longer opens or reveals internal container files. The container is used only for the app-managed recording library, database, recovery state, caches, and settings.
+- Accessibility: the App Store build no longer includes automatic paste, simulated keyboard events, Accessibility permission prompts, or links to Accessibility Settings. The Accessibility implementation is excluded at compile time. Woice does not request Accessibility access.
 
-Resolution in Build 7:
-- Accept GitHub Raw's `text/plain` response for this fixed HTTPS catalog.
-- Continue to require JSON decoding, catalog ID/schema/version validation, trusted Ed25519 signature verification, host and size restrictions, and SHA-256 verification for model files.
-- Continue to reject HTML, redirects, unsafe URLs, malformed, unsigned, or tampered data.
+Screen recording / system audio answers:
 
-Review flow:
-1. Launch Woice.
-2. Open Settings > Models & Transcription.
-3. Tap “检查更新” and confirm that the catalog verifies successfully without an error.
-4. Record a short microphone clip, stop recording, open the saved material, and play it back.
-5. If testing local transcription, choose an available verified on-device model and start transcription. Qwen3-ASR is the app's local model option when its signed catalog entry is published. Model downloads require an explicit user action.
+1. Feature: optional Meeting Mode can record system audio together with microphone audio. It is off by default and runs only after the user enables it and starts recording.
+2. Data collected: Woice registers only ScreenCaptureKit audio output and receives PCM audio samples from the user-selected display or visible window. It may store minimal recording metadata: start time, duration, and selected source type. It does not capture or store screen pixels, screenshots, video, window text, keystrokes, or pointer activity.
+3. Purpose: local recording, playback, meeting-track mixing, and transcription explicitly selected by the user. There are no advertising, tracking, profiling, monitoring, or analytics uses.
+4. Third parties: no system audio is shared by default. It is sent only if the user explicitly configures an external transcription service, selects the material, and confirms sending it. Local transcription does not share it.
+5. Storage and retention: audio and minimal metadata are stored locally in the app-managed library and retained until the user deletes the material. User exports are saved only to the location selected in the standard Save panel. API keys remain in Keychain.
+6. Privacy policy: see “麦克风与系统声音” and “系统声音的使用、共享与保留” at https://github.com/WaterDJiang/woice/blob/main/PRIVACY.md
 
-Woice is a local-first voice recorder and transcription app. Recordings and local transcription remain on the Mac. No account or login is required. External services are GitHub Raw for the signed catalog and Hugging Face for pinned Qwen3-ASR model files. The app has no regional feature differences and no regulated functionality.
+Exact policy language: “Woice registers only the audio output of ScreenCaptureKit after the user explicitly enables Meeting Mode and starts recording. Woice does not capture, read, or store screen pixels, screenshots, video, window text, keystrokes, or pointer activity. System-audio samples are stored locally in the app-managed library for playback, mixing, and user-selected transcription, and are not shared with a third party unless the user explicitly configures an external transcription service, selects the material, and confirms sending it.”
 
-We are submitting Build 7 and have included this fix for the reported issue. We will verify the same flow on a physical supported Mac before submission.
+No account or login is required. The app functions consistently in all regions and has no regulated functionality. Please review Build 8.
 
 Thank you.
-
-审核测试账号：无需账号。
-
-会议模式默认关闭。开启后使用 ScreenCaptureKit 捕获系统声音；App 不读取或保存屏幕图像。只有用户主动选择外部 Provider 并确认后，音频或文字才会发送到指定服务。
-
-审核设备：macOS 14+；Apple Silicon 可测试完整本机模型流程。
 
 ## 提交前仅需账号侧确认
 
 - 实际版权主体、审核联系人、价格/税务、年龄评级、出口合规和销售地区。
 - 从最终签名 Build 采集真实 macOS 截图和审核录屏。
-- 在 App Store Connect 完成 App Privacy 问卷并选择正确的 Build 7。
+- 在 App Store Connect 完成 App Privacy 问卷并选择正确的 Build 8。

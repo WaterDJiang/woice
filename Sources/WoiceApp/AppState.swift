@@ -122,6 +122,21 @@ enum RecordingExportKind: CaseIterable, Identifiable {
     case .markdown: "doc.richtext"
     }
   }
+
+  var fileSuffix: String {
+    switch self {
+    case .microphoneAudio: "microphone.wav"
+    case .systemAudio: "system-audio.caf"
+    case .meetingMixAudio: "meeting-mix.wav"
+    case .transcriptText: "transcript.txt"
+    case .transcriptJSON: "transcript.json"
+    case .markdown: "md"
+    }
+  }
+
+  var fileExtension: String {
+    URL(fileURLWithPath: fileSuffix).pathExtension
+  }
 }
 
 private struct ExportedTranscriptSegment: Codable {
@@ -235,7 +250,9 @@ final class AppState {
   private let audioMetadataCache: AudioMetadataCache
   let recorder: RecordingService
   let systemAudioCapability = SystemAudioCapabilityService()
-  let textInsertion = TextInsertionService()
+  #if !WOICE_APP_STORE
+    let textInsertion = TextInsertionService()
+  #endif
   let systemAudioRecorder: SystemAudioCaptureService
   let liveTranscription = LiveTranscriptionService()
   private(set) var localTranscription: LocalASRTranscribing
@@ -3015,13 +3032,15 @@ final class AppState {
       }
       presentActionFeedback(.success("转写已完成"))
       if settings.autoCopyTranscript { copyTranscript(result.text) }
-      if StoreCapabilityProfile.current.allowsAutomaticPaste && settings.autoPasteTranscript {
-        do {
-          try textInsertion.paste(text: result.text)
-        } catch {
-          errorMessage = error.localizedDescription
+      #if !WOICE_APP_STORE
+        if StoreCapabilityProfile.current.allowsAutomaticPaste && settings.autoPasteTranscript {
+          do {
+            try textInsertion.paste(text: result.text)
+          } catch {
+            errorMessage = error.localizedDescription
+          }
         }
-      }
+      #endif
       if !settings.llmEndpoint.isEmpty, !result.text.isEmpty,
         transcriptionJobsComplete(for: record.id)
       {
@@ -3264,13 +3283,15 @@ final class AppState {
       }
       presentActionFeedback(.success("本机转写已完成"))
       if settings.autoCopyTranscript { copyTranscript(result.text) }
-      if StoreCapabilityProfile.current.allowsAutomaticPaste && settings.autoPasteTranscript {
-        do {
-          try textInsertion.paste(text: result.text)
-        } catch {
-          errorMessage = error.localizedDescription
+      #if !WOICE_APP_STORE
+        if StoreCapabilityProfile.current.allowsAutomaticPaste && settings.autoPasteTranscript {
+          do {
+            try textInsertion.paste(text: result.text)
+          } catch {
+            errorMessage = error.localizedDescription
+          }
         }
-      }
+      #endif
       processingState = .saved
       errorMessage = nil
     } catch {
@@ -3839,24 +3860,26 @@ final class AppState {
     return true
   }
 
-  @discardableResult
-  func pasteTranscript(for record: RecordingRecord) -> Bool {
-    guard let transcript = record.transcript, !transcript.isEmpty else {
-      errorMessage = "这条录音还没有可粘贴的原文。"
-      presentActionFeedback(.failure("没有可粘贴的原文"))
-      return false
+  #if !WOICE_APP_STORE
+    @discardableResult
+    func pasteTranscript(for record: RecordingRecord) -> Bool {
+      guard let transcript = record.transcript, !transcript.isEmpty else {
+        errorMessage = "这条录音还没有可粘贴的原文。"
+        presentActionFeedback(.failure("没有可粘贴的原文"))
+        return false
+      }
+      do {
+        try textInsertion.paste(text: TranscriptTextNormalizer.normalize(transcript))
+        errorMessage = nil
+        presentActionFeedback(.success("已粘贴到当前应用"))
+        return true
+      } catch {
+        errorMessage = error.localizedDescription
+        presentActionFeedback(.failure("粘贴失败：\(error.localizedDescription)"))
+        return false
+      }
     }
-    do {
-      try textInsertion.paste(text: TranscriptTextNormalizer.normalize(transcript))
-      errorMessage = nil
-      presentActionFeedback(.success("已粘贴到当前应用"))
-      return true
-    } catch {
-      errorMessage = error.localizedDescription
-      presentActionFeedback(.failure("粘贴失败：\(error.localizedDescription)"))
-      return false
-    }
-  }
+  #endif
 
   func presentActionFeedback(_ feedback: ActionFeedback) {
     actionFeedbackTask?.cancel()
@@ -3872,10 +3895,12 @@ final class AppState {
     }
   }
 
-  func requestAccessibilityPermission() {
-    textInsertion.requestPermission()
-    presentActionFeedback(.progress("正在打开粘贴权限设置"))
-  }
+  #if !WOICE_APP_STORE
+    func requestAccessibilityPermission() {
+      textInsertion.requestPermission()
+      presentActionFeedback(.progress("正在打开粘贴权限设置"))
+    }
+  #endif
 
   func audioFileExists(for record: RecordingRecord) -> Bool {
     FileManager.default.fileExists(atPath: store.audioURL(for: record).path)
@@ -3973,24 +3998,60 @@ final class AppState {
 
   @discardableResult
   func exportMaterial(for record: RecordingRecord, kind: RecordingExportKind) -> URL? {
+    #if WOICE_APP_STORE
+      let message = "App Store 版请使用标准“另存为”面板选择保存位置。"
+      errorMessage = message
+      presentActionFeedback(.failure(message))
+      return nil
+    #else
+      return exportMaterial(for: record, kind: kind, to: nil)
+    #endif
+  }
+
+  @discardableResult
+  func exportMaterial(
+    for record: RecordingRecord, kind: RecordingExportKind, to destinationURL: URL
+  ) -> URL? {
+    exportMaterial(for: record, kind: kind, to: Optional(destinationURL))
+  }
+
+  func suggestedExportFilename(for record: RecordingRecord, kind: RecordingExportKind) -> String {
+    let date = record.createdAt.formatted(
+      .iso8601.year().month().day().dateSeparator(.dash))
+    let invalidCharacters = CharacterSet(charactersIn: "/\\:")
+    let title = record.displayTitle
+      .components(separatedBy: invalidCharacters)
+      .joined(separator: "-")
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+    let safeTitle = title.isEmpty ? "Woice" : String(title.prefix(60))
+    return "\(date)-\(safeTitle).\(kind.fileSuffix)"
+  }
+
+  private func exportMaterial(
+    for record: RecordingRecord, kind: RecordingExportKind, to destinationURL: URL?
+  ) -> URL? {
     do {
       let url: URL
       switch kind {
       case .microphoneAudio:
         url = try copyAudioExport(
-          source: store.audioURL(for: record), record: record, suffix: "microphone.wav")
+          source: store.audioURL(for: record), record: record, suffix: kind.fileSuffix,
+          destination: destinationURL)
       case .systemAudio:
         guard let source = store.systemAudioURL(for: record) else {
           throw WoiceError.audioFileMissing
         }
-        url = try copyAudioExport(source: source, record: record, suffix: "system-audio.caf")
+        url = try copyAudioExport(
+          source: source, record: record, suffix: kind.fileSuffix, destination: destinationURL)
       case .meetingMixAudio:
         url = try copyAudioExport(
-          source: store.meetingMixURL(for: record), record: record, suffix: "meeting-mix.wav")
+          source: store.meetingMixURL(for: record), record: record, suffix: kind.fileSuffix,
+          destination: destinationURL)
       case .transcriptText:
         let transcript = try exportableTranscript(for: record)
         url = try writeExport(
-          Data(transcript.utf8), record: record, suffix: "transcript.txt")
+          Data(transcript.utf8), record: record, suffix: kind.fileSuffix,
+          destination: destinationURL)
       case .transcriptJSON:
         let transcript = try exportableTranscript(for: record)
         let payload = ExportedRecording(
@@ -4014,10 +4075,16 @@ final class AppState {
           originalMediaFileName: record.originalMediaFileName,
           originalMediaSHA256: record.originalMediaSHA256)
         let data = try JSONEncoder.woice.encode(payload)
-        url = try writeExport(data, record: record, suffix: "transcript.json")
+        url = try writeExport(
+          data, record: record, suffix: kind.fileSuffix, destination: destinationURL)
       case .markdown:
-        guard let markdownURL = exportMarkdown(for: record) else { return nil }
-        return markdownURL
+        let transcript = try exportableTranscript(for: record)
+        let markdown = MarkdownRenderer.render(
+          title: record.displayTitle, transcript: transcript,
+          generatedMarkdown: record.generatedMarkdown)
+        url = try writeExport(
+          Data(markdown.utf8), record: record, suffix: kind.fileSuffix,
+          destination: destinationURL)
       }
       presentActionFeedback(.success("已导出\(kind.title)"))
       return url
@@ -4121,11 +4188,13 @@ final class AppState {
     return manifest
   }
 
-  private func copyAudioExport(source: URL, record: RecordingRecord, suffix: String) throws -> URL {
+  private func copyAudioExport(
+    source: URL, record: RecordingRecord, suffix: String, destination: URL? = nil
+  ) throws -> URL {
     guard FileManager.default.fileExists(atPath: source.path) else {
       throw WoiceError.audioFileMissing
     }
-    let target = exportURL(for: record, suffix: suffix)
+    let target = destination ?? exportURL(for: record, suffix: suffix)
     if FileManager.default.fileExists(atPath: target.path) {
       try FileManager.default.removeItem(at: target)
     }
@@ -4133,8 +4202,10 @@ final class AppState {
     return target
   }
 
-  private func writeExport(_ data: Data, record: RecordingRecord, suffix: String) throws -> URL {
-    let target = exportURL(for: record, suffix: suffix)
+  private func writeExport(
+    _ data: Data, record: RecordingRecord, suffix: String, destination: URL? = nil
+  ) throws -> URL {
+    let target = destination ?? exportURL(for: record, suffix: suffix)
     try data.write(to: target, options: .atomic)
     return target
   }

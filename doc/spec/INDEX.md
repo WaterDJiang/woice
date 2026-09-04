@@ -2,6 +2,7 @@
 
 | 功能域 | 状态 | 一句话定义 | 文件 |
 |---|---|---|---|
+| App Store Guideline 2.4.5 与系统音频说明修复 | Build 8 代码、隐私说明、定向测试和 Store 构建已完成；待全门禁、Archive、实机验收与重提 | 导出改用标准另存为，Store 编译排除非辅助用途 Accessibility，明确 ScreenCaptureKit 仅捕获系统音频 | [../specs/2026-09-04-app-store-guideline-2-4-5-and-screen-audio.md](../specs/2026-09-04-app-store-guideline-2-4-5-and-screen-audio.md) |
 | App Store Build 7 资料与门禁收口 | 本机准备完成；Catalog v2、正式 Archive 与导出包已验证，远端/账号/实机状态待完成 | 递增 Build、修复检查更新、生成含 Qwen 的签名 Catalog v2、准备正式 Archive/导出包和审核材料 | [../specs/2026-09-03-app-store-submission-readiness.md](../specs/2026-09-03-app-store-submission-readiness.md) |
 | 模型清单 Raw 响应类型兼容修复 | 已实现；定向传输回归通过 | 兼容 GitHub Raw 返回 `text/plain; charset=utf-8` 的合法 JSON，同时保留 Catalog schema、签名和版本门禁 | [../specs/2026-09-03-model-catalog-content-type.md](../specs/2026-09-03-model-catalog-content-type.md) |
 | 本机已完成任务重转写 | 代码与定向回归完成；真实桌面由用户验收 | 已有本机转写任务为 `completed` 时，重新转写先回到 `queued`，重新取得 Lease 并追加新的 Artifact；不覆盖旧原文 | [../specs/2026-09-01-local-retranscription-completed-task.md](../specs/2026-09-01-local-retranscription-completed-task.md) |

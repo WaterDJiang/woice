@@ -1,6 +1,6 @@
 # Woice Mac App Store 上架计划
 
-> 状态：`0.1.4 (Build 6)` 因 Guideline 2.1(a) 被拒；`Build 7` 的修复、Catalog v2、商店资料、Apple Distribution Archive 和本地导出包已完成。待 Catalog 推送、截图/录屏、App Store Connect 字段、Build 上传和审核提交  
+> 状态：`0.1.4 (Build 7)` 因 Guideline 2.4.5 与系统音频说明被拒；`Build 8` 已完成标准另存为、Accessibility 编译排除、隐私答复、定向测试和 Store 构建。待全门禁、正式 Archive/上传、实体 Mac 验收与重新提交  
 > 日期：2026-08-23  
 > 启动条件：WCL-06 本机 Store 切片已完成，App ID、签名、描述文件、Build 6 Archive 与上传链已落地；仍不把上传成功描述为已提交审核或已上架  
 > 当前路线图：[当前路线图与计划迁移表](2026-08-22-current-roadmap-and-plan-transition.md)  
@@ -12,7 +12,7 @@
 - 保留：官网继续提供 Core/Offline 两种 DMG；现有录音、双轨、默认来源分离转写、`standardMix` 兼容模式、模型版本、素材不可变、Keychain 和外发确认规则全部保留。
 - 迁移：Mac App Store 专属的 Xcode Archive、App Sandbox、Store 能力裁剪、App Store Connect 元数据、TestFlight 和 App Review 全部进入本计划，不再混入 M1-07/M2-08i。
 - 停止：未停止现有开发计划；Store Edition 首版停止暴露任意外部进程 Provider、现有外部 Unix Socket Agent Connector 和自有更新器。
-- 顺序：Build 7 本机代码、资源、Catalog、Archive 和导出已完成；下一步为推送并回读 Catalog v2、实机截图/录屏、上传 Build 7、完成账号字段和审核提交。M2-09 Agent 协作不是上架前置。
+- 顺序：Build 8 完成全门禁后生成新 Archive，在实体 Mac 验收导出/权限/系统音频流程，然后上传 Build 8、更新隐私政策和 Review Notes、回复 Resolution Center 并重新提交。M2-09 Agent 协作不是上架前置。
 
 ## 2. 首版发行裁决
 

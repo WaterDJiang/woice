@@ -127,6 +127,14 @@ class XcodeStoreBundleTests(unittest.TestCase):
         with self.assertRaises(MODULE.XcodeStoreBundleError):
             MODULE.verify(app)
 
+    def test_accessibility_text_insertion_binary_is_rejected(self) -> None:
+        app = self.make_bundle()
+        executable = app / "Contents/MacOS/Woice"
+        executable.write_text("#!/bin/sh\n# TextInsertionService AXIsProcessTrusted\n", encoding="utf-8")
+        executable.chmod(0o755)
+        with self.assertRaises(MODULE.XcodeStoreBundleError):
+            MODULE.verify(app)
+
 
 if __name__ == "__main__":
     unittest.main()

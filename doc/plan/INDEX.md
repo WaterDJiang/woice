@@ -15,7 +15,7 @@
 | 当前技术开发收口 | 已结项为历史；无活动工作包 | 已完成证据继续有效；Qwen 正确性/性能迁入 MRQ，Developer ID 和 Store 外部条件分别保留在发行路线与 MAS 专项 | [2026-08-24-current-technical-development-closure.md](2026-08-24-current-technical-development-closure.md) |
 | 菜单栏、设置、快捷键与 Dock 图标精简优化 | MSS-07R 代码与自动测试完成；真实 Mac Journey 待用户验收 | Popover、四动作、设置、快捷键、AppIcon、来源命名、loopback 信任持久化、工作台确认、可恢复“稍后处理”、主/片段任务去重和活动转写状态投影已落地；专项工作台证据保留于 Build `2026082332`，当前安装包为源码构建 `0.1.0 (Build 1)`，真实录音、长文件和云端 Provider 完成仍按手册实测 | [2026-08-23-menubar-settings-shortcut-optimization.md](2026-08-23-menubar-settings-shortcut-optimization.md) |
 | 当前计划进度复核 | 历史快照 | 保留 2026-08-25 前既有基线与 WCL 证据；2026-09-01 后活动状态以 MRQ 为准 | [2026-08-23-plan-progress-review.md](2026-08-23-plan-progress-review.md) |
-| Mac App Store 上架 | `0.1.4 (Build 6)` 双架构零模型 Archive 已验证并上传；待 Apple 处理、最终截图/隐私资料/审核联系人、沙盒实测与审核提交 | 单一 Store Edition 的正式审核与手动发布；不替代官网 Core/Offline 的 Developer ID/公证计划 | [2026-08-23-mac-app-store-launch.md](2026-08-23-mac-app-store-launch.md) |
+| Mac App Store 上架 | Build 7 因 Guideline 2.4.5 与系统音频说明被拒；Build 8 已完成标准另存为、Accessibility 编译排除、隐私答复与 Store 构建，待全门禁、Archive、实机验收和重提 | 单一 Store Edition 的正式审核与手动发布；不替代官网 Core/Offline 的 Developer ID/公证计划 | [2026-08-23-mac-app-store-launch.md](2026-08-23-mac-app-store-launch.md) |
 | M0-M3 旧总计划 | 历史执行基线，部分范围已迁移或停止 | 保留已实现记录与仍有效的录音工作包；不能单独作为当前排期依据 | [2026-08-22-m0-mvp.md](2026-08-22-m0-mvp.md) |
 | 旧 M3 生态 | 已停止，不得执行 | DeepSeek 可在契约明确后作为 M2-09 P1 专用适配评估；插件市场/网关计划失效 | [迁移裁决](2026-08-22-current-roadmap-and-plan-transition.md#3-旧计划迁移矩阵) |
 
