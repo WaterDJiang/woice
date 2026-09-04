@@ -1,6 +1,6 @@
 # Woice Mac App Store 上架计划
 
-> 状态：`0.1.4 (Build 7)` 因 Guideline 2.4.5 与系统音频说明被拒；`Build 8` 已完成标准另存为、Accessibility 编译排除、隐私答复、定向测试和 Store 构建。待全门禁、正式 Archive/上传、实体 Mac 验收与重新提交  
+> 状态：`0.1.4 (Build 7)` 因 Guideline 2.4.5 与系统音频说明被拒；`Build 8` 已完成修复、全门禁、正式 Archive、导出与上传。待 Apple 处理、实体 Mac 验收、App Store Connect 更新与重新提交  
 > 日期：2026-08-23  
 > 启动条件：WCL-06 本机 Store 切片已完成，App ID、签名、描述文件、Build 6 Archive 与上传链已落地；仍不把上传成功描述为已提交审核或已上架  
 > 当前路线图：[当前路线图与计划迁移表](2026-08-22-current-roadmap-and-plan-transition.md)  
