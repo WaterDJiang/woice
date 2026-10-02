@@ -46,7 +46,7 @@ func interruptedRecordingJournalRecoversAudio() throws {
   #expect(SHA256.hash(data: try Data(contentsOf: audioURL)) == before)
 }
 
-@Test("异常退出恢复双轨素材时重建会议回放并使用可靠双轨语义")
+@Test("异常退出恢复双轨素材时重建会议回放并使用单次转写语义")
 @MainActor
 func interruptedDualTrackRecordingRecoversMeetingMix() throws {
   let root = FileManager.default.temporaryDirectory.appendingPathComponent(
@@ -71,7 +71,7 @@ func interruptedDualTrackRecordingRecoversMeetingMix() throws {
 
   let state = AppState(store: store)
   let record = try #require(state.recordings.first)
-  #expect(record.meetingTranscriptionMode == .sourceSeparated)
+  #expect(record.meetingTranscriptionMode == .standardMix)
   #expect(record.meetingMixFileName != nil)
   #expect(state.meetingMixFileExists(for: record))
   #expect(SHA256.hash(data: try Data(contentsOf: microphoneURL)) == microphoneBefore)
@@ -133,7 +133,7 @@ func interruptedDualTrackRecordingRecoversSurvivingSystemTrack() throws {
   #expect(state.systemAudioFileExists(for: record))
   #expect(!state.microphoneAudioFileExists(for: record))
   #expect(record.meetingMixFileName == nil)
-  #expect(record.meetingTranscriptionMode == .sourceSeparated)
+  #expect(record.meetingTranscriptionMode == nil)
   #expect(record.processingTasks.isEmpty)
 }
 

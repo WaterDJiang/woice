@@ -1,6 +1,7 @@
 # 双轨会议转写本机验收规格
 
-> 状态：旧版单次混音契约待替换；2026-08-24 起默认验收双轨分别转写并合并
+> 状态：历史验收基线；2026-09-07 起默认验收改为 meetingMix 单次转写，显式分轨仍验证双请求
+> 最新规格：`specs/2026-09-07-meeting-single-pass-transcription.md`
 > 日期：2026-08-23
 > 关联：[会议双音轨与合并转写规格](../doc/spec/2026-08-22-dual-track-meeting-transcription.md) · [M2-08 模型接入与双版本发布计划](../doc/plan/2026-08-22-model-integration.md)
 

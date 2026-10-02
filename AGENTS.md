@@ -1,33 +1,23 @@
 # Woice
 
-本地优先的 macOS 语音素材采集器和上下文来源。录音、转写、复听与素材库是产品核心；外部 Agent 只在素材完成后处理，或在授权范围内读取上下文。
+本地优先的 macOS 语音素材采集器和上下文来源。录音、转写、复听、搜索与导出必须脱离外部 Agent 独立可用；Agent 只处理已完成素材或读取明确授权的上下文。
 
-关键入口：`doc/INDEX.md` · 定位 `doc/spec/2026-08-22-voice-context-source-positioning.md` · 当前路线图 `doc/plan/2026-08-22-current-roadmap-and-plan-transition.md`
+关键入口：`doc/INDEX.md` · 当前路线图 `doc/plan/2026-08-22-current-roadmap-and-plan-transition.md` · 产品定位 `doc/spec/2026-08-22-voice-context-source-positioning.md`
 
-## 当前阶段
+## 行为规则
 
-- 当前优先级：录音可靠性 -> 转写与模型 -> 素材管理 -> Agent 协作。M1 真实 Mac Journey、M2-01 双轨、M2-08 Core/Offline 模型能力优先；M2-09 Agent 协作后置。
-- 当前实现使用 SwiftPM：`Package.swift`、`Sources/WoiceCore/`、`Sources/WoiceApp/`、`Tests/`；正式 Store 组合根由 `project.yml` 生成 `Woice.xcodeproj`，两者边界不得复制实现。
-- 当前闭环已覆盖菜单栏、录音、复听、设置、Keychain、macOS on-device ASR、真实 WhisperKit Tiny 本机 ASR、OpenAI-compatible ASR/LLM、原文和 Markdown；本机 ASR 会保存模型版本快照。SQLite/WAL、模型下载任务恢复、用户模型版本选择、bundled/downloaded 双库存、Unix Socket RPC、PI 薄适配和受控进程已有基础。WhisperKit Tiny 的固定 revision 已在当前机器完成真实录音转写，Core/Offline ad hoc 产物可生成并严格验签；默认大模型基准、正式签名公证、真实 Agent 素材派发仍按计划推进。
-- XcodeGen 2.46.0 已安装，`make xcode-project` 可从 `project.yml` 生成正式工程；`Package.swift` 仍是核心开发/测试真相源，`make xcode-build-store` 已验证 Store Target 无签名编译、Bundle validation、AppIcon/PrivacyInfo/NOTICES/DistributionManifest/SBOM 资源门禁，正式签名 Archive 仍待外部凭据。`make archive-app-store` 缺少 `WOICE_STORE_TEAM_ID` 或 `WOICE_STORE_CODE_SIGN_IDENTITY` 时必须 fail-closed。
+1. **读取有效依据** — 先读 `doc/INDEX.md`，再按索引打开当前任务相关的 1–2 个 Spec/Design/Plan 分片和 `doc/log/INDEX.md` 顶部；写前读相邻代码和测试。
+2. **Spec 先于产品代码** — feature、fix、refactor 开工前必须有有效 Spec，写清目标、范围、验收、影响面和兼容迁移。能从代码与对话确认的直接写；仅把未决的产品范围、验收或兼容取舍交给用户决定。
+3. **先调研再自研** — 新 Provider、模型 Runtime、音频算法、Agent 协议或基础组件先查官方文档、成熟开源方案和仓库既有实现；涉及选型时记录来源、许可证、复用/自研结论与替代方案。
+4. **简单且局部** — 只改当前任务需要的内容，不顺手重构；一次调用不建协议或 `Utils`。有更简单路径时直接采用并说明取舍。
+5. **证据决定完成** — 先定义成功标准，循环到对应自动门禁和真实设备门禁通过；失败必须给出原命令、原错误、影响和推断，不把未运行或 Mock 结果写成通过。
 
-## 开发环境
+## 开发环境与命令
 
 - macOS 14+，Apple Silicon
-- Xcode 16.4+，Swift 6.1 language mode
-- XcodeGen 2.46.0，Swift Package Manager
-- SwiftUI + AppKit，AVFoundation，GRDB/SQLite，WhisperKit
-
-## 命令
-
-文档与 Harness 检查：
-
-```bash
-make docs-check
-make harness-check
-```
-
-当前 SwiftPM 工程统一使用：
+- Xcode 16.4+，Swift 6 language mode（`Package.swift`/`project.yml` 当前为 6.0），XcodeGen 2.46.0
+- SwiftPM + SwiftUI/AppKit + AVFoundation + GRDB/SQLite + WhisperKit/Qwen3ASR
+- Node.js 只用于 `Connectors/` 的契约测试
 
 ```bash
 make project
@@ -36,32 +26,29 @@ make test
 make format
 make lint
 make verify
+make xcode-build-store
+swift test --no-parallel --filter MeetingTranscriptionAcceptanceTests
 ```
 
-命令缺少前置条件时必须响亮失败；禁止把未执行命令写成“已通过”。
+- `Package.swift` 是核心开发和测试真相源；`project.yml` 生成正式 `Woice.xcodeproj`，不得复制业务实现。
+- `make build` 与 `make xcode-build-direct` 只证明无签名编译，不可作为安装、TCC 连续性或发行证据。
+- 命令缺少前置条件必须 fail-closed；执行结果只记录实际运行的命令和当前证据。
 
-`make build` 与 `make xcode-build-direct` 只做无签名编译检查。需要在本机安装或验证 TCC 覆盖安装时，必须显式传入本机未跟踪的 `WOICE_LOCAL_SIGNING_IDENTITY`，再调用 `make package-core`、`make package-offline` 或带该变量的 `make install`。
-
-本地开发 Bundle 统一命名为 `Woice (Dev).app`，Bundle ID 保持 `com.woice.app`；App Store/TestFlight 只使用 `Woice.app` 和 `com.water.woice`。每次新建/安装 App 必须先替换同 Channel 的旧安装，安装后清理项目 `build/` 顶层与 `.build/xcode-*-derived/Build/Products` 中可重建的旧 App；系统应用目录中每个 Channel 只保留最新一份。新 Store Archive/导出包生成后，只保留当前待上传 Archive，旧 `.xcarchive` 可恢复移入废纸篓；不得删除另一 Channel 的 App、当前待上传 Archive、导出包或 `~/Library/Application Support/Woice*` 用户数据。
-
-Dev 必须使用 `~/Library/Application Support/Woice Dev`、Keychain service `com.woice.app.dev` 及该目录下独立的 `instance.lock` / `woice.sock`；不得读写、迁移或清理正式版对应的数据、Keychain、锁和 Socket。
-
-## 计划结构
+## 当前代码结构
 
 ```text
-App/WoiceApp/          App、Entitlement、Info.plist、组合根
-Sources/WoiceDomain/  实体、Artifact、错误和 Provider 契约
-Sources/WoiceRuntime/ 状态机、Pipeline、Job、Policy、恢复
-Sources/WoiceAudio/   设备、录音、分段和音频格式
-Sources/WoiceStorage/ GRDB、迁移、FTS 和 Artifact 文件
-Sources/WoiceProviders/ WhisperKit、LLM、导出 Provider
-Sources/WoiceRPC/     本地 JSON-RPC Server/Client/Schema
-Sources/WoiceAgent/   Context Package、受控 CLI 派发和结果回收
-Sources/WoiceUI/      共享 View、ViewModel、Design Token
-Connectors/           MCP、PI 和 M2-09 已验证的 Agent 薄适配层
-Tests/                Unit、Integration、Contract、UI、Fixtures
-doc/                  spec -> plan -> log 文档闭环
+Sources/WoiceCore/   领域模型、Provider/RPC/Agent 契约与纯逻辑
+Sources/WoiceApp/    App 组合、Runtime、UI、音频、存储与 Provider 实现
+App/WoiceApp/        App Store Entitlement、Info.plist 与组合资源
+Connectors/          PI/MCP 的 Node.js 薄适配层
+Tests/               Swift 单元、集成、契约及真实 Mac 条件测试
+Resources/           隐私、权限、许可证、Catalog 与发行元数据
+scripts/             构建、打包、验证和真实设备验收脚本
+doc/                 Spec、Design、Plan、Log、Benchmark 与索引
 ```
+
+- 上述是已实现结构。未来拆分为 Domain/Runtime/Audio/Storage/Providers/RPC/Agent/UI 等 Target 只以有效设计和迁移计划为准，不得写成当前事实。
+- `Connectors/` 使用各自 `package.json` 和 ESM 约定；根目录 Swift 格式规则只适用于 `Sources/` 与 `Tests/`。当前无需嵌套 Harness，出现相互冲突的子目录规则时再拆。
 
 ## 核心领域对象
 
@@ -69,118 +56,97 @@ Recording · Artifact · Transcript · Job · Event · Profile · Provider · Co
 
 新增概念前先证明这些对象无法表达；不要创建同义模型。
 
-## 项目特有规则
+## 产品不变量
 
 ### 1. 原始数据不可覆盖
 
-原始音频和原始转录创建后不可原位修改。重转录、人工编辑、摘要和修订一律创建带父子关系的新 Artifact；测试必须验证原始 SHA-256 不变。
+原始音频和原始转录创建后不可原位修改。重转录、人工编辑、摘要和修订创建带父子关系的新 Artifact；测试必须验证原始 SHA-256 不变。
 
 ### 2. 录音由用户控制
 
-录音开始必须来自用户快捷键、可见按钮或已明确开启的连接器权限。Agent 默认得到 `USER_GESTURE_REQUIRED`；录音期间始终显示可见状态。
+录音开始必须来自快捷键、可见按钮或明确授权的 Connector；Agent 默认返回 `USER_GESTURE_REQUIRED`。录音期间始终显示可见状态，并提供可到达的结束入口。
 
-### 3. Local-first 不等于隐式降级
+### 3. Local-first 不隐式外发
 
-本地 Provider 失败时报告失败，不自动把音频或文字发送到云端。每个云端 Provider 首次外发前单独授权，并显示目标和数据类型。
+本地 Provider 失败时报告失败，不自动将音频或文字发往云端。每个云端目标首次外发前单独授权，并显示目标与数据类型。
 
 ### 4. Durable before clever
 
-录音先分段固化，再转录和处理。Job 状态、Lease、幂等键和失败原因持久化；界面成功状态必须来自已提交事实，不能来自乐观内存状态。
+录音先分段固化，再转录和处理。Job 状态、Lease、幂等键和失败原因持久化；界面成功状态来自已提交事实，不来自乐观内存状态。
 
 ### 5. MIT-first
 
-新增代码依赖前记录许可证、精确版本和替代方案。默认只接受 MIT；模型权重单独审查。非 MIT 依赖先写 ADR 并获得明确确认。
+新增代码依赖前记录许可证、精确版本和替代方案。默认只接受 MIT；模型权重单独审查；非 MIT 先写 ADR 并取得明确确认。
 
-### 6. 稳定边界，不加载任意动态库
+### 6. 稳定扩展边界
 
 内置能力是随 App 签名的 Swift Provider；跨语言能力是受控进程 Provider；Agent 是本地 RPC Connector。禁止运行时下载并加载任意 dylib 或 Swift bundle。
 
-### 7. Agent 产品只能是薄适配层
+### 7. Agent 只做薄适配
 
-PI 使用当前 `@earendil-works/pi-coding-agent` Extension API；DeepSeek 等产品只有在准确协议确认后才能进入 M2-09 P1 评估。旧 M3 插件生态已停止；适配层不得进入 Runtime 核心或直读数据库。
+Connector 只调用 WoiceRPC，不直读 SQLite、音频设备、Keychain 或任意目录。Agent 派发只接收 Artifact/ContextPackage，不暴露任意 Shell；返回内容不自动执行。
 
-### 8. Woice 不是 Agent 网关
+### 8. 两个发行 Channel 隔离
 
-没有 Agent 时，录音、转写、复听、搜索和导出必须完整可用。通用推理、规划、编码交给外部 Agent；Woice 只打包素材、受控派发、回收结果和记录审计，不自动执行返回内容。
+Dev 只使用 `/Applications/Woice (Dev).app`、Bundle ID `com.woice.app`、`~/Library/Application Support/Woice Dev`、Keychain service `com.woice.app.dev` 及独立 lock/socket。Store 只使用 `Woice.app` 与 `com.water.woice`；任何安装、清理、迁移不得触碰另一 Channel 或 `~/Library/Application Support/Woice*` 用户数据。
 
 ## 架构与组件化
 
-**先定边界再实现，用组合吸收变化，不把所有东西都插件化。**
+- 当前依赖方向是 `WoiceApp -> WoiceCore`；具体实现只在 `WoiceApp.swift`/AppState 组合，SDK 类型必须在 Provider 边界转换，不得进入 Core 契约。
+- SwiftUI View 不直接操作 GRDB、文件、AVAudioEngine 或 URLSession；状态和副作用进入 AppState 或对应 Service/Actor。
+- SQLite + 文件系统是事务真相源，不抽象成可替换 Storage 插件。
+- 跨任务可变状态使用 Actor；新增 `@unchecked Sendable` 必须附 ADR 和并发测试。
+- 重复 ≥2 次、View >250 行、ViewModel >300 行、函数 >60 行、参数 >5 或一个类型有两个变更原因，只触发职责评审；按状态归属和独立变化拆分，不机械抽象。
+- 修改共享组件或契约前列出调用方、兼容策略和回归范围；同一外观但语义不同的组件不得强行合并。
 
-- 依赖单向：Domain <- Audio/Storage/Providers/RPC/Agent <- Runtime <- UI <- App。
-- App 是唯一组合根；具体 Provider 只在组合根注册。
-- UI 不直接操作 GRDB、文件、AVAudioEngine 或 URLSession。
-- Connector 只调用 WoiceRPC，不读 SQLite、不访问音频设备。
-- Agent 派发只接收 Artifact/ContextPackage；不得暴露任意 Shell、Keychain 或未授权目录。
-- Storage 在 M1 不是插件；SQLite + 文件系统是事务真相源。
-- 跨任务可变状态放 Actor；`@unchecked Sendable` 必须有 ADR 和并发测试。
-- 命中任一才抽：重复 2 次、View > 250 行、ViewModel > 300 行、函数 > 60 行、参数 > 5、一个类型有两个变更原因。
-- 仅为一次调用创建协议或 `Utils` 模块，视为过度抽象。
+## Swift 与 UI 规则
 
-## Swift 代码风格
+- Swift 使用 4 空格；格式以 `make format` 为准。类型 PascalCase，函数/属性 lowerCamelCase，布尔值使用 `is/has/can/should` 前缀；一个文件一个主类型，文件名与主类型一致。
+- 跨模块错误使用稳定 Domain Error Code；底层错误只进入脱敏诊断。能由状态机、Schema 或 Policy 确定的决策不得交给 LLM。
+- UI 遵循 `doc/design/INDEX.md` 中的有效设计依据：系统字体、系统材质、SF Symbols、语义色、4 pt 网格；红色只用于录音、错误和破坏性动作，状态同时有图标和文字。
+- MenuBar Popover 只放状态、主动作、Profile、最近结果和入口；复杂管理进入独立窗口。支持浅/深色、高对比、键盘、VoiceOver 和 Reduce Motion。
+- 涉及 UI 的 Spec 必须覆盖加载、空、错误、成功、禁用状态，窗口尺寸、焦点/键盘、共享组件调用方及真实截图或人工验收方式。
 
-- 4 空格缩进；格式以 `swift format` 为准，不手调与工具冲突的样式。
-- 类型 PascalCase；函数/属性 lowerCamelCase；布尔值使用 `is/has/can/should` 前缀。
-- 一个文件一个主类型；文件名与主类型一致。
-- 错误跨模块时使用稳定 Domain Error Code；底层错误只进入脱敏诊断。
-- SDK 类型在 Provider 边界转换，不得穿透到 Domain、Runtime 或 UI。
-- 能用确定性状态机、Schema 或策略代码决定的事，不交给 LLM 判断。
+## UX：D-S-T-E
 
-## UI 原则
-
-- Quiet Native Utility：系统字体、系统材质、SF Symbols、语义色；不做网页式 AI 仪表盘。
-- 4 pt 间距网格；Popover 默认宽 336 pt；历史窗口最小 800 x 560 pt。
-- 红色只用于正在录音、错误和破坏性操作；状态必须同时有图标和文字。
-- MenuBar Popover 只放状态、主动作、Profile、最近结果和入口；复杂管理进入独立窗口。
-- 首批共享组件以开发计划第 7.4 节为准；第二个使用点出现前不扩建设计系统。
-- 支持浅色、深色、高对比、键盘操作、VoiceOver 和 Reduce Motion。
-
-## UX 原则：D-S-T-E
-
-- Diagnose：盲测“是否在录音、是否已转成文字、谁在使用哪些素材、失败后是否安全”；2 人停顿超过 3 秒即不通过。
-- Simplify：录音 1 个快捷键；最近结果复制不超过 2 次操作；首次启动只做产品承诺、麦克风、模型 3 步。
-- Translate：写“正在本机转录”“发送给 Codex 处理”，不写 Provider/Gateway；错误说明发生什么、素材是否安全、下一步动作。
-- Emotify：300 ms 内反馈录音状态；处理超过 3 秒显示阶段；成功反馈克制，AI 内容持续标注模型与时间。
+- **Diagnose** — 盲测“是否在录音、是否已转成文字、谁在使用素材、失败后是否安全”；2 人任一关键步骤停顿超过 3 秒即不通过。
+- **Simplify** — 录音一个主动作；最近结果复制不超过 2 次操作；首次启动只做产品承诺、麦克风和模型 3 步。
+- **Translate** — 写“正在本机转录”“发送给 Codex 处理”，不写 Provider/Gateway；错误必须说明发生了什么、素材是否安全、下一步是什么。
+- **Emotify** — 录音动作 300 ms 内反馈；处理超过 3 秒显示阶段；成功反馈克制，AI 内容持续标注模型和时间。
 
 ## 测试门槛
 
-- 修 bug：先写失败复现；加验证：先写失败测试；重构：前后测试都通过。
-- Domain/Runtime/RPC 行覆盖率 >= 90%；Storage/Provider >= 80%。
-- 音频、TCC、签名和恢复必须在真实 Mac 验证，Mock 不能替代。
-- 固定音频和 RPC Fixture 不得包含真实用户隐私。
-- 数据 Schema、RPC Schema、Provider Manifest 变更必须附迁移或契约测试。
-- Agent Connector 还必须测试未安装、未登录、审批等待、超时、崩溃、输出超限和路径逃逸。
+- 修 bug 先写失败复现；加验证先写失败测试；重构前后测试均须通过。测试必须验证用户可见行为或稳定契约，不照抄实现。
+- 音频、TCC、签名和恢复必须在真实 Mac 验证；Mock 只证明逻辑，不替代设备证据。真实测试失败时不得静默改成 Mock。
+- 固定音频与 RPC Fixture 不得包含真实用户隐私。Schema、RPC Schema、Provider Manifest 变更必须附迁移或契约测试。
+- Agent Connector 必须覆盖未安装、未登录、审批等待、超时、崩溃、输出超限和路径逃逸。
+- 仓库目前没有统一行覆盖率命令；只有当前 Spec/Plan 明确要求且能产生报告时才声明覆盖率达标，不沿用历史目标冒充门禁。
 
 ## 安全约束
 
-- 密钥只进 Keychain；禁止写入配置、日志、数据库、Artifact 或子进程环境。
-- 日志默认不记录完整音频、转录、Prompt 或模型响应。
-- 外部进程使用环境白名单、独立工作目录、超时和输出上限。
-- 禁止 `/bin/sh -c` 或任意命令拼接；CLI 凭据由目标 Agent 管理，Woice 不读取或复制。
-- 删除默认可恢复；永久删除必须明确目标和二次确认。
-- 不读取、提交或展示本地密钥文件；发现疑似密钥立即停止并报告。
+- 密钥只进 Keychain；禁止写入配置、日志、数据库、Artifact、子进程环境或 Harness。发现疑似密钥立即停止并报告。
+- 日志默认不记录完整音频、转录、Prompt 或模型响应。外部进程使用环境白名单、独立工作目录、超时和输出上限；禁止 `/bin/sh -c` 或任意命令拼接。
+- 删除默认可恢复；永久删除必须明确目标和二次确认。构建清理只处理已确认可重建产物，不删除录音、模型、数据库、设置或另一 Channel。
 
-## 本机签名与线上发行边界
+## 本机安装与线上发行
 
-- 本机需要安装、覆盖安装或验证 TCC 连续性时，必须显式使用登录钥匙串中的 Apple Development 身份；本机最终包不能只使用无签名编译产物或默认 Ad Hoc 包。示例：`WOICE_CODESIGN_IDENTITY="$WOICE_LOCAL_SIGNING_IDENTITY" WOICE_OFFLINE_MODEL_ROOT="$WOICE_OFFLINE_MODEL_ROOT" make package-offline`。
-- `WOICE_LOCAL_SIGNING_IDENTITY` 只存在于本机 Shell 或未跟踪配置中。不得把证书名称、SHA-1、Team ID、私钥、Provisioning Profile、钥匙串文件或实际签名命令中的个人身份写入仓库、模型包、Release 资产或 CI；验证后只记录脱敏结论。
-- `xcode-build-direct` 只负责无签名编译；用于本机安装的 Bundle 必须在 `package_distribution.py` 的最终 Bundle 阶段使用显式身份签名，并用 `codesign --verify --deep --strict` 与 `codesign -dvv` 确认不是 `Signature=adhoc`、不是 `TeamIdentifier=not set`。
-- 线上/公开 Ad Hoc 版本继续使用显式 `WOICE_CODESIGN_IDENTITY=-`（此前 AOC/Ad Hoc 版本边界）。本机 Apple Development 身份及其私钥不得用于 GitHub、CI、公开下载或其他线上分发；正式线上发行另走 Developer ID/公证或商店签名门禁。
-- 从 Ad Hoc 切换到本机稳定身份可能需要一次重新授权；只有后续包的 Bundle ID、Team ID、权限声明和签名要求一致时，才可把覆盖安装视为具备 TCC 连续性条件。真实 TCC 连续性仍需在 Mac 上手测，不得由静态签名检查代替。
+- 本机覆盖安装或验证 TCC 连续性必须显式传入本机未跟踪的 `WOICE_LOCAL_SIGNING_IDENTITY` 并运行 `make install`；最终 Bundle 必须通过 `codesign --verify --deep --strict`，且不是 Ad Hoc、Team 未缺失。
+- 证书名称、SHA-1、Team ID、私钥、Provisioning Profile、钥匙串文件和个人签名命令不得进入仓库、模型包、Release 资产、CI 或日志；只记录脱敏结论。
+- 覆盖安装后验证 Bundle ID、Team、权限声明、签名要求和真实 TCC。静态签名检查不等于 TCC 连续性；从 Ad Hoc 切换稳定身份可能需要一次重新授权。
+- 公开 Ad Hoc、Developer ID/公证和 App Store 是独立发行门禁。本机 Apple Development 身份不得用于公开资产。未获明确指令，不推送、不提交审核、不发布。
+- 安装前替换同 Channel 旧 App；安装后仅清理 `build/` 顶层和 `.build/xcode-*-derived/Build/Products` 的可重建 App。Store Archive/导出包按当前发行计划保留，不擅自删除。
 
-## 文档闭环
+## 文档与变更闭环
 
-工作前：读 `doc/INDEX.md` -> 相关 spec INDEX -> 当前 plan -> log INDEX 顶部。只读当前任务需要的 1-2 个分片。
+- Spec 定义行为和验收；Design 记录稳定架构与选型；Plan 管实施顺序、依赖和状态；Log 只记录发生过的变更与证据，不作为隐式新规格。
+- 同一范围只保留一套有效约定，按用户授权和显式替代关系判断，不按日期猜。Plan 不改写 Spec；Log 中改变行为的决定必须同步回有效文档。
+- 新计划使用稳定任务 ID，并写明替代、保留、迁移、停止和顺序。局部变化只替代相关任务；受影响下游和已完成任务标为待复核，明确代码保留、修改、迁移或移除。
+- 用户已授权的范围或常规实施调整，文档同步后继续，不重复确认；未决范围、验收或兼容取舍只暂停受影响工作，独立工作继续。
+- 中断时在当前 Plan 记录有效依据、任务状态、验证证据、阻塞和下一步；恢复时核对实际文件，不执行已替代、已废弃或依赖未满足的任务。
+- 工作后追加 `doc/log/YYYY-MM-DD.md` 并更新各 INDEX。INDEX 只放指针和一句话结论。关键判断或失误修正已有截图时，复制到 `doc/assets/YYYY-MM-DD-{标识}.png` 并在 Log 引用；普通过程截图不存。
 
-计划任务先读当前路线图；旧 `m0-mvp` 只作历史执行基线。新计划必须写明替代、保留、迁移、停止和顺序，否则不得实施。
+## 提交
 
-工作后：追加 `doc/log/YYYY-MM-DD.md`，更新 `doc/log/INDEX.md`；范围变化先更新 spec，再更新 plan。INDEX 只放指针和一句话结论。
-
-## 行为与提交
-
-- 简单优先；有更简单做法时直接指出，不默默选复杂方案。
-- 只改当前任务需要的内容，不顺手重构相邻模块。
-- 写前先读相邻文件；冲突规则二选一，不折中保留两套模式。
-- 先定义成功标准，再循环到验证通过；长任务每个工作包设检查点。
-- 失败贴原文、触发命令、影响和推断原因；不静默吞掉或伪造完成。
-- 提交使用 `type(scope): description`；未获明确指令，不推送、不发版。
+- 提交格式：`type(scope): description`。
+- 只暂存当前任务已验证文件；脏工作树中的其他改动视为用户内容。
+- 未获明确指令，不 commit、不 push、不创建 Release。

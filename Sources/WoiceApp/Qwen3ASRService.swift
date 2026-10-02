@@ -141,43 +141,23 @@ private final class Qwen3ASRSession: @unchecked Sendable {
 
     do {
       let audioFile = try AVAudioFile(forReading: normalizedURL)
-      let sampleRate = max(1, Int(audioFile.processingFormat.sampleRate.rounded()))
-      let maximumFrames = AVAudioFrameCount(sampleRate * 30)
+      let reader = try QwenAudioChunkReader(file: audioFile)
       var chunks: [String] = []
       var segments: [TranscriptSegment] = []
-      var frameOffset: AVAudioFramePosition = 0
 
-      while audioFile.framePosition < audioFile.length {
-        let remaining = audioFile.length - audioFile.framePosition
-        let frameCount = AVAudioFrameCount(min(Int64(maximumFrames), remaining))
-        guard frameCount > 0,
-          let buffer = AVAudioPCMBuffer(
-            pcmFormat: audioFile.processingFormat, frameCapacity: frameCount)
-        else { break }
-        try audioFile.read(into: buffer, frameCount: frameCount)
-        guard buffer.frameLength > 0,
-          let channel = buffer.floatChannelData?.pointee
-        else { throw Qwen3ASRError.audioReadFailed("无法读取浮点音频帧") }
-
-        let samples = Array(
-          UnsafeBufferPointer(start: channel, count: Int(buffer.frameLength)))
-        let start = Double(frameOffset) / Double(sampleRate)
-        let end =
-          Double(frameOffset + AVAudioFramePosition(buffer.frameLength))
-          / Double(sampleRate)
-        let isTrailingChunk = audioFile.framePosition >= audioFile.length
-        frameOffset += AVAudioFramePosition(buffer.frameLength)
+      while let chunk = try reader.next() {
+        try Task.checkCancellation()
         // AVAudioFile may expose a short converter-padding tail after the
         // actual audio. Do not send that tail to Qwen: it can produce a
         // spurious empty/hallucinated chunk and fail an otherwise valid file.
         if QwenAudioSignalDetector.shouldSkipTrailingChunk(
-          samples, isTrailingChunk: isTrailingChunk)
+          chunk.samples, isTrailingChunk: chunk.isTrailing)
         {
           continue
         }
         let rawText = model.transcribe(
-          audio: samples,
-          sampleRate: sampleRate,
+          audio: chunk.samples,
+          sampleRate: 16_000,
           language: qwenLanguage(for: language))
         let text: String
         do {
@@ -195,7 +175,7 @@ private final class Qwen3ASRSession: @unchecked Sendable {
         }
         if !text.isEmpty {
           chunks.append(text)
-          segments.append(TranscriptSegment(start: start, end: end, text: text))
+          segments.append(TranscriptSegment(start: chunk.start, end: chunk.end, text: text))
         }
       }
 

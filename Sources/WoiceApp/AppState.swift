@@ -281,6 +281,23 @@ final class AppState {
   @ObservationIgnored private var modelDownloadTask: Task<Bool, Never>?
   private var systemAudioStartError: String?
   private(set) var globalShortcutError: String?
+  // Created only after the recovery journal has been durably written.
+  var sidebarRecordingSession: RecordingSessionJournal?
+  var isFinalizingRecording = false
+
+  var visibleRecordingSession: RecordingSessionJournal? {
+    guard let session = sidebarRecordingSession,
+      !recordingSummaries.contains(where: { $0.id == session.id })
+    else { return nil }
+    return session
+  }
+
+  var recordingSessionStatus: String {
+    if isFinalizingRecording { return "正在保存并整理转写" }
+    if processingState == .authorizing { return "正在准备录音" }
+    return processingState.label
+  }
+
   private var activeRecordingID: UUID?
   /// The rolling audio manifest remains alive until the final Recording row
   /// commits. It is never cleared merely because the capture callbacks stop.
@@ -301,6 +318,9 @@ final class AppState {
   private var isPreparingForTermination = false
   @ObservationIgnored private var actionFeedbackTask: Task<Void, Never>?
   private let recycleMaterialDirectory: (URL) throws -> Void
+  private let materialLibrarySelector: () -> URL?
+  private var materialLibrarySelectionRevision = 0
+  private var isInitialRecoveryDeferred = false
 
   init(
     store: WorkspaceStore = WorkspaceStore(), recorder: RecordingService = RecordingService(),
@@ -312,7 +332,8 @@ final class AppState {
     modelCatalogConfiguration: ModelCatalogRuntimeConfiguration? =
       ModelCatalogRuntimeConfiguration
       .fromBundle(),
-    recycleMaterialDirectory: ((URL) throws -> Void)? = nil
+    recycleMaterialDirectory: ((URL) throws -> Void)? = nil,
+    materialLibrarySelector: (() -> URL?)? = nil
   ) {
     self.store = store
     self.recordingDetailLoader = RecordingDetailLoader(databaseURL: store.databaseURL)
@@ -328,6 +349,8 @@ final class AppState {
         var resultingURL: NSURL?
         try FileManager.default.trashItem(at: directory, resultingItemURL: &resultingURL)
       }
+    self.materialLibrarySelector =
+      materialLibrarySelector ?? { MaterialLibraryPanel.createMaterialLibrary() }
     let bundledModelsRoot = Bundle.main.resourceURL?.appendingPathComponent(
       "Models", isDirectory: true)
     self.modelPackStore = ModelPackStore(
@@ -389,10 +412,13 @@ final class AppState {
       errorMessage = "本地数据库需要检查：\(storageError)"
     }
     if isHydratingRecordings {
-      isShowingOnboarding = loaded.asrEndpoint.isEmpty && recordingSummaries.isEmpty
+      isShowingOnboarding =
+        needsUserSelectedMaterialLibrary
+        || (loaded.asrEndpoint.isEmpty && recordingSummaries.isEmpty)
     } else {
       finishInitialRecordingLoad()
-      isShowingOnboarding = loaded.asrEndpoint.isEmpty && recordings.isEmpty
+      isShowingOnboarding =
+        needsUserSelectedMaterialLibrary || (loaded.asrEndpoint.isEmpty && recordings.isEmpty)
     }
     installRecordingLifecycleObservers()
     installGlobalShortcut()
@@ -418,6 +444,16 @@ final class AppState {
     if normalizeLegacyMeetingTasks() {
       _ = persistRecordings()
     }
+    guard !needsUserSelectedMaterialLibrary else {
+      isInitialRecoveryDeferred = true
+      return
+    }
+    completeInitialRecovery()
+  }
+
+  private func completeInitialRecovery() {
+    guard !isInitialRecoveryDeferred || !needsUserSelectedMaterialLibrary else { return }
+    isInitialRecoveryDeferred = false
     recoverInterruptedRecordingSession()
     recoverInterruptedTasks()
     restoreQueuedProcessingAuthorization()
@@ -516,7 +552,8 @@ final class AppState {
     }
   }
   var isBusy: Bool {
-    switch processingState {
+    if isFinalizingRecording { return true }
+    return switch processingState {
     case .authorizing, .transcribing, .generating, .awaitingAuthorization:
       true
     default:
@@ -1687,7 +1724,9 @@ final class AppState {
       Task { @MainActor [weak self] in
         guard let self else { return }
         defer { self.resumingModelWaitingRecordIDs.remove(recordID) }
-        guard let record = self.recordings.first(where: { $0.id == recordID }) else { return }
+        guard let waitingRecord = self.recordings.first(where: { $0.id == recordID }),
+          let record = self.prepareMeetingTranscription(for: waitingRecord)
+        else { return }
         let tracks = self.transcriptionTracks(for: record)
         if tracks.count > 1 {
           for track in tracks {
@@ -2077,6 +2116,7 @@ final class AppState {
       }
       return
     }
+    guard ensureUserSelectedMaterialLibrary() else { return }
     guard settings.hasEnabledRecordingSource else {
       errorMessage = "请至少开启一个音源。"
       presentActionFeedback(.failure("请至少开启一个音源"))
@@ -2090,6 +2130,7 @@ final class AppState {
     liveTranscriptionState = settings.enableLiveTranscription ? .requestingPermission : .disabled
     backgroundTranscriptionState = canRunBackgroundLocalASR ? .waiting : .disabled
     processingState = .authorizing
+    sidebarRecordingSession = nil
     let id = UUID()
     activeRecordingID = id
     let fileName =
@@ -2124,17 +2165,18 @@ final class AppState {
     recordingSessionStartedAt = Date()
     systemAudioStartedAt = nil
     do {
-      try store.saveRecordingSession(
-        RecordingSessionJournal(
-          id: id,
-          createdAt: recordingSessionStartedAt ?? Date(),
-          audioFileName: fileName,
-          systemAudioFileName: systemAudioURL?.lastPathComponent,
-          manifestFileName: chunkManifest.manifestURL.lastPathComponent,
-          chunkDirectoryName: chunkManifest.chunkDirectoryURL.lastPathComponent,
-          captureMicrophone: settings.captureMicrophone,
-          captureSystemAudio: settings.captureSystemAudio,
-          meetingTranscriptionMode: settings.meetingTranscriptionMode))
+      let session = RecordingSessionJournal(
+        id: id,
+        createdAt: recordingSessionStartedAt ?? Date(),
+        audioFileName: fileName,
+        systemAudioFileName: systemAudioURL?.lastPathComponent,
+        manifestFileName: chunkManifest.manifestURL.lastPathComponent,
+        chunkDirectoryName: chunkManifest.chunkDirectoryURL.lastPathComponent,
+        captureMicrophone: settings.captureMicrophone,
+        captureSystemAudio: settings.captureSystemAudio,
+        meetingTranscriptionMode: settings.meetingTranscriptionMode)
+      try store.saveRecordingSession(session)
+      sidebarRecordingSession = session
     } catch {
       activeRecordingID = nil
       clearRecordingDurability()
@@ -2209,6 +2251,7 @@ final class AppState {
         recorder.cancel()
         clearRecordingDurability()
         store.clearRecordingSession()
+        sidebarRecordingSession = nil
         activeRecordingID = nil
         recordingSessionStartedAt = nil
         systemAudioStartedAt = nil
@@ -2221,7 +2264,9 @@ final class AppState {
   }
 
   func stopRecording() async {
-    guard isRecording else { return }
+    guard isRecording, !isFinalizingRecording else { return }
+    isFinalizingRecording = true
+    defer { isFinalizingRecording = false }
     stopRecordingTimer()
     let systemAudioResult = await systemAudioRecorder.stop()
     let result = recorder.stop()
@@ -2411,7 +2456,7 @@ final class AppState {
     }
     let record = RecordingRecord(
       id: recordID,
-      createdAt: Date(),
+      createdAt: sessionStartedAt ?? Date(),
       audioFileName: url.lastPathComponent,
       duration: max(result.duration, hasUsableSystemAudio ? systemAudioResult.duration : 0),
       transcript: backgroundSnapshot?.text,
@@ -2455,6 +2500,8 @@ final class AppState {
       errorMessage = recoveryMessage
       return
     }
+    sidebarRecordingSession = nil
+    isFinalizingRecording = false
     store.clearRecordingSession()
     clearRecordingDurability()
     if !hasUsableInput {
@@ -2743,7 +2790,7 @@ final class AppState {
 
   func requestTranscription(for record: RecordingRecord) {
     guard guardRecordingMutation("转写") else { return }
-    let record = prepareReliableMeetingTranscription(for: record)
+    guard let record = prepareMeetingTranscription(for: record) else { return }
     if shouldUseLocalASR {
       presentActionFeedback(.progress("正在开始本机转写"))
       Task { @MainActor [weak self] in
@@ -2805,6 +2852,7 @@ final class AppState {
   @discardableResult
   func importMedia(from sourceURL: URL) async -> UUID? {
     guard guardRecordingMutation("导入") else { return nil }
+    guard ensureUserSelectedMaterialLibrary() else { return nil }
     do {
       let imported = try await MediaImportService.importFile(
         sourceURL: sourceURL, recordingsDirectory: store.recordingsURL)
@@ -2867,6 +2915,64 @@ final class AppState {
       presentActionFeedback(.failure("导入失败：\(error.localizedDescription)"))
       return nil
     }
+  }
+
+  var userSelectedMaterialLibraryURL: URL? {
+    _ = materialLibrarySelectionRevision
+    return store.userSelectedMaterialLibraryURL
+  }
+
+  var needsUserSelectedMaterialLibrary: Bool {
+    _ = materialLibrarySelectionRevision
+    return store.requiresUserSelectedMaterialLibrary && !store.hasUserSelectedMaterialLibrary
+  }
+
+  @discardableResult
+  func requestUserSelectedMaterialLibraryIfNeeded() -> Bool {
+    ensureUserSelectedMaterialLibrary()
+  }
+
+  @discardableResult
+  func chooseUserSelectedMaterialLibrary() -> Bool {
+    guard let selectedURL = materialLibrarySelector() else {
+      presentActionFeedback(.progress("尚未选择素材保存文件夹"))
+      return false
+    }
+    do {
+      try store.configureUserSelectedMaterialLibrary(at: selectedURL)
+      materialLibrarySelectionRevision += 1
+      completeInitialRecovery()
+      presentActionFeedback(.success("素材将保存在你选择的文件夹中"))
+      errorMessage = nil
+      return true
+    } catch {
+      errorMessage = error.localizedDescription
+      presentActionFeedback(.failure("无法设置素材文件夹：\(error.localizedDescription)"))
+      return false
+    }
+  }
+
+  func requestMicrophoneAccessForSetup() async -> MicrophoneInputStatus {
+    do {
+      let status = try await recorder.requestMicrophoneAccess()
+      if status.hasUsableInput {
+        errorMessage = nil
+        presentActionFeedback(.success("麦克风已就绪"))
+      } else {
+        presentActionFeedback(.failure("已允许麦克风，但没有可用输入设备"))
+      }
+      return status
+    } catch {
+      errorMessage = error.localizedDescription
+      presentActionFeedback(.failure("麦克风尚未就绪：\(error.localizedDescription)"))
+      return recorder.microphoneStatus
+    }
+  }
+
+  private func ensureUserSelectedMaterialLibrary() -> Bool {
+    guard store.requiresUserSelectedMaterialLibrary else { return true }
+    guard !store.hasUserSelectedMaterialLibrary else { return true }
+    return chooseUserSelectedMaterialLibrary()
   }
 
   /// Sends a short, locally generated tone to the draft ASR configuration.
@@ -4229,7 +4335,7 @@ final class AppState {
     }
 
     let fileManager = FileManager.default
-    let stagingRoot = store.rootURL.appendingPathComponent(
+    let stagingRoot = store.recordingsURL.appendingPathComponent(
       ".deletion-staging", isDirectory: true)
     let stagingDirectory = stagingRoot.appendingPathComponent(
       "Woice-\(record.id.uuidString)", isDirectory: true)
@@ -4617,20 +4723,72 @@ final class AppState {
     return [transcriptionSourceTrack(for: record)]
   }
 
-  /// Real meeting samples showed that pre-mixing overlapping speech can make
-  /// Whisper consistently omit one side. Historical dual-track recordings are
-  /// therefore upgraded only when the user explicitly asks to transcribe
-  /// again; immutable audio and previous Transcript Artifacts stay untouched.
-  private func prepareReliableMeetingTranscription(
+  /// Rebuilds only the operational transcription tasks from the current user
+  /// preference. Both raw tracks and every prior Transcript Artifact remain
+  /// untouched; a missing derived mix is recreated before single-pass ASR.
+  private func prepareMeetingTranscription(
     for record: RecordingRecord
-  ) -> RecordingRecord {
+  ) -> RecordingRecord? {
     guard FileManager.default.fileExists(atPath: store.audioURL(for: record).path),
       let systemURL = store.systemAudioURL(for: record),
       FileManager.default.fileExists(atPath: systemURL.path)
     else { return record }
-    guard record.meetingTranscriptionMode != .sourceSeparated else { return record }
+
+    let mode = settings.meetingTranscriptionMode
+    var meetingMixFileName = record.meetingMixFileName
+    if mode == .standardMix {
+      let currentMixURL = store.meetingMixURL(for: record)
+      if meetingMixFileName == nil || !FileManager.default.fileExists(atPath: currentMixURL.path) {
+        do {
+          _ = try AudioPreparationService.prepareMeetingMix(
+            microphoneURL: store.audioURL(for: record),
+            systemAudioURL: systemURL,
+            outputURL: currentMixURL)
+          meetingMixFileName = currentMixURL.lastPathComponent
+        } catch {
+          let message = "会议合并音频生成失败；两条原始音轨仍安全保留，未开始转写。"
+          errorMessage = "\(message) \(error.localizedDescription)"
+          presentActionFeedback(.failure(message))
+          return nil
+        }
+      }
+    }
+
+    let desiredTracks: [AudioTrackKind] =
+      mode == .standardMix ? [.meetingMix] : [.microphone, .systemAudio]
+    let existingTranscriptionTasks = record.processingTasks.filter { $0.kind == .transcription }
+    let existingTracks = existingTranscriptionTasks.compactMap(\.sourceTrack)
+    let isAlreadyPrepared =
+      record.meetingTranscriptionMode == mode
+      && existingTranscriptionTasks.count == desiredTracks.count
+      && Set(existingTracks) == Set(desiredTracks)
+      && (mode != .standardMix || record.meetingMixFileName == meetingMixFileName)
+    guard !isAlreadyPrepared else { return record }
+
+    let previousTask = existingTranscriptionTasks.last
+    let replacementTasks = desiredTracks.map { track in
+      if let existing = existingTranscriptionTasks.first(where: { $0.sourceTrack == track }) {
+        var preserved = existing
+        preserved.meetingTranscriptionMode = mode
+        return preserved
+      }
+      return ProcessingTask(
+        kind: .transcription,
+        idempotencyKey: taskKey(recordID: record.id, kind: .transcription, sourceTrack: track),
+        status: .failed,
+        providerID: previousTask?.providerID,
+        modelID: previousTask?.modelID,
+        modelVersion: previousTask?.modelVersion,
+        dataLocation: previousTask?.dataLocation,
+        capability: .transcription,
+        sourceTrack: track,
+        meetingTranscriptionMode: mode)
+    }
     updateRecord(id: record.id) {
-      $0.meetingTranscriptionMode = .sourceSeparated
+      $0.meetingMixFileName = meetingMixFileName
+      $0.meetingTranscriptionMode = mode
+      $0.processingTasks.removeAll { $0.kind == .transcription }
+      $0.processingTasks.append(contentsOf: replacementTasks)
       $0.processingError = nil
     }
     return recordings.first(where: { $0.id == record.id }) ?? record
@@ -5099,8 +5257,8 @@ final class AppState {
       systemAudioDuration: system?.duration,
       meetingMixFileName: recoveredMeetingMixFileName,
       meetingTranscriptionMode: journal.captureMicrophone && journal.captureSystemAudio
-        && system != nil
-        ? .sourceSeparated : nil,
+        && system != nil && recoveredMeetingMixFileName != nil
+        ? .standardMix : nil,
       transcriptSegments: recoveredSegments.isEmpty ? nil : recoveredSegments,
       processingTasks: recoveredTask.map { [$0] } ?? [])
     let previous = recordings

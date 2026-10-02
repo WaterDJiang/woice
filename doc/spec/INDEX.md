@@ -1,8 +1,19 @@
 # spec/ 索引
 
+- [App Store Qwen 修复版](../../specs/2026-09-22-app-store-qwen-crash-update.md)：0.1.8 (13) 已完成正式上传与提交，当前等待审核，审核通过后自动发布。
+
+- [Qwen 短读崩溃修复](../../specs/2026-09-22-qwen-short-read-crash.md)：MRQ-07，累积短读、保护极短尾段并真实模型验收。
+
+- [App Store 0.1.7 (12) 自动发布](../../specs/2026-09-20-app-store-0-1-7-release.md)：用户授权更新、提交审核与审核通过后自动上线。
+
+- [录音侧栏全生命周期可见性](../../specs/2026-09-19-recording-sidebar-lifecycle.md)：会话落盘即显示，保存与转写状态连续可见。
+
 | 功能域 | 状态 | 一句话定义 | 文件 |
 |---|---|---|---|
-| App Store Guideline 2.4.5 与系统音频说明修复 | Build 8 代码、隐私说明、定向测试和 Store 构建已完成；待全门禁、Archive、实机验收与重提 | 导出改用标准另存为，Store 编译排除非辅助用途 Accessibility，明确 ScreenCaptureKit 仅捕获系统音频 | [../specs/2026-09-04-app-store-guideline-2-4-5-and-screen-audio.md](../specs/2026-09-04-app-store-guideline-2-4-5-and-screen-audio.md) |
+| 主界面录音控制、外放回声与视觉优化 | 方案已记录，待实施 | 主窗口持续显示停止入口；回声处理独立准入，保留双原件与单时间线转写 | [规格](../../specs/2026-09-08-recording-controls-echo-and-workspace-polish.md) |
+| 会议合并音频单次转写 | 已实施，自动门禁通过；真实会议重叠说话待人工验收 | 保留麦克风/电脑声音两原轨，默认只对会议合并音频转写一次；分轨作为高级选项 | [../specs/2026-09-07-meeting-single-pass-transcription.md](../specs/2026-09-07-meeting-single-pass-transcription.md) |
+| 首次使用准备引导 | 代码、定向/全量/Store、Xcode Bundle 与本机稳定签名 UI 门禁通过 | 以小白可理解的清单式 Sheet 串联素材位置、麦克风、Tiny/Qwen/Large-v3 三模型选择和可选电脑声音权限 | [../specs/2026-09-06-first-run-setup-guidance.md](../specs/2026-09-06-first-run-setup-guidance.md) |
+| App Store Guideline 2.4.5 与系统音频说明修复 | Build 9 容器外素材库、安全迁移、全量/Store 测试与 Xcode Bundle 门禁通过；待 Archive、实机验收与重提 | Store 录音/导入使用标准保存面板选定素材文件夹，持久授权并迁出旧容器音频；继续编译排除 Accessibility 并只捕获系统音频 | [../specs/2026-09-04-app-store-guideline-2-4-5-and-screen-audio.md](../specs/2026-09-04-app-store-guideline-2-4-5-and-screen-audio.md) |
 | App Store Build 7 资料与门禁收口 | 本机准备完成；Catalog v2、正式 Archive 与导出包已验证，远端/账号/实机状态待完成 | 递增 Build、修复检查更新、生成含 Qwen 的签名 Catalog v2、准备正式 Archive/导出包和审核材料 | [../specs/2026-09-03-app-store-submission-readiness.md](../specs/2026-09-03-app-store-submission-readiness.md) |
 | 模型清单 Raw 响应类型兼容修复 | 已实现；定向传输回归通过 | 兼容 GitHub Raw 返回 `text/plain; charset=utf-8` 的合法 JSON，同时保留 Catalog schema、签名和版本门禁 | [../specs/2026-09-03-model-catalog-content-type.md](../specs/2026-09-03-model-catalog-content-type.md) |
 | 本机已完成任务重转写 | 代码与定向回归完成；真实桌面由用户验收 | 已有本机转写任务为 `completed` 时，重新转写先回到 `queued`，重新取得 Lease 并追加新的 Artifact；不覆盖旧原文 | [../specs/2026-09-01-local-retranscription-completed-task.md](../specs/2026-09-01-local-retranscription-completed-task.md) |
@@ -13,15 +24,15 @@
 | 导入转写后台继续真实桌面验收 | 隔离 Journey 已实现，需在无其他 Woice 进程的目标桌面执行 | 测试模式让 Fixture 转写保持运行，验证“关闭并后台继续”后窗口仍可操作且任务最终持久化 | [../specs/2026-09-01-media-import-background-journey.md](../specs/2026-09-01-media-import-background-journey.md) |
 | 录音耐久与详情性能 | MRQ-00/MRQ-03/MRQ-04 代码、自动测试与合成基准完成；故障保留/事务回滚/hydrate fail-closed 自动验证通过；真实 Mac 待 | 滚动音频块、Manifest 恢复、摘要/详情加载与性能基线；不把 SIGKILL/掉电和真实 UI 体验静态测试冒充完成 | [../specs/2026-09-01-recording-durability-and-detail-performance.md](../specs/2026-09-01-recording-durability-and-detail-performance.md) |
 | App Store 0.1.4 Build 6 正式提交 | Build 6 已上传并由 Apple 处理；商店资料与提交审核待完成 | 发布三声道录音及当前已验证修复的无模型 Store Build，上传后补齐资料并提交审核 | [../specs/2026-09-01-app-store-build6-submission.md](../specs/2026-09-01-app-store-build6-submission.md) |
-| Qwen 推荐 Catalog 与 Dev / Store 0.1.4 发布 | Build 5 已上传，Catalog 私钥仍阻塞 v2 | 本地安装稳定签名 Dev，Catalog v2 加入千问，正式无模型 Store Build 上传 App Store Connect | [../specs/2026-08-31-qwen-catalog-dev-store-release.md](../specs/2026-08-31-qwen-catalog-dev-store-release.md) |
+| Qwen 推荐 Catalog 与 Dev / Store 0.1.4 发布 | Build 5 为历史上传；公开 Catalog v2 已发布并回读确认 Tiny/Qwen/Large-v3 三条目 | 本地安装稳定签名 Dev，Catalog v2 加入千问，正式无模型 Store Build 上传 App Store Connect | [../specs/2026-08-31-qwen-catalog-dev-store-release.md](../specs/2026-08-31-qwen-catalog-dev-store-release.md) |
 | Dev / Store App 命名、隔离与旧包清理 | 代码与自动门禁完成；真实双安装/TCC Journey 待可信本机签名 | Dev 为 `Woice (Dev)` 并使用独立 Application Support、Keychain、锁与 Socket；Store 保持 `Woice`，不触碰正式数据与 Archive | [../specs/2026-08-31-dev-store-app-naming-and-cleanup.md](../specs/2026-08-31-dev-store-app-naming-and-cleanup.md) |
 | 直接发行包模型下载重试 | 代码与自动门禁完成；真实 WhisperKit 下载验收通过 | Core/Offline 的 WhisperKit Hub 与通用模型包下载对瞬时 TLS、连接中断和超时有限重试，并保留续传、取消和原子安装边界 | [../specs/2026-08-30-model-download-retry.md](../specs/2026-08-30-model-download-retry.md) |
 | 实时文字预览、顶部面板收起与导入页优化 | 代码与自动门禁完成 | 录音期间在工作台和菜单栏显示本机 partial transcript，Popover 点击外部收起，导入页收紧并支持拖放 | [../specs/2026-08-25-live-preview-popover-and-import-ux.md](../specs/2026-08-25-live-preview-popover-and-import-ux.md) |
-| 本机模型一键安装与 App Store 兼容 | 库存去重、Tiny/Qwen/Large 三档推荐、首启提示与 Store 无模型门禁完成；新版签名 Catalog 待发布 | 无模型时只需一次点击，自动完成下载、校验、安装、切换和等待任务恢复；Store 安装包不携带模型 | [../specs/2026-08-25-one-click-model-installation-and-store-compatibility.md](../specs/2026-08-25-one-click-model-installation-and-store-compatibility.md) |
+| 本机模型一键安装与 App Store 兼容 | 库存去重、Tiny/Qwen/Large 三档推荐、首启全选项与 Store 无模型门禁完成；公开签名 Catalog v2 三条目已回读确认 | 无模型时只需一次点击，自动完成下载、校验、安装、切换和等待任务恢复；Store 安装包不携带模型 | [../specs/2026-08-25-one-click-model-installation-and-store-compatibility.md](../specs/2026-08-25-one-click-model-installation-and-store-compatibility.md) |
 | 录音控制区视觉层级 | 按用户复核移除工作台顶部动作，代码、自动门禁与覆盖安装完成 | 菜单栏音源使用中性状态按钮、录音是唯一主动作；工作台顶部不再复制导入和录音控制 | [../specs/2026-08-25-recording-control-visual-hierarchy.md](../specs/2026-08-25-recording-control-visual-hierarchy.md) |
-| 双音源、压缩存储与长素材详情 | 代码与自动门禁完成，SwiftPM QuickTime 系统声音/会议合成验收通过；当前安装包 TCC/双轨手测待 | 工作台顶部独立控制麦克风/电脑声音，默认双开；新录音使用 AAC/M4A，双开生成 48 kHz 单声道会议合成回放，默认按原轨分别转写；详情只保留一个按需播放器及固定滚动原文/时间轴 | [../specs/2026-08-25-dual-source-storage-and-long-detail.md](../specs/2026-08-25-dual-source-storage-and-long-detail.md) |
+| 双音源、压缩存储与长素材详情 | 存储/详情基线已完成；默认转写策略已被 2026-09-07 规格覆盖 | 工作台独立控制麦克风/电脑声音，保留双原轨并生成会议合成回放；当前默认单次转写另见 MSP 规格 | [../specs/2026-08-25-dual-source-storage-and-long-detail.md](../specs/2026-08-25-dual-source-storage-and-long-detail.md) |
 | Large 模型启动校验内存 | 已修复并完成安装包实测 | 所有模型与素材 SHA-256 校验统一使用 1 MiB 固定缓冲；Large-v3 用户数据启动 RSS 从 1,785,056 KiB 降至约 135 MiB，仍保持完整哈希和 fail-closed | [../specs/2026-08-24-model-validation-startup-memory.md](../specs/2026-08-24-model-validation-startup-memory.md) |
-| 会议双音轨、统一回放与合并转写 | 代码与自动门禁完成，真实会议验收仅作提醒 | 保留双原轨，默认按麦克风/系统音频分别转写并按时间线合并；`standardMix` 仅为显式兼容模式，`meetingMix` 主要用于统一回放 | [2026-08-22-dual-track-meeting-transcription.md](2026-08-22-dual-track-meeting-transcription.md) |
+| 会议双音轨、统一回放与合并转写 | 双原轨/回放基线保留；默认分轨策略已被 MSP 覆盖 | 保留双原轨和会议合成回放；当前默认只转写合并音频一次，分轨仅为高级选项 | [2026-08-22-dual-track-meeting-transcription.md](2026-08-22-dual-track-meeting-transcription.md) |
 | 真实会议录音验收声源 | 可见 QuickTime 声源验收已通过；当前安装包 TCC/真实会议应用 Journey 待复验 | 窗口级 ScreenCaptureKit 只能用可捕获窗口归属的播放应用；QuickTime 无法启动或会话锁定时必须失败，不把静音 buffer 当作成功 | [../specs/2026-08-23-real-meeting-acceptance.md](../specs/2026-08-23-real-meeting-acceptance.md) |
 | 系统音频权限状态与真实采集可靠性 | 权限/无显示器错误分层已实现，当前安装包需真实桌面确认 | 修复已授权仍显示需要授权的误报，并以 ScreenCaptureKit 实际能力验证视频/会议声音；无采集目标时不伪造成功 | [2026-08-22-system-audio-permission-reliability.md](2026-08-22-system-audio-permission-reliability.md) |
 | 系统声音来源与采集事实可见性 | 本轮实现，麦克风 UI Journey 已通过；系统声音仍待当前安装包 TCC 复验 | 明确系统声音是获取后独立保存的 CAF，详情页展示可复听音轨、时长、buffer 和峰值，设置区合并权限与能力 | [2026-08-22-system-audio-source-observability.md](2026-08-22-system-audio-source-observability.md) |

@@ -74,6 +74,20 @@ enum WorkspaceRoute: Hashable {
   }
 }
 
+enum WorkspaceRecordingSessionPresentation {
+  static func actionTitle(isRecording: Bool) -> String {
+    isRecording ? "结束并保存" : "开始录音"
+  }
+
+  static func actionSystemImage(isRecording: Bool) -> String {
+    isRecording ? "stop.fill" : "record.circle"
+  }
+
+  static func accessibilityHint(isRecording: Bool) -> String {
+    isRecording ? "保存当前录音并开始处理" : "开始一段新的本机录音"
+  }
+}
+
 private enum WorkspaceMaterialFilter: String, CaseIterable, Identifiable {
   case all
   case processing
@@ -192,8 +206,21 @@ struct WorkspaceView: View {
             .frame(width: WorkspaceSidebarLayout.idealWidth)
             Divider()
           }
-          detailColumn
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+          VStack(spacing: 0) {
+            if appState.isRecording {
+              WorkspaceRecordingSessionBar()
+            }
+            if let livePreviewPresentation {
+              LiveTranscriptPreviewCard(presentation: livePreviewPresentation)
+                .frame(maxWidth: 520)
+                .frame(maxWidth: .infinity, alignment: .top)
+                .padding(.top, 16)
+                .padding(.horizontal, 24)
+                .padding(.bottom, 8)
+            }
+            detailColumn
+              .frame(maxWidth: .infinity, maxHeight: .infinity)
+          }
         }
         .navigationTitle("Woice 工作台")
         .toolbar {
@@ -232,15 +259,6 @@ struct WorkspaceView: View {
             .padding(16)
             .transition(.move(edge: .top).combined(with: .opacity))
         }
-        if let livePreviewPresentation {
-          LiveTranscriptPreviewCard(presentation: livePreviewPresentation)
-            .frame(maxWidth: 520)
-            .frame(maxWidth: .infinity, alignment: .top)
-            .padding(.top, 16)
-            .padding(.horizontal, 24)
-            .zIndex(4)
-            .transition(.move(edge: .top).combined(with: .opacity))
-        }
         if let request = appState.pendingExternalProcessing {
           WorkspaceExternalProcessingCard(request: request)
             .frame(maxWidth: 520)
@@ -248,25 +266,6 @@ struct WorkspaceView: View {
             .padding(.trailing, 24)
             .zIndex(3)
             .transition(.move(edge: .top).combined(with: .opacity))
-        }
-        if appState.isShowingOnboarding {
-          WorkspaceOnboardingCard(
-            showModelInstall: !appState.hasInstalledLocalModelPack,
-            openRecordingSettings: {
-              appState.isShowingOnboarding = false
-              router.show(settings: .recording)
-            },
-            startRecording: {
-              appState.isShowingOnboarding = false
-              appState.startRecording()
-            },
-            dismiss: { appState.isShowingOnboarding = false }
-          )
-          .frame(maxWidth: 420)
-          .padding(.top, 54)
-          .padding(.trailing, 24)
-          .zIndex(2)
-          .transition(.move(edge: .top).combined(with: .opacity))
         }
       }
       .frame(width: geometry.size.width, height: geometry.size.height)
@@ -288,6 +287,20 @@ struct WorkspaceView: View {
       )
       .environment(appState)
     }
+    .sheet(
+      isPresented: Binding(
+        get: { appState.isShowingOnboarding },
+        set: { appState.isShowingOnboarding = $0 })
+    ) {
+      FirstRunSetupView(
+        dismiss: { appState.isShowingOnboarding = false },
+        startRecording: {
+          appState.isShowingOnboarding = false
+          appState.startRecording()
+        }
+      )
+      .environment(appState)
+    }
     .task {
       if router.shouldPresentMediaImport {
         router.shouldPresentMediaImport = false
@@ -306,6 +319,7 @@ struct WorkspaceView: View {
         loadedDetailRecord = record
         return
       }
+      if appState.visibleRecordingSession?.id == detailRecordID { return }
       loadedDetailRecord = await appState.loadRecordingDetail(recordID: detailRecordID)
       if let loadedDetailRecord {
         appState.adoptRecordingDetail(loadedDetailRecord)
@@ -359,6 +373,11 @@ struct WorkspaceView: View {
     case .recording(let id):
       if let record = appState.recordings.first(where: { $0.id == id }) {
         RecordingDetailView(record: record)
+      } else if appState.visibleRecordingSession?.id == id {
+        WorkspaceEmptyState(
+          title: appState.recordingSessionStatus,
+          systemImage: appState.processingState.systemImage,
+          message: "录音和处理进度会保留在这条记录中，完成后在这里查看原文与复听。")
       } else if let loadedDetailRecord, loadedDetailRecord.id == id {
         RecordingDetailView(record: loadedDetailRecord)
       } else if appState.isHydratingRecordings {
@@ -376,6 +395,78 @@ struct WorkspaceView: View {
     case .settings:
       SettingsView(selection: settingsSelection)
     }
+  }
+}
+
+private struct WorkspaceRecordingSessionBar: View {
+  @Environment(AppState.self) private var appState
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 8) {
+      HStack(alignment: .center, spacing: 12) {
+        Label("正在录音", systemImage: "record.circle.fill")
+          .font(.headline)
+          .foregroundStyle(.red)
+        Text(formatDuration(appState.elapsed))
+          .font(.title3.monospacedDigit().weight(.semibold))
+        Spacer(minLength: 12)
+        Button {
+          Task { @MainActor in
+            await appState.stopRecording()
+          }
+        } label: {
+          Label(
+            WorkspaceRecordingSessionPresentation.actionTitle(isRecording: true),
+            systemImage: WorkspaceRecordingSessionPresentation.actionSystemImage(
+              isRecording: true))
+        }
+        .buttonStyle(.borderedProminent)
+        .controlSize(.large)
+        .tint(.red)
+        .accessibilityLabel(
+          WorkspaceRecordingSessionPresentation.actionTitle(isRecording: true)
+        )
+        .accessibilityHint(
+          WorkspaceRecordingSessionPresentation.accessibilityHint(isRecording: true)
+        )
+        .disabled(appState.isFinalizingRecording)
+        .help("结束录音并保存素材")
+      }
+      HStack(spacing: 8) {
+        Label(
+          sourceSummary,
+          systemImage: "waveform")
+        if appState.settings.captureMicrophone {
+          Text("麦克风 · (appState.audioActivity.label)")
+          Text("有声 (formatDuration(appState.voiceDuration))")
+            .monospacedDigit()
+        }
+        if appState.settings.captureSystemAudio {
+          Text(
+            appState.isSystemAudioCapturing ? "电脑声音正在保存" : "电脑声音尚未开始")
+        }
+        Spacer(minLength: 0)
+      }
+      .font(.caption)
+      .foregroundStyle(.secondary)
+      .lineLimit(1)
+    }
+    .padding(.horizontal, 24)
+    .padding(.vertical, 12)
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .background(.regularMaterial)
+    .overlay(alignment: .bottom) {
+      Divider()
+    }
+    .accessibilityElement(children: .contain)
+    .accessibilityLabel("正在录音")
+    .accessibilityValue("时长 \(formatDuration(appState.elapsed))，\(sourceSummary)")
+  }
+
+  private var sourceSummary: String {
+    RecordingSourceSelectionPresentation.summary(
+      microphoneEnabled: appState.settings.captureMicrophone,
+      systemAudioEnabled: appState.settings.captureSystemAudio)
   }
 }
 
@@ -419,76 +510,6 @@ private struct WorkspaceExternalProcessingCard: View {
     .shadow(color: .black.opacity(0.14), radius: 12, y: 5)
     .accessibilityElement(children: .contain)
     .accessibilityLabel("等待确认的外部处理任务：\(request.confirmationTitle)")
-  }
-}
-
-struct WorkspaceOnboardingModelPrompt {
-  static let title = "转成文字前，需要先下载语音转换模型"
-  static let detail = "App Store 安装包不携带模型。下载由你确认，模型只保存在这台 Mac。"
-}
-
-private struct WorkspaceOnboardingCard: View {
-  let showModelInstall: Bool
-  let openRecordingSettings: () -> Void
-  let startRecording: () -> Void
-  let dismiss: () -> Void
-
-  var body: some View {
-    VStack(alignment: .leading, spacing: 12) {
-      HStack(alignment: .firstTextBaseline, spacing: 8) {
-        Label("开始使用 Woice", systemImage: "hand.wave.fill")
-          .font(.headline)
-        Spacer()
-        Button("稍后", action: dismiss)
-          .buttonStyle(.woiceBorderless)
-          .font(.caption)
-      }
-      Text("先录音，再把素材转成文字；所有原始录音都会先保存在这台 Mac 上。")
-        .font(.subheadline)
-        .foregroundStyle(.secondary)
-        .fixedSize(horizontal: false, vertical: true)
-      VStack(alignment: .leading, spacing: 8) {
-        onboardingRow("mic.fill", "按下开始录音，录音期间会显示时长和输入状态")
-        onboardingRow("text.badge.checkmark", "录音结束后按需转写，失败时仍保留原始素材")
-        onboardingRow("slider.horizontal.3", "在设置中选择麦克风、电脑声音和转写方式")
-      }
-      if showModelInstall {
-        Divider()
-        VStack(alignment: .leading, spacing: 8) {
-          Label(WorkspaceOnboardingModelPrompt.title, systemImage: "arrow.down.circle.fill")
-            .font(.subheadline.weight(.semibold))
-          Text(WorkspaceOnboardingModelPrompt.detail)
-            .font(.caption)
-            .foregroundStyle(.secondary)
-          RecommendedModelInstallCard(entryPoint: .workspace)
-        }
-      }
-      HStack {
-        Button("打开录音设置", action: openRecordingSettings)
-          .buttonStyle(.bordered)
-          .controlSize(.small)
-        Spacer()
-        Button("开始录音", action: startRecording)
-          .buttonStyle(.borderedProminent)
-          .controlSize(.small)
-      }
-    }
-    .padding(16)
-    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
-    .overlay {
-      RoundedRectangle(cornerRadius: 14)
-        .strokeBorder(Color.accentColor.opacity(0.2), lineWidth: 1)
-    }
-    .shadow(color: .black.opacity(0.12), radius: 12, y: 4)
-    .accessibilityElement(children: .contain)
-    .accessibilityLabel("Woice 首次使用引导")
-  }
-
-  private func onboardingRow(_ systemImage: String, _ text: String) -> some View {
-    Label(text, systemImage: systemImage)
-      .font(.caption)
-      .foregroundStyle(.primary)
-      .fixedSize(horizontal: false, vertical: true)
   }
 }
 
@@ -656,7 +677,10 @@ private struct WorkspaceSidebar: View {
           Image(systemName: "trash")
         }
         .buttonStyle(.woiceBorderless)
-        .disabled(selectedRecordID == nil || !appState.canMutateRecordings)
+        .disabled(
+          selectedRecordID == nil || !appState.canMutateRecordings
+            || selectedRecordID == appState.visibleRecordingSession?.id
+        )
         .accessibilityLabel("删除所选素材")
         .help("将所选素材移到废纸篓")
       }
@@ -677,7 +701,7 @@ private struct WorkspaceSidebar: View {
         let filteredRecords = appState.recordings.filter {
           materialFilter.matches($0.materialStatus) && recordingMatchesSearchQuery($0, query: query)
         }
-        if filteredRecords.isEmpty {
+        if filteredRecords.isEmpty && appState.visibleRecordingSession == nil {
           Text(query.isEmpty ? "还没有素材" : "没有匹配结果")
             .font(.caption)
             .foregroundStyle(.secondary)
@@ -685,6 +709,7 @@ private struct WorkspaceSidebar: View {
             .padding(.vertical, 8)
         } else {
           List(selection: $selectedRecordID) {
+            recordingSessionRow
             ForEach(filteredRecords) { record in
               WorkspaceRecordingRow(record: record)
                 .tag(record.id)
@@ -798,7 +823,7 @@ private struct WorkspaceSidebar: View {
     let filteredSummaries = appState.recordingSummaries.filter {
       materialFilter.matches($0.materialStatus) && summaryMatchesSearchQuery($0, query: query)
     }
-    if filteredSummaries.isEmpty {
+    if filteredSummaries.isEmpty && appState.visibleRecordingSession == nil {
       Text(query.isEmpty ? "还没有素材" : "没有匹配结果")
         .font(.caption)
         .foregroundStyle(.secondary)
@@ -806,6 +831,7 @@ private struct WorkspaceSidebar: View {
         .padding(.vertical, 8)
     } else {
       List(selection: $selectedRecordID) {
+        recordingSessionRow
         ForEach(filteredSummaries) { summary in
           WorkspaceRecordingSummaryRow(summary: summary)
             .tag(summary.id)
@@ -836,7 +862,31 @@ private struct WorkspaceSidebar: View {
     }
   }
 
+  @ViewBuilder
+  private var recordingSessionRow: some View {
+    if let session = appState.visibleRecordingSession {
+      VStack(alignment: .leading, spacing: 5) {
+        Text("新录音").lineLimit(2)
+        Label(
+          appState.recordingSessionStatus,
+          systemImage: appState.isFinalizingRecording
+            ? "arrow.triangle.2.circlepath" : appState.processingState.systemImage
+        )
+        .font(.caption)
+        .foregroundStyle(
+          appState.isRecording && !appState.isFinalizingRecording
+            ? Color.red : Color.secondary)
+        Text(session.createdAt, style: .time)
+          .font(.caption2).foregroundStyle(.tertiary)
+      }
+      .padding(.vertical, 5)
+      .tag(session.id)
+      .accessibilityElement(children: .combine)
+    }
+  }
+
   private func requestDeletion(recordID: UUID) {
+    guard recordID != appState.visibleRecordingSession?.id else { return }
     guard appState.canMutateRecordings else {
       let message =
         appState.isHydratingRecordings

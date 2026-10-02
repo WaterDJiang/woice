@@ -142,6 +142,27 @@ def check_source_contract(project_root: Path) -> None:
     )
     if "NSSavePanel" not in detail_source or "exportMaterial(for: record, kind: kind, to:" not in detail_source:
         raise StoreBundleError("Store 版素材导出未使用标准另存为面板和用户选定目标。")
+    material_panel_source = (project_root / "Sources/WoiceApp/MaterialLibraryPanel.swift").read_text(
+        encoding="utf-8"
+    )
+    storage_source = (project_root / "Sources/WoiceApp/Storage.swift").read_text(encoding="utf-8")
+    state_source = (project_root / "Sources/WoiceApp/AppState.swift").read_text(encoding="utf-8")
+    settings_source = (project_root / "Sources/WoiceApp/SettingsView.swift").read_text(encoding="utf-8")
+    if "NSSavePanel" not in material_panel_source or 'allowedContentTypes = [.folder]' not in material_panel_source:
+        raise StoreBundleError("Store 版首次素材库位置未使用标准文件夹保存面板。")
+    required_storage_contracts = (
+        "material-library.bookmark",
+        ".withSecurityScope",
+        "configureUserSelectedMaterialLibrary",
+        "migrateLegacyMaterialFiles",
+        "FileSHA256.digest",
+    )
+    if any(contract not in storage_source for contract in required_storage_contracts):
+        raise StoreBundleError("Store 版缺少用户选定素材文件夹、持久授权或安全迁移契约。")
+    if "ensureUserSelectedMaterialLibrary()" not in state_source:
+        raise StoreBundleError("Store 版录音与导入入口没有用户选定素材文件夹门禁。")
+    if 'storagePath("素材文件夹"' not in settings_source:
+        raise StoreBundleError("Store 设置未展示用户可访问的素材文件夹。")
     capture_source = (project_root / "Sources/WoiceApp/SystemAudioCaptureService.swift").read_text(
         encoding="utf-8"
     )

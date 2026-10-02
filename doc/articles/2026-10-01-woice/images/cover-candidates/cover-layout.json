@@ -1,0 +1,57 @@
+{
+  "editor_crop_status" : "not tested in WeChat editor",
+  "font_path" : "\/Users\/water\/.wattter-skills\/skills\/wtt-nine-comic-imagegen\/assets\/fonts\/FontQuSmile-Regular.ttf",
+  "font_postscript" : "xihuanti",
+  "font_size" : 114,
+  "glyph_check" : "all title characters present",
+  "layout_id" : "D-U1-adjusted-for-WeChat-crops",
+  "lines" : [
+    "一段录音的成本，",
+    "不只是转写费"
+  ],
+  "master" : [
+    1920,
+    1080
+  ],
+  "scene_box" : [
+    633,
+    583,
+    653,
+    249
+  ],
+  "square_crop_from_wide" : [
+    551,
+    0,
+    817,
+    817
+  ],
+  "title" : "一段录音的成本，不只是转写费",
+  "title_box" : [
+    603,
+    225,
+    714,
+    260
+  ],
+  "title_ink_bounds" : [
+    {
+      "height" : 100.974609375,
+      "text" : "一段录音的成本，",
+      "top" : 248,
+      "width" : 710.8857421875,
+      "x" : 604.55712890625
+    },
+    {
+      "height" : 94.2392578125,
+      "text" : "不只是转写费",
+      "top" : 377,
+      "width" : 537.3251953125,
+      "x" : 691.33740234375
+    }
+  ],
+  "wide_crop" : [
+    0,
+    131,
+    1920,
+    817
+  ]
+}

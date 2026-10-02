@@ -10,7 +10,7 @@ func legacyModelsDecodeWithoutDualTrackFields() throws {
   let settings = try JSONDecoder.woice.decode(AppSettings.self, from: settingsJSON)
   #expect(settings.captureMicrophone)
   #expect(settings.captureSystemAudio)
-  #expect(settings.meetingTranscriptionMode == .sourceSeparated)
+  #expect(settings.meetingTranscriptionMode == .standardMix)
   #expect(settings.includeTranscriptTimestamps == false)
   #expect(settings.autoPasteTranscript == false)
   #expect(settings.recordingShortcut == .optionSpace)
@@ -46,17 +46,19 @@ func legacyModelsDecodeWithoutDualTrackFields() throws {
   #expect(record.processingTasks.isEmpty)
 }
 
-@Test("旧版单次混音设置迁移为可靠双轨转写，迁移后显式选择可往返")
+@Test("旧版默认分轨策略迁移为单次混音，迁移后显式分轨可往返")
 func legacyMeetingModeMigratesOnce() throws {
-  let legacy = Data(#"{"meetingTranscriptionMode":"standardMix"}"#.utf8)
+  let legacy = Data(
+    #"{"meetingTranscriptionMode":"sourceSeparated","meetingTranscriptionStrategyVersion":1}"#
+      .utf8)
   let migrated = try JSONDecoder.woice.decode(AppSettings.self, from: legacy)
-  #expect(migrated.meetingTranscriptionMode == .sourceSeparated)
+  #expect(migrated.meetingTranscriptionMode == .standardMix)
 
   var explicit = AppSettings.default
-  explicit.meetingTranscriptionMode = .standardMix
+  explicit.meetingTranscriptionMode = .sourceSeparated
   let encoded = try JSONEncoder.woice.encode(explicit)
   let roundTrip = try JSONDecoder.woice.decode(AppSettings.self, from: encoded)
-  #expect(roundTrip.meetingTranscriptionMode == .standardMix)
+  #expect(roundTrip.meetingTranscriptionMode == .sourceSeparated)
 }
 
 @Test("旧 ASR 字段迁移到统一 Provider 配置且新编码不含 API Key")

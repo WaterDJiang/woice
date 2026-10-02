@@ -155,6 +155,12 @@ harness-check:
 	@test -f AGENTS.md
 	@test -f CLAUDE.md
 	@rg -q '当前路线图.*current-roadmap-and-plan-transition.md' AGENTS.md
+	@rg -q '^## 当前代码结构$$' AGENTS.md
+	@rg -q 'Sources/WoiceCore/' AGENTS.md
+	@rg -q 'Sources/WoiceApp/' AGENTS.md
+	@rg -q '同一范围只保留一套有效约定' AGENTS.md
+	@rg -q '^@AGENTS.md$$' CLAUDE.md
+	@! rg -q '^## 当前阶段|^## 当前进度|Sources/WoiceDomain/' AGENTS.md
 	@test $$(wc -l < AGENTS.md) -lt 200
 	@test $$(wc -l < CLAUDE.md) -lt 200
 	@! head -n 1 AGENTS.md | rg -q '^---$$'
@@ -493,3 +499,9 @@ verify-offline: docs-check harness-check package-dmg-offline
 	@codesign --verify --deep --strict build/Woice-Offline.app
 	@hdiutil verify build/Woice-Offline.dmg >/dev/null
 	@echo "verify-offline: passed"
+
+.PHONY: acceptance-qwen-crash
+acceptance-qwen-crash: docs-check harness-check
+	@test -n "$(WOICE_QWEN_CRASH_MODEL)" || { echo "WOICE_QWEN_CRASH_MODEL 未设置；请指定已安装 Qwen 模型目录。"; exit 1; }
+	@test -n "$(WOICE_QWEN_CRASH_AUDIO)" || { echo "WOICE_QWEN_CRASH_AUDIO 未设置；请指定需要真实验收的音频。"; exit 1; }
+	@WOICE_QWEN_CRASH_MODEL="$(WOICE_QWEN_CRASH_MODEL)" WOICE_QWEN_CRASH_AUDIO="$(WOICE_QWEN_CRASH_AUDIO)" swift test --no-parallel --filter QwenAudioCrashAcceptanceTests

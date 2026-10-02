@@ -1,0 +1,72 @@
+{
+  "selected_cover": "A",
+  "article_title": "一段 AI 录音的成本，不只是转写费",
+  "article_content_images": 6,
+  "footer_images": 1,
+  "cover_editor_crop": "not verified in WeChat editor",
+  "images": [
+    {
+      "path": "images/00-cover.png",
+      "width": 1920,
+      "height": 817,
+      "sha256": "9784a3527ddaf5f404d215eb925af46ff02613dd80378b4ecd7093ea04c65088",
+      "article_image": true
+    },
+    {
+      "path": "images/04-find-the-recording.png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "9c4f3fcd550118abce153cf14c2414b2e73cac177b126174e2eefeaabdfe54b7",
+      "article_image": true
+    },
+    {
+      "path": "images/02-menubar-redacted.png",
+      "width": 1385,
+      "height": 1136,
+      "sha256": "d06b44e43e36285ebc4a784bf3107edf32ed15871e15848f20161b5e02253195",
+      "article_image": true
+    },
+    {
+      "path": "images/01-material-library-redacted.png",
+      "width": 1512,
+      "height": 1040,
+      "sha256": "da5ccc6861a980e5f3c3ede4daf8aa7a3314e0827277c0ceec30c2089d4a1ff2",
+      "article_image": true
+    },
+    {
+      "path": "images/05-you-choose-the-destination.png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "7d01886a2236492eade6fe6897b19e9af41359608527335021a7e8f171bab7fe",
+      "article_image": true
+    },
+    {
+      "path": "images/03-local-model-redacted.png",
+      "width": 1512,
+      "height": 1040,
+      "sha256": "9af2f349a8a6d1f88e589fd0320a2b4fa2bbdbb9e88a08f74e4df3bc4a5e08d7",
+      "article_image": true
+    },
+    {
+      "path": "images/99-author-profile.png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "f48c1fd51cdd5eb912267b1803154f872f40127aa92f7877e76c433efc2cd43e",
+      "article_image": true
+    },
+    {
+      "path": "images/00-cover-master.png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "ee45c7751d39b14145332278ab32ac5c1c8047950eda589877cfc3ef2e53ead2",
+      "article_image": false
+    },
+    {
+      "path": "images/00-cover-square.png",
+      "width": 817,
+      "height": 817,
+      "sha256": "419ad1569c45033fa3286a6b5d0ef27be737149ea3637b6dc5c3a37eff7ff855",
+      "article_image": false
+    }
+  ]
+}

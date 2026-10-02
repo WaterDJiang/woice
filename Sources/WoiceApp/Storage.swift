@@ -107,35 +107,108 @@ struct BackgroundTranscriptionJournal: Codable, Equatable, Sendable {
   }
 }
 
+enum MaterialLibraryError: LocalizedError, Equatable {
+  case containerLocationNotAllowed
+  case conflictingItem(String)
+  case unsupportedItem(String)
+  case verificationFailed(String)
+
+  var errorDescription: String? {
+    switch self {
+    case .containerLocationNotAllowed:
+      "素材文件夹必须位于 Woice 的隐藏 App Container 之外。"
+    case .conflictingItem(let name):
+      "素材文件夹中已有不同内容的同名项目：\(name)。请选择其他文件夹。"
+    case .unsupportedItem(let name):
+      "旧素材包含无法安全迁移的项目：\(name)。"
+    case .verificationFailed(let name):
+      "素材迁移校验失败：\(name)。原文件仍保留。"
+    }
+  }
+}
+
 @MainActor
 final class WorkspaceStore {
+  private let fileManager: FileManager
   let rootURL: URL
-  let recordingsURL: URL
+  let internalRecordingsURL: URL
+  private(set) var recordingsURL: URL
   let indexURL: URL
   let settingsURL: URL
   let localASRTrustURL: URL
   let databaseURL: URL
   let recordingSessionURL: URL
+  let materialLibraryBookmarkURL: URL
+  let requiresUserSelectedMaterialLibrary: Bool
+  private(set) var hasUserSelectedMaterialLibrary: Bool
+  private(set) var materialLibraryAccessErrorDescription: String?
   private var sqliteStore: SQLiteMetadataStore?
   private(set) var storageErrorDescription: String?
 
-  init(fileManager: FileManager = .default, storageRootURL: URL? = nil) {
+  init(
+    fileManager: FileManager = .default,
+    storageRootURL: URL? = nil,
+    requiresUserSelectedMaterialLibrary: Bool? = nil
+  ) {
+    self.fileManager = fileManager
     let applicationSupport =
       fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
       ?? fileManager.homeDirectoryForCurrentUser.appendingPathComponent(
         "Library/Application Support")
-    rootURL =
-      storageRootURL ?? WoiceTestRuntimeConfiguration.storageRoot
+    let explicitRoot = storageRootURL ?? WoiceTestRuntimeConfiguration.storageRoot
+    let resolvedRoot =
+      explicitRoot
       ?? WoiceAppChannel.current.workspaceRoot(in: applicationSupport)
-    recordingsURL = rootURL.appendingPathComponent("recordings", isDirectory: true)
-    indexURL = rootURL.appendingPathComponent("recordings.json")
-    settingsURL = rootURL.appendingPathComponent("settings.json")
-    localASRTrustURL = rootURL.appendingPathComponent("local-asr-trust.json")
-    databaseURL = rootURL.appendingPathComponent("woice.sqlite3")
-    recordingSessionURL = rootURL.appendingPathComponent("recording-session.json")
+    rootURL = resolvedRoot
+    internalRecordingsURL = resolvedRoot.appendingPathComponent("recordings", isDirectory: true)
+    recordingsURL = internalRecordingsURL
+    indexURL = resolvedRoot.appendingPathComponent("recordings.json")
+    settingsURL = resolvedRoot.appendingPathComponent("settings.json")
+    localASRTrustURL = resolvedRoot.appendingPathComponent("local-asr-trust.json")
+    databaseURL = resolvedRoot.appendingPathComponent("woice.sqlite3")
+    recordingSessionURL = resolvedRoot.appendingPathComponent("recording-session.json")
+    materialLibraryBookmarkURL = resolvedRoot.appendingPathComponent("material-library.bookmark")
+    #if WOICE_APP_STORE
+      self.requiresUserSelectedMaterialLibrary =
+        requiresUserSelectedMaterialLibrary ?? (explicitRoot == nil)
+    #else
+      self.requiresUserSelectedMaterialLibrary = requiresUserSelectedMaterialLibrary ?? false
+    #endif
+    hasUserSelectedMaterialLibrary = false
+    materialLibraryAccessErrorDescription = nil
     sqliteStore = nil
     storageErrorDescription = nil
-    try? fileManager.createDirectory(at: recordingsURL, withIntermediateDirectories: true)
+    try? fileManager.createDirectory(at: resolvedRoot, withIntermediateDirectories: true)
+    try? fileManager.createDirectory(at: internalRecordingsURL, withIntermediateDirectories: true)
+
+    if self.requiresUserSelectedMaterialLibrary,
+      let bookmarkData = try? Data(contentsOf: materialLibraryBookmarkURL)
+    {
+      do {
+        var isStale = false
+        let selectedURL = try URL(
+          resolvingBookmarkData: bookmarkData,
+          options: [.withSecurityScope, .withoutUI],
+          relativeTo: nil,
+          bookmarkDataIsStale: &isStale)
+        guard !Self.isInsideContainer(selectedURL, containerRoot: resolvedRoot) else {
+          throw MaterialLibraryError.containerLocationNotAllowed
+        }
+        _ = selectedURL.startAccessingSecurityScopedResource()
+        try fileManager.createDirectory(at: selectedURL, withIntermediateDirectories: true)
+        try Self.migrateLegacyMaterialFiles(
+          from: internalRecordingsURL, to: selectedURL, fileManager: fileManager)
+        recordingsURL = selectedURL
+        hasUserSelectedMaterialLibrary = true
+        if isStale {
+          let refreshed = try selectedURL.bookmarkData(
+            options: .withSecurityScope, includingResourceValuesForKeys: nil, relativeTo: nil)
+          try refreshed.write(to: materialLibraryBookmarkURL, options: .atomic)
+        }
+      } catch {
+        materialLibraryAccessErrorDescription = error.localizedDescription
+      }
+    }
 
     var resolvedDatabase: SQLiteMetadataStore?
     var initializationError: String?
@@ -153,6 +226,111 @@ final class WorkspaceStore {
     }
     sqliteStore = resolvedDatabase
     storageErrorDescription = initializationError
+  }
+
+  var userSelectedMaterialLibraryURL: URL? {
+    hasUserSelectedMaterialLibrary ? recordingsURL : nil
+  }
+
+  func configureUserSelectedMaterialLibrary(at selectedURL: URL) throws {
+    let destination = selectedURL.resolvingSymlinksInPath().standardizedFileURL
+    guard !Self.isInsideContainer(destination, containerRoot: rootURL) else {
+      throw MaterialLibraryError.containerLocationNotAllowed
+    }
+
+    try fileManager.createDirectory(at: destination, withIntermediateDirectories: true)
+    _ = destination.startAccessingSecurityScopedResource()
+    try Self.copyAndVerifyMaterialFiles(
+      from: internalRecordingsURL, to: destination, fileManager: fileManager)
+    let bookmarkData = try destination.bookmarkData(
+      options: .withSecurityScope, includingResourceValuesForKeys: nil, relativeTo: nil)
+    try bookmarkData.write(to: materialLibraryBookmarkURL, options: .atomic)
+    try Self.removeMigratedLegacyMaterialFiles(
+      from: internalRecordingsURL, fileManager: fileManager)
+    recordingsURL = destination
+    hasUserSelectedMaterialLibrary = true
+    materialLibraryAccessErrorDescription = nil
+  }
+
+  private static func isInsideContainer(_ url: URL, containerRoot: URL) -> Bool {
+    let candidate = url.resolvingSymlinksInPath().standardizedFileURL.path
+    let container = containerRoot.resolvingSymlinksInPath().standardizedFileURL.path
+    return candidate == container || candidate.hasPrefix(container + "/")
+  }
+
+  private static func migrateLegacyMaterialFiles(
+    from source: URL, to destination: URL, fileManager: FileManager
+  ) throws {
+    guard fileManager.fileExists(atPath: source.path),
+      source.standardizedFileURL != destination.standardizedFileURL
+    else { return }
+    try copyAndVerifyMaterialFiles(from: source, to: destination, fileManager: fileManager)
+    try removeMigratedLegacyMaterialFiles(from: source, fileManager: fileManager)
+  }
+
+  private static func copyAndVerifyMaterialFiles(
+    from source: URL, to destination: URL, fileManager: FileManager
+  ) throws {
+    guard fileManager.fileExists(atPath: source.path) else { return }
+    try fileManager.createDirectory(at: destination, withIntermediateDirectories: true)
+    let items = try fileManager.contentsOfDirectory(
+      at: source,
+      includingPropertiesForKeys: [.isDirectoryKey, .isRegularFileKey, .isSymbolicLinkKey],
+      options: [.skipsHiddenFiles])
+    for item in items {
+      try copyAndVerifyMaterialItem(
+        from: item,
+        to: destination.appendingPathComponent(item.lastPathComponent),
+        fileManager: fileManager)
+    }
+  }
+
+  private static func copyAndVerifyMaterialItem(
+    from source: URL, to destination: URL, fileManager: FileManager
+  ) throws {
+    let values = try source.resourceValues(forKeys: [
+      .isDirectoryKey, .isRegularFileKey, .isSymbolicLinkKey,
+    ])
+    guard values.isSymbolicLink != true else {
+      throw MaterialLibraryError.unsupportedItem(source.lastPathComponent)
+    }
+    if values.isDirectory == true {
+      if fileManager.fileExists(atPath: destination.path) {
+        let destinationValues = try destination.resourceValues(forKeys: [.isDirectoryKey])
+        guard destinationValues.isDirectory == true else {
+          throw MaterialLibraryError.conflictingItem(source.lastPathComponent)
+        }
+      } else {
+        try fileManager.createDirectory(at: destination, withIntermediateDirectories: true)
+      }
+      try copyAndVerifyMaterialFiles(from: source, to: destination, fileManager: fileManager)
+      return
+    }
+    guard values.isRegularFile == true else {
+      throw MaterialLibraryError.unsupportedItem(source.lastPathComponent)
+    }
+
+    if fileManager.fileExists(atPath: destination.path) {
+      let destinationValues = try destination.resourceValues(forKeys: [.isRegularFileKey])
+      guard destinationValues.isRegularFile == true,
+        try FileSHA256.digest(url: source) == FileSHA256.digest(url: destination)
+      else {
+        throw MaterialLibraryError.conflictingItem(source.lastPathComponent)
+      }
+      return
+    }
+    try fileManager.copyItem(at: source, to: destination)
+    guard try FileSHA256.digest(url: source) == FileSHA256.digest(url: destination) else {
+      try? fileManager.removeItem(at: destination)
+      throw MaterialLibraryError.verificationFailed(source.lastPathComponent)
+    }
+  }
+
+  private static func removeMigratedLegacyMaterialFiles(
+    from source: URL, fileManager: FileManager
+  ) throws {
+    guard fileManager.fileExists(atPath: source.path) else { return }
+    try fileManager.removeItem(at: source)
   }
 
   func loadRecordings() -> [RecordingRecord] {

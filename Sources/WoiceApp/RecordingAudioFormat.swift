@@ -2,13 +2,39 @@
 
 enum RecordingAudioFormat {
   static func aacSettings(sampleRate: Double, channelCount: Int, bitRate: Int) -> [String: Any] {
-    [
+    let compatibleBitRate = compatibleAACBitRate(
+      sampleRate: sampleRate, requestedBitRate: bitRate)
+    return [
       AVFormatIDKey: kAudioFormatMPEG4AAC,
       AVSampleRateKey: sampleRate,
       AVNumberOfChannelsKey: max(1, min(channelCount, 2)),
-      AVEncoderBitRateKey: bitRate,
+      AVEncoderBitRateKey: compatibleBitRate,
       AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
     ]
+  }
+
+  /// Apple’s AAC encoder rejects some high bit rates at lower sample rates;
+  /// for example, 64 kbps at 16 kHz returns Core Audio `!dat` (560226676).
+  /// Keep the requested profile when it is supported and otherwise choose the
+  /// highest tested compatible rate that does not exceed it.
+  static func compatibleAACBitRate(sampleRate: Double, requestedBitRate: Int) -> Int {
+    guard sampleRate > 0, requestedBitRate > 0 else { return requestedBitRate }
+    let maximumBitRate: Int
+    switch sampleRate {
+    case ...8_000:
+      maximumBitRate = 24_000
+    case ...12_000:
+      maximumBitRate = 32_000
+    case ...16_000:
+      maximumBitRate = 48_000
+    case ...24_000:
+      maximumBitRate = 64_000
+    case ...32_000:
+      maximumBitRate = 96_000
+    default:
+      maximumBitRate = 128_000
+    }
+    return min(requestedBitRate, maximumBitRate)
   }
 }
 

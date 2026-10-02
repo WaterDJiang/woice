@@ -158,7 +158,7 @@ struct SettingsView: View {
               loadServicesSecretsIntoDraft()
             }
         case .files:
-          StorageSettingsPane(settings: $draftSettings, store: appState.store)
+          StorageSettingsPane(settings: $draftSettings, appState: appState)
         case .agents:
           #if WOICE_APP_STORE
             ContentUnavailableView(
@@ -264,6 +264,11 @@ struct SettingsView: View {
       }
       return status.hasUsableInput ? "麦克风已就绪" : section.subtitle
     case .services:
+      if !appState.hasInstalledLocalModelPack
+        && draftSettings.asrEndpoint.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+      {
+        return "需要下载语音转换模型"
+      }
       let asrConfigured = !draftSettings.asrEndpoint.trimmingCharacters(
         in: .whitespacesAndNewlines
       ).isEmpty
@@ -277,6 +282,9 @@ struct SettingsView: View {
       case (false, false): return "本机模型可用"
       }
     case .files:
+      if appState.needsUserSelectedMaterialLibrary {
+        return "需要选择素材保存文件夹"
+      }
       return "本机保存 · \(appState.recordings.count) 条录音"
     case .agents:
       let activeCount = appState.agentDispatchJobs.filter {
@@ -305,9 +313,12 @@ struct SettingsView: View {
       default: return .orange
       }
     case .services:
-      return appState.localASRModel.providerID.isEmpty ? .orange : .green
+      let hasExternalASR = !draftSettings.asrEndpoint.trimmingCharacters(
+        in: .whitespacesAndNewlines
+      ).isEmpty
+      return appState.hasInstalledLocalModelPack || hasExternalASR ? .green : .orange
     case .files:
-      return .accentColor
+      return appState.needsUserSelectedMaterialLibrary ? .orange : .green
     case .agents:
       return appState.agentDispatchJobs.isEmpty ? .secondary : .accentColor
     }
@@ -771,7 +782,7 @@ private struct RecordingSettingsPane: View {
       } header: {
         Label("系统声音录制", systemImage: "speaker.wave.2")
       } footer: {
-        Text("麦克风和电脑声音由工作台顶部两个按钮独立控制；这里只设置双轨转写方式并检查系统能力。")
+        Text("麦克风和电脑声音由工作台顶部两个按钮独立控制；默认保留两条原件，只转写一次会议合并音频。")
       }
 
       #if !WOICE_APP_STORE
@@ -1196,9 +1207,9 @@ private struct ProvidersSettingsPane: View {
   }
 
   private var recommendationModels: [ModelInstallCardModel] {
-    guard let modelRecommendation else { return RecommendedModelPolicy.candidates }
-    return [modelRecommendation.model]
-      + RecommendedModelPolicy.candidates.filter { $0 != modelRecommendation.model }
+    RecommendedModelPolicy.orderedCandidates(
+      physicalMemoryBytes: ProcessInfo.processInfo.physicalMemory,
+      availablePackIDs: downloadableRecommendationPackIDs)
   }
 
   private func modelKey(_ item: ModelPackInventoryEntry) -> String {
@@ -2010,7 +2021,7 @@ private struct APIKeyField: View {
 
 private struct StorageSettingsPane: View {
   @Binding var settings: AppSettings
-  let store: WorkspaceStore
+  let appState: AppState
 
   var body: some View {
     Form {
@@ -2046,12 +2057,35 @@ private struct StorageSettingsPane: View {
       }
 
       Section {
-        storagePath("原始录音", url: store.recordingsURL)
-        storagePath("工作区", url: store.rootURL)
+        #if WOICE_APP_STORE
+          if let url = appState.userSelectedMaterialLibraryURL {
+            storagePath("素材文件夹", url: url)
+            LabeledContent("访问") {
+              Button("在 Finder 中显示") {
+                NSWorkspace.shared.activateFileViewerSelecting([url])
+              }
+            }
+          } else {
+            LabeledContent("素材文件夹") {
+              Text("尚未选择")
+                .foregroundStyle(.orange)
+            }
+            Button("选择素材保存位置…") {
+              _ = appState.chooseUserSelectedMaterialLibrary()
+            }
+          }
+        #else
+          storagePath("原始录音", url: appState.store.recordingsURL)
+          storagePath("工作区", url: appState.store.rootURL)
+        #endif
       } header: {
         Label("本机存储", systemImage: "internaldrive")
       } footer: {
-        Text("录音文件在停止录音后立即写入本机；历史记录只引用这些文件，不把音频放进云端。")
+        #if WOICE_APP_STORE
+          Text("录音、系统音轨、会议合成和导入素材保存在你选择且可直接访问的文件夹中，不会保存到隐藏的 App Container。")
+        #else
+          Text("录音文件在停止录音后立即写入本机；历史记录只引用这些文件，不把音频放进云端。")
+        #endif
       }
 
       Section {

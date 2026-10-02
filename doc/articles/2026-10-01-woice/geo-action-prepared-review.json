@@ -1,0 +1,63 @@
+{
+  "preparedId": "prepared-1790954246165-f7b0a49b-75a8-45ce-9a8d-6d6ec2679d21",
+  "contentDigest": "adda1556dc1ecc408f06689bc5bc16a726047273c9b61e474ab01b7f3962b225",
+  "createdAt": 1790954246165,
+  "expiresAt": 1790956046165,
+  "title": "一段 AI 录音的成本，不只是转写费",
+  "platforms": [
+    "wechat"
+  ],
+  "account": "北斗九号",
+  "assetCount": 7,
+  "coverIncluded": true,
+  "missingAssets": [],
+  "blockedCount": 0,
+  "warningCount": 2,
+  "warnings": {
+    "wechat": []
+  },
+  "issues": [
+    {
+      "id": "wechat:external-links",
+      "severity": "warning",
+      "title": "站外链接偏多（7 个）",
+      "message": "链接过密或正文主要由链接组成，容易被判断为推广或低质量内容。",
+      "suggestion": "保留必要来源，并为每个链接补充清晰说明。"
+    },
+    {
+      "id": "wechat:wechat-external-links",
+      "severity": "warning",
+      "title": "站外链接会被转换",
+      "message": "检测到 7 个站外链接，微信公众号适配会移除链接但保留文字。",
+      "suggestion": "确认链接文字在失去点击能力后仍能独立读懂。"
+    }
+  ],
+  "safeFixesRequested": false,
+  "draftCreated": true,
+  "sourcePath": "/Users/water/Downloads/Water程序开发/Water产品/woice/doc/articles/2026-10-01-woice/article.md",
+  "sourceSha256": "20953fc71c979d5d1da30d5c14b0be0d1af11221f9d9e817fca254f6808bee7e",
+  "coverPath": "/Users/water/Downloads/Water程序开发/Water产品/woice/doc/articles/2026-10-01-woice/images/00-cover.png",
+  "bodyImages": [
+    "images/00-cover.png",
+    "images/04-find-the-recording.png",
+    "images/02-menubar-redacted.png",
+    "images/01-material-library-redacted.png",
+    "images/05-you-choose-the-destination.png",
+    "images/03-local-model-redacted.png",
+    "images/99-author-profile.png"
+  ],
+  "requestId": "woice-wechat-20261002-f7b0a49b",
+  "taskId": "drafts-agent-adda1556dc1e-6d6ec2679d21",
+  "taskStatus": "completed",
+  "platformResult": {
+    "platform": "wechat",
+    "status": "success",
+    "message": "草稿已创建",
+    "draftId": "503597752",
+    "articleId": "503597752",
+    "draftOnly": true,
+    "timestamp": 1790954442635
+  },
+  "openingStatus": "awaiting explicit user choice",
+  "editUrlSaved": false
+}

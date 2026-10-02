@@ -1,5 +1,17 @@
 # Woice 项目文档索引
 
+- [公众号封面与插图](articles/2026-10-01-woice/visual-brief.md)：用户选 A，封面与两张正文插图已完成并放入当前稿。
+
+- [Woice 公众号选题优化](articles/2026-10-01-woice/topic-options.md)：完整使用成本切口已获用户确认，第二版正文已完成。
+
+- [一段 AI 录音的成本，不只是转写费](articles/2026-10-01-woice/article.md)：聚焦录音与转写费用，含飞书、千问免费额度及 GetSeed／PLAUD 硬件对比，保留配图和产品入口；本地可编辑稿。
+
+- [App Store Qwen 修复版](../specs/2026-09-22-app-store-qwen-crash-update.md)：0.1.8 (13) 已完成正式上传与提交，当前等待审核，审核通过后自动发布。
+
+- [Qwen 短读崩溃修复](../specs/2026-09-22-qwen-short-read-crash.md)：MRQ-07 已修复，原始长音频真实转写与源哈希校验通过；稳定签名 Dev 0.1.7 (12) 已安装启动。
+
+- [App Store 0.1.7 (12) 更新](../specs/2026-09-20-app-store-0-1-7-release.md)：已于 2026-09-20 01:26 提交审核，状态“等待审核”；审核通过后自动发布并立即向所有用户提供更新。
+
 进入项目先读本文件；再读相关分类的 `INDEX.md`，只打开当前任务需要的分片。
 
 ## 文档分类
@@ -10,19 +22,26 @@
 | plan/ | 实施计划、里程碑、工作包 | [plan/INDEX.md](plan/INDEX.md) |
 | design/ | 架构决策、技术选型、UI 设计基线 | [design/INDEX.md](design/INDEX.md) |
 | log/ | 执行记录与最近结论 | [log/INDEX.md](log/INDEX.md) |
+| articles/ | 产品介绍稿与来源核对 | [articles/INDEX.md](articles/INDEX.md) |
 
 ## 当前焦点
 
+- [录音侧栏全生命周期可见性](../specs/2026-09-19-recording-sidebar-lifecycle.md)：已补齐录音开始至正式素材提交前的会话行，287 项自动测试通过，已稳定签名覆盖安装 Dev 0.1.6 (11) 并启动；真实录音界面待验收。
+
+- [Mac App Store 0.1.6 (Build 11)](log/2026-09-14.md) 已完成正式 Store Archive、签名和 Apple 上传，补齐出口合规后已提交审核；当前保持手动发布，尚未上线。
+- [16 kHz 麦克风 AAC 录音兼容性修复规格](../specs/2026-09-14-microphone-aac-format-compatibility.md)已完成实现：按采样率选择 macOS AAC 编码器可接受的码率，修复 `560226676` 导致录音无法启动的问题；历史 WAV/CAF 与发行 Channel 不变。
+- [主界面录音控制、外放回声与工作台美化优化计划](plan/2026-09-08-recording-controls-echo-and-workspace-polish.md)的 REC-01 已实现：工作台内容列顶部持续显示录音状态和“结束并保存”，实时预览不再遮盖控制；回声处理仍需独立质量验证，真实 Dev 界面验收待稳定签名安装。
+
 - 当前实施顺序与旧计划状态只看[当前路线图与计划迁移表](plan/2026-08-22-current-roadmap-and-plan-transition.md)：R0 录音核心收口 -> M2-08 ASR/模型/双版本 -> R2 素材库收口 -> M2-09 Agent 协作。旧 M3 插件生态已停止，旧总计划不能单独作为当前排期来源。
 - [工作区侧栏与权限连续性优化计划](plan/2026-08-23-workspace-sidebar-and-permission-continuity.md)只保留历史实施与证据；全部未完成项已迁出，WPC 无活动待办。
-- [素材命名、耐久性、详情性能与 Qwen 输出质量开发计划](plan/2026-09-01-material-naming-durability-detail-performance-qwen-quality.md)是唯一活动产品开发源：MRQ-00～05 自动代码/工程门禁已完成，Qwen-only 五类 300 秒与重复夹具 60 分钟严格信号/性能门禁通过，官方中英文短样本参考对照已完成；多模型质量、真实 Mac 故障/长时 UI、完整 Qwen 准入与正式签名仍待。旧[技术开发收口计划](plan/2026-08-24-current-technical-development-closure.md)已结项为历史。
+- [素材命名、耐久性、详情性能与 Qwen 输出质量开发计划](plan/2026-09-01-material-naming-durability-detail-performance-qwen-quality.md)是唯一活动产品开发源：MRQ-00～05 自动代码/工程门禁已完成；MRQ-06 追加会议合并音频单次转写，修复 Qwen 因麦克风/电脑声音双轨各转一次而导致原文重复的问题。旧[技术开发收口计划](plan/2026-08-24-current-technical-development-closure.md)已结项为历史。
 - 当前增量：导入音视频开始转写后，浮窗提供明确的“关闭并后台继续”入口；关闭不取消持久化任务，支持 Escape/VoiceOver，点击“转文字”自动进入处理任务页；隔离桌面验收脚本已具备状态与持久化断言，目标桌面视觉手感仍待人工验收。详见 [导入转写浮窗后台继续规格](../specs/2026-09-01-media-import-background-transcription.md) 与 [后台继续真实桌面验收规格](../specs/2026-09-01-media-import-background-journey.md)。
 - [菜单栏、设置、快捷键与 Dock 图标精简优化计划](plan/2026-08-23-menubar-settings-shortcut-optimization.md)已完成 MSS-07R 代码与自动测试收口：Popover、四动作、设置分层、快捷键、Bundle AppIcon、录音来源命名、loopback 信任持久化、工作台确认、可恢复“稍后处理”、主/片段任务去重和活动转写状态投影已落地；专项证据 Build `2026082332` 保留为历史记录，当前安装包基线是 `2026082408`；云端稍后处理和视觉/TCC Journey 仍按[进度复核](plan/2026-08-23-plan-progress-review.md)及手册验收。
 - [当前计划进度复核](plan/2026-08-23-plan-progress-review.md)保留 2026-08-25 前的历史进度证据；2026-09-01 后的产品开发状态以 MRQ 计划为准。Developer ID、公证、Catalog 私钥和 Store 审核继续作为独立发行条件。
 - [Mac App Store 上架计划](plan/2026-08-23-mac-app-store-launch.md)的 Build 6 因“检查更新”问题被拒；Build 7 已完成修复、含 Qwen 的签名 Catalog v2、本机 Store 门禁、Apple Distribution Archive 和导出包，待 Catalog 推送、真实截图/录屏、App Store Connect 字段、Build 上传与审核。
 - [公开 GitHub 仓库与 ad hoc 预发布准备](../specs/2026-08-24-public-github-adhoc-release-preparation.md)已完成并推送到公开 GitHub；随后已发布 [Woice v0.1.2 Core](https://github.com/WaterDJiang/woice/releases/tag/v0.1.2)，仅提供 Apple Silicon 的无模型 Core DMG 与 SHA-256 清单。产物未公证，不替代 Developer ID/Notarization 发行门禁；含模型 Offline 仍不属于本次 Release。
 - [录音与转写产品升级门禁](plan/2026-08-22-recording-product-upgrade.md)已并入当前路线图：文档只保留 1,650 条 App Store 评论、设置页截图与验收门禁；录音、双轨会议 ASR、模型、素材与发布分别由 M1-02/M1-04/M2-01/M2-03/M2-08 承接，不再使用 `UP-*` 工作包或第二套工期。
-- 会议双音轨边界已修正：一场会议是一条 Recording；新录音保留麦克风 M4A、电脑声音 M4A 与会议合成 M4A，旧 WAV/CAF 原件保持不变；默认分别转写两条原轨并按时间线合并，避免重叠说话稳定漏轨。详见[会议双音轨与合并转写规格](spec/2026-08-22-dual-track-meeting-transcription.md)、`specs/2026-08-24-reliable-dual-track-transcription.md` 与 `specs/2026-08-25-dual-source-storage-and-long-detail.md`。
+- 会议音频边界以 2026-09-07 裁决为准：一场会议保留麦克风、电脑声音两条原件和可重建的会议合成文件；默认只转写 `meetingMix` 一次，分轨转写保留为显式高级选项。详见[会议合并音频单次转写修复规格](../specs/2026-09-07-meeting-single-pass-transcription.md)。
 - 产品定位已再次确认并冻结为“录音与语音素材工具、外部 Agent 的上下文来源”：录音、转写、复听、搜索、导出和 Core/Offline 模型能力是核心；Agent 只在素材完成后承担后续处理，或在授权范围内读取上下文，不承诺所有 CLI，也不形成网关/入口/聊天聚合器。详见[定位规格](spec/2026-08-22-voice-context-source-positioning.md)、[协作设计](design/2026-08-22-voice-context-agent-collaboration.md)与 [M2-09 计划](plan/2026-08-22-voice-context-agent-integration.md)。
 - M2-08 双版本与模型接入继续有效：macOS on-device Speech 与固定 revision 的 WhisperKit Tiny/Large-v3 已完成本机真实录音/已有 WAV 转写闭环；Tiny 与 Large-v3 已通过五类各 300 秒严格性能矩阵，未显式选择时默认路由冻结为 Large-v3，损坏或缺失时回退 Tiny/Speech；模型下载任务恢复、Catalog 信任/回滚/轮换校验、受限 HTTPS Catalog 传输、Catalog 条目到多文件模型包的受控下载编排、显式设置页更新入口、Core/Offline ad hoc 双发行、可验证本地 DMG、三步首启引导和四个只填草稿的 loopback 本机服务预设已实现；全部专项验收、完整 `make verify`、最新安装和 Core/Offline DMG 校验均已通过；生产 Catalog host/key 配置、Developer ID/公证、干净账户覆盖安装、真实会议准确率和全桌面/多窗口/长录音 UI 矩阵仍按专项计划推进；详见[本机闭环规格](spec/2026-08-22-local-asr-model-closed-loop.md)、[双版本规格](spec/2026-08-22-dual-edition-model-integration.md)、[模型基准记录](benchmarks/2026-08-23-whisperkit-300s-matrix.md)、[设计](design/2026-08-22-model-onboarding-provider-architecture.md)与[开发计划](plan/2026-08-22-model-integration.md)。
 - 当前提醒：M1 麦克风录音/Large-v3 主链已通过；M2-01 双轨系统会议转写由用户手动验收并记为通过；逐项 TCC/真实会议应用、全桌面、多窗口和长时矩阵只作人工体验提醒。
@@ -47,7 +66,7 @@
 - 当前增量：新建和重试的 ProcessingTask 写入 `sha256-v1` 配置快照；摘要不含 API Key、授权头或 URL 凭据，模型/Endpoint/语言变化可被审计。详见 `specs/2026-08-23-processing-configuration-snapshot.md`。
 - 当前增量：模型与转写设置新增本机 ASR 服务预设；选择只填入草稿，不自动启动服务、扫描端口或发请求，保存和健康检查仍由用户控制。详见 `specs/2026-08-23-local-asr-service-presets.md`。
 - 当前增量：真实素材证明单次 meetingMix ASR 会漏掉重叠声源；默认改为麦克风/电脑声音分别进入当前模型，再按时间线合并。纯文本原文只保留说话内容，声音来源保留在时间戳片段和 JSON `sourceTrack`。历史混音素材重转写、异常恢复及旧来源前缀迁移均保留原始 Artifact；`make acceptance-meeting-transcription` 已更新为双轨门禁。
-- 当前安装：Markdown 导出目录快捷键修复已用同一 Apple Development 身份 A `2026082407` → B `2026082408` 覆盖安装；严格签名、单实例启动和“Woice 工作台”窗口通过。运行态确认“编辑”菜单、目录输入框 ⌘A/⌘C/⌘V 和草稿还原；CLI 文字默认、素材废纸篓与真实会议合并内容的既有验收边界不变。
+- 当前安装：最新 Dev Channel `0.1.4 (9)` 已用与既有 Team 一致的 Apple Development 身份覆盖安装到 `/Applications/Woice (Dev).app`；严格签名、版本、Bundle ID、`arm64` 架构和启动检查通过，正式版 App 与两条 Channel 的用户数据保持隔离并保留。
 - 当前增量：系统音频启动将屏幕录制权限拒绝、没有可共享显示器或窗口和其他运行时失败分开提示；有显示器时优先全桌面，无显示器但存在可捕获窗口时使用活动窗口并持久化采集目标。修正为可见 QuickTime 播放源后，`make acceptance-meeting` 已验证窗口级可听系统声音、CAF 和 meetingMix；当前安装包 TCC 复核失败时设置页显示“需要重新授权当前安装包”，全桌面、多窗口和真实会议应用仍待真实桌面复验。详见 `spec/2026-08-22-system-audio-permission-reliability.md` 与 `specs/2026-08-23-system-audio-window-fallback.md`。
 - 当前增量：设置页改为录音与输入、模型与转写、文件与隐私分区独立保存；保存当前分区不会校验或触碰其他分区草稿/Keychain，专项门禁为 `make acceptance-settings`。详见 `specs/2026-08-23-settings-section-save.md`。
 - 当前增量：录音开始前会检查保存卷最低可用空间；低于 256 MiB 时 fail-closed 并说明清理空间/更换目录，容量不可读时保留实际写入错误路径。详见 `specs/2026-08-23-recording-storage-preflight.md`。

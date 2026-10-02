@@ -1,13 +1,14 @@
 # Woice 隐私政策
 
-生效日期：2026 年 9 月 4 日
+生效日期：2026 年 9 月 5 日
 
 Woice 是一款本地优先的 macOS 录音、转写与语音素材管理工具。本政策说明 Woice 如何处理录音、转录、模型和配置数据。
 
 ## 本机处理与保存
 
 - Woice 不要求注册或登录，也不包含广告、跨 App 跟踪或用户行为分析服务。
-- 录音、系统声音、转录、任务状态和设置默认保存在你的 Mac 上。
+- 首次使用 App Store 版时，Woice 会通过 macOS 标准“另存为”面板请你创建可直接访问的“Woice 素材”文件夹。麦克风录音、系统声音、会议合成音轨、导入原件及其音频文件都保存在该文件夹中。
+- 转录索引、任务状态、设置、本机模型和缓存保存在这台 Mac 的 App Container 中，用于 App 运行，不作为用户文档位置。
 - 本机转写使用 macOS 提供的语音识别能力，或由你主动下载、导入并校验的本机模型。
 - API Key 只保存在 macOS Keychain，不写入录音、转录、数据库、日志或导出文件。
 
@@ -21,11 +22,11 @@ Woice 是一款本地优先的 macOS 录音、转写与语音素材管理工具�
 
 ## 系统声音的使用、共享与保留
 
-- 系统声音和最小必要的录音元数据（如开始时间、时长和用户选择的声音来源类型）保存在 Woice 的本机 App Container 中，作为 App 管理的素材库和恢复数据，直到你在 App 内删除它们。
+- 系统声音和麦克风录音保存在你通过标准面板选定的本机素材文件夹中，直到你在 App 内删除它们。开始时间、时长和声音来源类型等最小必要元数据保存在本机 App 数据库中。
 - App Store 版中，导出音频、转录、JSON 或 Markdown 时，你必须通过 macOS 标准“另存为”面板选择可访问的保存位置。
 - Woice 默认不向任何第三方共享系统声音。只有你主动配置外部转录服务、选择相应素材并确认发送后，所选音频才会发送到你指定的服务；该服务的处理和保留受其隐私政策约束。
 
-**Screen/system-audio disclosure for App Review:** "Woice registers only the audio output of ScreenCaptureKit after the user explicitly enables Meeting Mode and starts recording. Woice does not capture, read, or store screen pixels, screenshots, video, window text, keystrokes, or pointer activity. System-audio samples are stored locally in the app-managed library for playback, mixing, and user-selected transcription, and are not shared with a third party unless the user explicitly configures an external transcription service, selects the material, and confirms sending it."
+**Screen/system-audio disclosure for App Review:** "Woice registers only the audio output of ScreenCaptureKit after the user explicitly enables Meeting Mode and starts recording. Woice does not capture, read, or store screen pixels, screenshots, video, window text, keystrokes, or pointer activity. System-audio samples are stored locally in the user-selected material folder for playback, mixing, and user-selected transcription, and are not shared with a third party unless the user explicitly configures an external transcription service, selects the material, and confirms sending it."
 
 ## 模型下载与外部服务
 
@@ -36,6 +37,7 @@ Woice 是一款本地优先的 macOS 录音、转写与语音素材管理工具�
 ## 导出、删除与保留
 
 - 你可以复制或导出自己的录音和转录素材。
+- App Store 版的素材文件夹始终由你通过 macOS 标准面板选择，并可在 Finder 中直接查看。Woice 使用安全范围书签在下次启动时恢复对该文件夹的访问。
 - 你可以在 App 内删除素材；默认删除流程优先使用可恢复方式。
 - 原始音频和原始转录不会被后续处理原位覆盖。重转录、编辑或其他处理会创建带来源关系的新版本，直到你主动删除相关素材。
 

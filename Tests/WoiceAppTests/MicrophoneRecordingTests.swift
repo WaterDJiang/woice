@@ -88,6 +88,45 @@ func threeChannelInterleavedMicrophoneBufferWritesAAC() throws {
   #expect(try AVAudioFile(forReading: commits[0].url).length > 0)
 }
 
+@Test("16 kHz 麦克风 AAC 使用编码器支持的码率")
+func sixteenKilohertzMicrophoneAACUsesSupportedBitRate() throws {
+  let format = try #require(
+    AVAudioFormat(
+      commonFormat: .pcmFormatFloat32,
+      sampleRate: 16_000,
+      channels: 1,
+      interleaved: false))
+  let settings = RecordingAudioFormat.aacSettings(
+    sampleRate: format.sampleRate,
+    channelCount: Int(format.channelCount),
+    bitRate: 64_000)
+  #expect(settings[AVEncoderBitRateKey] as? Int == 48_000)
+
+  let url = FileManager.default.temporaryDirectory.appendingPathComponent(
+    "woice-sixteen-kilohertz-aac-" + UUID().uuidString + ".m4a")
+  defer { try? FileManager.default.removeItem(at: url) }
+  do {
+    let file = try AVAudioFile(
+      forWriting: url,
+      settings: settings,
+      commonFormat: format.commonFormat,
+      interleaved: format.isInterleaved)
+    if #available(macOS 15.0, *) { file.close() }
+  }
+  let readable = try AVAudioFile(forReading: url)
+  #expect(readable.fileFormat.streamDescription.pointee.mFormatID == kAudioFormatMPEG4AAC)
+}
+
+@Test("高采样率 AAC 保留既有目标码率")
+func highSampleRateAACKeepsExistingTargetBitRate() {
+  #expect(
+    RecordingAudioFormat.compatibleAACBitRate(
+      sampleRate: 48_000, requestedBitRate: 64_000) == 64_000)
+  #expect(
+    RecordingAudioFormat.compatibleAACBitRate(
+      sampleRate: 48_000, requestedBitRate: 128_000) == 128_000)
+}
+
 @Test("退出时只要有音频资源就必须先执行清理")
 func terminationPolicyRequiresAudioCleanup() {
   #expect(
@@ -222,6 +261,27 @@ func microphoneRecordingServiceWritesFrames() async throws {
     #expect(result.peakLevel > 0.0001)
     #expect(activityBeforeStop.totalFrameCount > 0)
   }
+}
+
+@Test("AVAudioEngine 麦克风录音服务在当前采样率下可写入 M4A")
+@MainActor
+func microphoneRecordingServiceWritesM4AAtCurrentInputRate() async throws {
+  guard ProcessInfo.processInfo.environment["WOICE_REQUIRE_MIC_AUDIO"] == "1" else { return }
+  guard AVAudioApplication.shared.recordPermission == .granted else { return }
+  let url = FileManager.default.temporaryDirectory.appendingPathComponent(
+    "woice-microphone-current-rate-" + UUID().uuidString + ".m4a")
+  try? FileManager.default.removeItem(at: url)
+  defer { try? FileManager.default.removeItem(at: url) }
+
+  let recorder = RecordingService()
+  try await recorder.start(to: url)
+  try await Task.sleep(for: .milliseconds(700))
+  let result = recorder.stop()
+  #expect(result.bufferCount > 0)
+  #expect(result.duration > 0)
+  let file = try AVAudioFile(forReading: url)
+  #expect(file.fileFormat.streamDescription.pointee.mFormatID == kAudioFormatMPEG4AAC)
+  #expect(file.length > 0)
 }
 
 @Test("麦克风录音停止后重新创建输入 Engine 仍可收帧")

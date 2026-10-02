@@ -147,11 +147,12 @@ public struct AppSettings: Codable, Equatable, Sendable {
   public var captureMicrophone = true
   public var captureSystemAudio = true
   public var hasEnabledRecordingSource: Bool { captureMicrophone || captureSystemAudio }
-  public var meetingTranscriptionMode: MeetingTranscriptionMode = .sourceSeparated
-  /// Version 1 makes reliable per-track transcription the default. A missing
-  /// value identifies settings written before the real dual-track regression
-  /// was discovered and is migrated once during decoding.
-  private var meetingTranscriptionStrategyVersion = 1
+  public var meetingTranscriptionMode: MeetingTranscriptionMode = .standardMix
+  /// Version 2 makes the derived meeting mix the default ASR input. Both raw
+  /// tracks remain durable, while source-separated transcription is an
+  /// explicit advanced choice because speaker playback can otherwise be
+  /// transcribed once from each captured source.
+  private var meetingTranscriptionStrategyVersion = 2
   public var includeTranscriptTimestamps = false
   public var enableLiveTranscription = false
   public var recordingShortcut: RecordingShortcut = .optionSpace
@@ -209,9 +210,9 @@ public struct AppSettings: Codable, Equatable, Sendable {
     let decodedMeetingStrategyVersion = try container.decodeIfPresent(
       Int.self, forKey: .meetingTranscriptionStrategyVersion)
     meetingTranscriptionMode =
-      decodedMeetingStrategyVersion == nil
-      ? .sourceSeparated : (decodedMeetingMode ?? .sourceSeparated)
-    meetingTranscriptionStrategyVersion = 1
+      (decodedMeetingStrategyVersion ?? 0) < 2
+      ? .standardMix : (decodedMeetingMode ?? .standardMix)
+    meetingTranscriptionStrategyVersion = 2
     includeTranscriptTimestamps =
       try container.decodeIfPresent(Bool.self, forKey: .includeTranscriptTimestamps) ?? false
     enableLiveTranscription =
@@ -416,15 +417,15 @@ public enum MeetingTranscriptionMode: String, Codable, CaseIterable, Equatable, 
 
   public var label: String {
     switch self {
-    case .standardMix: "快速混音（兼容）"
-    case .sourceSeparated: "完整会议（推荐）"
+    case .standardMix: "单次转写（推荐）"
+    case .sourceSeparated: "分轨转写（高级）"
     }
   }
 
   public var description: String {
     switch self {
-    case .standardMix: "合成后只转写一次；重叠说话可能漏掉其中一路。"
-    case .sourceSeparated: "分别转写麦克风和电脑声音，再按时间线合并为一份原文。"
+    case .standardMix: "保留两条原始音轨，合成会议回放后只转写一次；重叠说话可能漏句。"
+    case .sourceSeparated: "分别转写麦克风和电脑声音，约需两倍处理时间；扬声器外放时可能出现重复内容。"
     }
   }
 }
@@ -855,7 +856,9 @@ public struct RecordingRecord: Identifiable, Codable, Hashable, Sendable {
   public let systemAudioDuration: TimeInterval?
   public let systemAudioStartOffset: TimeInterval?
   public let systemAudioCaptureTarget: SystemAudioCaptureTarget?
-  public let meetingMixFileName: String?
+  /// Rebuildable derivative; unlike both raw-track filenames this reference may
+  /// be repaired when a historical meeting is transcribed again.
+  public var meetingMixFileName: String?
   /// Processing policy can change when the user explicitly re-transcribes a
   /// preserved recording; immutable TranscriptArtifacts still snapshot the
   /// mode actually used for each version.

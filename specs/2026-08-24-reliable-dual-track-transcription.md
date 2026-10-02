@@ -1,8 +1,9 @@
 # 双轨会议可靠合并转写规格
 
-> 状态：代码与自动门禁已实现；新安装包真实会议原文待用户复验
+> 状态：历史实现基线；其“默认分轨”已被 2026-09-07 单次转写规格覆盖
 > 日期：2026-08-24
 > 关联：`doc/spec/2026-08-22-dual-track-meeting-transcription.md`、`specs/2026-08-23-meeting-transcription-acceptance.md`
+> 最新规格：`specs/2026-09-07-meeting-single-pass-transcription.md`
 
 ## 目标
 

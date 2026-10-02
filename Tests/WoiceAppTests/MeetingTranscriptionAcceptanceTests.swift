@@ -28,7 +28,7 @@ private final class MeetingTranscriptionAcceptanceURLProtocol: URLProtocol {
   override func stopLoading() {}
 }
 
-@Test("会议默认与历史混音素材都使用双轨转写且系统轨标准化")
+@Test("会议默认只转写会议合并音频，显式分轨仍使用两次请求")
 @MainActor
 func meetingTranscriptionModesUseExpectedRequestCounts() async throws {
   let configuration = URLSessionConfiguration.ephemeral
@@ -48,14 +48,12 @@ func meetingTranscriptionModesUseExpectedRequestCounts() async throws {
     transcriptionClient: TranscriptionClient(session: session))
   configureExternalASR(standardState)
   standardState.requestTranscription(for: standardRecord)
-  #expect(standardState.pendingExternalProcessingCount == 2)
-  for _ in 0..<2 {
-    #expect(standardState.pendingExternalProcessing != nil)
-    await standardState.confirmExternalProcessing()
-  }
+  #expect(standardState.pendingExternalProcessingCount == 1)
+  #expect(standardState.pendingExternalProcessing?.sourceTrack == .meetingMix)
+  await standardState.confirmExternalProcessing()
 
   let standardRequests = MeetingTranscriptionAcceptanceURLProtocol.requests
-  #expect(standardRequests.count == 2)
+  #expect(standardRequests.count == 1)
   #expect(standardRequests.allSatisfy { $0.url?.path == "/v1/audio/transcriptions" })
   #expect(
     standardRequests.allSatisfy {
@@ -64,12 +62,12 @@ func meetingTranscriptionModesUseExpectedRequestCounts() async throws {
         && body.range(of: Data("RIFF".utf8)) != nil
     })
   let standardResult = try #require(standardState.recordings.first)
-  #expect(standardResult.meetingTranscriptionMode == .sourceSeparated)
+  #expect(standardResult.meetingTranscriptionMode == .standardMix)
   #expect(standardResult.transcript?.contains("麦克风") == false)
   #expect(standardResult.transcript?.contains("电脑声音") == false)
   #expect(
     Set(standardResult.transcriptSegments?.compactMap(\.sourceTrack) ?? [])
-      == Set([AudioTrackKind.microphone, .systemAudio]))
+      == Set([AudioTrackKind.meetingMix]))
 
   let separatedRoot = FileManager.default.temporaryDirectory.appendingPathComponent(
     "woice-meeting-transcription-separated-\(UUID().uuidString)", isDirectory: true)
@@ -83,6 +81,7 @@ func meetingTranscriptionModesUseExpectedRequestCounts() async throws {
     store: separatedStore,
     transcriptionClient: TranscriptionClient(session: session))
   configureExternalASR(separatedState)
+  separatedState.settings.meetingTranscriptionMode = .sourceSeparated
   separatedState.requestTranscription(for: separatedRecord)
   #expect(separatedState.pendingExternalProcessingCount == 2)
   for _ in 0..<2 {

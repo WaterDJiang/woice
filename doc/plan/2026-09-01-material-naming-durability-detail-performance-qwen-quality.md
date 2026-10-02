@@ -1,8 +1,8 @@
 # Woice 素材命名、耐久性、详情性能与 Qwen 输出质量开发计划
 
-> 状态：MRQ-00～MRQ-05 的代码、自动测试与工程门禁已完成；Qwen-only 300 秒、重复夹具 60 分钟严格信号/性能门禁及官方中英文参考对照已通过；导入转写浮窗后台继续 UX 与基础音频链路已有自动/隔离证据；按用户要求跳过真实桌面验收，真实故障、完整 Qwen 质量准入与正式签名仍待人工/外部条件  
+> 状态：MRQ-00～MRQ-06 的代码、自动测试与工程门禁已完成；Qwen-only 300 秒、重复夹具 60 分钟严格信号/性能门禁及官方中英文参考对照已通过；会议默认改为合并音频单次转写，稳定签名 Dev `0.1.4 (9)` 已覆盖安装并启动；真实故障、TCC、会议重叠说话、完整 Qwen 质量准入与正式发行仍待人工/外部条件  
 > 日期：2026-09-01  
-> 当前活动范围：素材标题、异常恢复、详情首屏速度、Qwen3-ASR 输出正确性  
+> 当前活动范围：素材标题、异常恢复、详情首屏速度、Qwen3-ASR 输出正确性、会议合并音频单次转写  
 > 前置基线：[当前技术开发收口计划](2026-08-24-current-technical-development-closure.md)已结项为历史；其未完成范围按本文第 2 节迁移  
 > 问题证据：用户截图 `codex-clipboard-09c602f8-aedc-46c3-b8a1-65a01e908f0c.png`
 
@@ -27,7 +27,7 @@
 ## 2. 替代、保留、迁移、停止、顺序
 
 - 替代：本文替代[当前技术开发收口计划](2026-08-24-current-technical-development-closure.md)作为唯一活动产品开发计划；旧 WCL 计划只保留历史实现与验证证据。
-- 保留：WCL-00～03、WCL-05、WCL-08 的已完成实现保持关闭；现有录音 Journal、后台转写 sidecar、SQLite/WAL、Artifact 不可变、双轨分别转写、模型库存和 Store 数据包门禁继续有效。
+- 保留：WCL-00～03、WCL-05、WCL-08 的已完成实现保持关闭；现有录音 Journal、后台转写 sidecar、SQLite/WAL、Artifact 不可变、双原轨保存、显式分轨转写、模型库存和 Store 数据包门禁继续有效。
 - 迁移：
   - WCL-07 的 Qwen 正确性、固定音频准确率、长音频性能和正式推荐准入迁入 `MRQ-01`、`MRQ-04`。
   - WCL-07 的签名 Catalog 发布仍由既有 Qwen Catalog 规格承接；只有 `MRQ-04` 通过后才允许发布 Qwen 条目。
@@ -35,7 +35,7 @@
   - WCL-06 的 Store 签名、Sandbox、TestFlight 和审核继续只由[Mac App Store 上架计划](2026-08-23-mac-app-store-launch.md)承接。
   - 旧 R2 “素材库已收口”结论保留为历史基线；本次新增标题与性能需求由 `MRQ-02`、`MRQ-03` 唯一承接。
 - 停止：停止从旧 WCL 文件继续追加新的产品工作包；停止把真实崩溃矩阵仅列为非开发提醒；停止将未经输出质量门禁的 Qwen 标记为正式推荐。
-- 顺序：`MRQ-00 -> MRQ-01 -> MRQ-02 -> MRQ-03 -> MRQ-04 -> MRQ-05`。`MRQ-01` 是当前用户可见数据错误，先于其他增强修复；`MRQ-03` 的存储迁移完成后，`MRQ-04` 才冻结详情性能结论。
+- 顺序：`MRQ-00 -> MRQ-01 -> MRQ-02 -> MRQ-03 -> MRQ-04 -> MRQ-05 -> MRQ-06`。`MRQ-06` 是 2026-09-07 追加的用户可见重复内容修复，覆盖旧默认分轨裁决，但不删除高级分轨能力。
 
 ## 3. 当前证据与根因判断
 
@@ -201,6 +201,16 @@
 
 退出条件：自动门禁 `MRQ-TAC-029～031` 通过；真实 Mac 验收 `MRQ-TAC-032` 仍是关闭计划前的必要条件。
 
+### MRQ-06：会议合并音频单次转写 P0
+
+- 修正会议默认策略：两原轨保留，`meetingMix` 只进入当前 ASR Provider 一次。
+- 将策略版本升为 2，旧默认分轨设置迁移为单次模式；升级后显式分轨选择仍可往返。
+- 历史会议重转写按当前设置重建任务，旧 Transcript Artifact 和原始音频不变。
+- 设置页将分轨标为高级选项，显示两倍时长和外放重复风险。
+- 回归新录音、历史重转写、合并文件重建、显式分轨、异常恢复和 Markdown 单投影。
+
+退出条件：[MSP 规格](../../specs/2026-09-07-meeting-single-pass-transcription.md)的 `MSP-TAC-001～007` 通过；真实会议的重叠说话取舍由用户继续人工验收。
+
 ## 7. 验收标准
 
 ### Qwen 正确性
@@ -268,6 +278,7 @@
 | MRQ-03 | L | 音频容器、掉电语义、双轨恢复 |
 | MRQ-04 | M-L | SQLite 投影迁移、SwiftUI/TextKit 长文本性能 |
 | MRQ-05 | M | 多 Channel 回归与外部 Catalog 阻塞边界 |
+| MRQ-06 | S-M | 旧任务形状迁移、派生合并文件重建和重叠说话取舍 |
 
 ## 10. 本轮执行进度（2026-09-01）
 
@@ -281,6 +292,28 @@
 | MRQ-03 | 块级实现、故障保留、进程级 SIGKILL 自动恢复及多声道 AAC 兼容通过，真实长时故障矩阵待 | 10 秒 AAC 滚动块、原子 Manifest、后台哈希提交、孤立块收编、损坏隔离、重建和 FULL SQLite 已落地；Manifest 写入失败会回滚内存快照并保留已提交块；最终容器失败会保留 Journal/Manifest/块文件；SQLite 触发器故障回滚不留下 Recording、Job 或摘要半提交；隔离子进程 SIGKILL 恢复已提交块并通过 SHA 校验；双轨仅系统音频恢复会切换主引用且不伪造麦克风；真实麦克风配置变化安全停止、QuickTime 系统声音采集、48 kHz 单声道会议回放和来源分离任务均通过；3 声道交错 HAL 输入会在主文件、VAD、实时预览和恢复块共用边界规范化为 2 声道 Float32 非交错 PCM，再写入 AAC，确定性回归覆盖首帧与尾块提交 | 真实 Mac 进程 `SIGKILL`/突然断电/磁盘写满/双轨单边故障、尾部损失 SLO；目标 3 声道麦克风需由用户可见录音按钮完成一次安装包验收 |
 | MRQ-04 | 摘要/详情实现与合成 P50/P95 基准完成；Qwen-only 300 秒、重复夹具 60 分钟和官方短样本参考对照通过，真实 UI/完整模型矩阵待 | 摘要投影、异步 Loader、Job 状态投影、5 条 LRU、原文分块懒渲染、音频元数据缓存；hydrate 进行中或失败时所有会改写完整素材集合的入口统一 fail-closed，并提供显式重试；500/60 分钟/10,000 段合成基准低于 400/500 ms 预算；Qwen-only 五类 300 秒严格门禁通过，RTF 0.050～0.063、峰值 RSS 约 894 MiB；重复夹具五类各 3600 秒执行通过，RTF <= 0.061、峰值 RSS <= 898 MiB；官方中英文短样本参考对照分别 WER `0`/`0.0263` | 真实主线程 Hang、目标 Mac 长时内存、真实 Qwen 中文/中英混合/静音/噪声/60 分钟准确率与重复率；本次长时输入为重复夹具且无 WER，官方短样本只覆盖两种语言；多模型矩阵仍显示 Whisper/Tiny 在静音/噪声上产生非空输出、Large 中文样本空输出；官方短样本不能替代真实会议 WER |
 | MRQ-05 | 自动代码/工程门禁、稳定签名 A/B、启动/导入/麦克风/系统声音验收完成，真实发行条件未满足 | `make verify`、`make xcode-build-store`、`make verify-app-store`、数据库升级/事务回滚夹具和 Swift Testing 回归通过（另有 XCTest）；本机已完成任务重转写在取得 Lease 前显式回到 `queued`，重复点击仍由活动任务与 Lease 去重；Store Bundle 仍为零模型；Qwen 运行时加载与公开英文/中文短样本参考对照通过；稳定签名 A/B 已实际覆盖安装，工作台重开、桌面导入、WhisperKit 麦克风闭环、配置变化安全停止和 QuickTime 系统声音/会议合成通过；三声道 AAC 修复包已使用有效 Apple Development 身份覆盖安装并通过严格验签；hydrate 进行中或失败时录音、导入、重命名、删除、转写及任务写入均明确阻止，避免单条详情触发全量 SQLite 覆盖；模型库存扫描现按版本隔离损坏包，不阻塞其它已验证模型显示/切换；Qwen-only 300 秒、重复夹具 60 分钟严格信号/性能门禁、官方参考夹具 SHA 校验脚本及独立 Make 入口已验证 | 当前用户数据上的 TCC 连续性、真实长时故障/双轨单边、真实内容 Qwen 发布准入与完整模型质量矩阵、Developer ID/公证/签名 Catalog |
+| MRQ-06 | 代码、自动门禁和稳定签名 Dev 覆盖安装/启动完成，真实会议取舍待人工验收 | 策略 v2 默认及旧设置迁移为 `standardMix`；新录音只建立一个 `meetingMix` 转写任务；历史分轨重转写按当前设置收敛；缺失的派生合并文件重建后持久化文件名；原始双轨和旧 Artifact 不变；显式 `sourceSeparated` 仍保留；`make verify` 通过 281 项 Swift Testing、18 项 XCTest、7 项 PI 和 2 项 MCP；`0.1.4 (9)` Dev 候选包与已安装二进制一致，严格验签、Team 连续性条件和单进程启动通过，正式 Store App 和 Dev 数据保留 | 真实会议中同时说话的遗漏/重复取舍；当前桌面 TCC 权限连续性；如更看重重叠说话，人工选择“分轨转写（高级）” |
 | MRQ-UX-01 | 代码与隔离 Journey 已完成，目标桌面手感待人工验收 | 转写运行/等待授权时显示“关闭并后台继续”，关闭不取消持久化任务，转写按钮自动路由处理页；支持 Escape、VoiceOver 和帮助文案；12 项 `MediaImportTests` 通过；测试模式可稳定呈现运行中 Sheet 并提供原件/派生音频/原文持久化断言 | 按用户决定跳过本轮自动桌面点击；仍需用户在目标安装包上真实点击“关闭并后台继续”并判断视觉手感与后续操作是否顺畅；可选脚本：`WOICE_RUN_MEDIA_IMPORT_JOURNEY=1 make acceptance-media-import-desktop` |
 
-本轮代码变更详见[素材质量实施规格](../specs/2026-09-01-material-quality-and-naming.md)、[录音耐久与详情性能实施规格](../specs/2026-09-01-recording-durability-and-detail-performance.md)、[模型基准空信号与严格门禁规格](../specs/2026-09-01-model-benchmark-signal-gates.md)、[导入转写浮窗后台继续规格](../specs/2026-09-01-media-import-background-transcription.md)、[后台继续真实桌面验收规格](../specs/2026-09-01-media-import-background-journey.md)、[本机已完成任务重转写规格](../specs/2026-09-01-local-retranscription-completed-task.md)和 `doc/log/2026-09-01.md`；自动开发门禁已收口，剩余工作只保留真实 Mac/模型质量与发行外部门禁。
+本轮代码变更详见[素材质量实施规格](../specs/2026-09-01-material-quality-and-naming.md)、[录音耐久与详情性能实施规格](../specs/2026-09-01-recording-durability-and-detail-performance.md)、[模型基准空信号与严格门禁规格](../specs/2026-09-01-model-benchmark-signal-gates.md)、[导入转写浮窗后台继续规格](../specs/2026-09-01-media-import-background-transcription.md)、[后台继续真实桌面验收规格](../specs/2026-09-01-media-import-background-journey.md)、[本机已完成任务重转写规格](../specs/2026-09-01-local-retranscription-completed-task.md)、[会议合并音频单次转写规格](../../specs/2026-09-07-meeting-single-pass-transcription.md)以及 `doc/log/2026-09-01.md`、`doc/log/2026-09-08.md`；自动开发门禁已收口，剩余工作只保留真实 Mac/会议/模型质量与发行外部门禁。
+
+## MRQ-07：Qwen 短读崩溃修复（2026-09-22）
+
+有效依据：[修复规格](../../specs/2026-09-22-qwen-short-read-crash.md)。用户已授权计划与实施。
+
+- 替代：Qwen 每次 AVAudioFile.read 即构成一个模型片段的旧实现。
+- 保留：MRQ-00～06、原件不可变、会议默认单次转写、现有模型与静音/输出质量策略。
+- 迁移：本次故障恢复与验证归 MRQ-07，不新建平行计划。
+- 停止：不执行改阈值直接丢弃有声尾音的方案。
+- 顺序：失败复现 → 累积短读和极短输入保护 → 专项/全量门禁 → 原文件真实模型验证 → 证据归档。
+
+| 子项 | 状态 | 验收 |
+|---|---|---|
+| MRQ-07a 失败复现 | 已完成 | 64 帧真实 Qwen 复现 SIGTRAP，与原报告一致 |
+| MRQ-07b 输入边界修复 | 已完成 | 20 项专项测试通过，源采样与时长保持 |
+| MRQ-07c 真实模型与回归 | 已完成 | 两项真实模型验收、287 项 Swift Testing、23 项 XCTest、静态门禁与 Dev 编译通过 |
+
+MRQ-01 Qwen 质量和 MRQ-06 会议单次转写的 Qwen 文件读取路径已通过本次回归复核；既有代码保留，未受影响工作不重开。
+
+
+MRQ-07 交付：Dev 0.1.7 (12) 已以原稳定身份覆盖安装并启动，45 个代码/数据段与构建一致、严格验签和只读 RPC 就绪通过。真实 TCC 新录音连续性未复验；未公开发布。完整证据见 [2026-09-22 日志](../log/2026-09-22.md)。

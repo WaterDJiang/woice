@@ -1,6 +1,6 @@
 # Woice Mac App Store 上架计划
 
-> 状态：`0.1.4 (Build 7)` 因 Guideline 2.4.5 与系统音频说明被拒；`Build 8` 已完成修复、全门禁、正式 Archive、导出与上传。待 Apple 处理、实体 Mac 验收、App Store Connect 更新与重新提交  
+> 状态：`0.1.4 (Build 9)` 已完成全量与发行门禁、审核修复、Apple 审核批准和手动发布；App Store Connect 当前为“可分发”，覆盖账号已配置的 175 个国家或地区  
 > 日期：2026-08-23  
 > 启动条件：WCL-06 本机 Store 切片已完成，App ID、签名、描述文件、Build 6 Archive 与上传链已落地；仍不把上传成功描述为已提交审核或已上架  
 > 当前路线图：[当前路线图与计划迁移表](2026-08-22-current-roadmap-and-plan-transition.md)  
@@ -12,14 +12,14 @@
 - 保留：官网继续提供 Core/Offline 两种 DMG；现有录音、双轨、默认来源分离转写、`standardMix` 兼容模式、模型版本、素材不可变、Keychain 和外发确认规则全部保留。
 - 迁移：Mac App Store 专属的 Xcode Archive、App Sandbox、Store 能力裁剪、App Store Connect 元数据、TestFlight 和 App Review 全部进入本计划，不再混入 M1-07/M2-08i。
 - 停止：未停止现有开发计划；Store Edition 首版停止暴露任意外部进程 Provider、现有外部 Unix Socket Agent Connector 和自有更新器。
-- 顺序：Build 8 完成全门禁后生成新 Archive，在实体 Mac 验收导出/权限/系统音频流程，然后上传 Build 8、更新隐私政策和 Review Notes、回复 Resolution Center 并重新提交。M2-09 Agent 协作不是上架前置。
+- 顺序：Build 9 完成全门禁后生成新 Archive，在实体 Mac 验收首启选择、旧素材迁移、新录音/Finder 可见、重启持久访问和系统音频，再上传、更新 Review Notes、回复 Resolution Center 并重提。M2-09 Agent 协作不是上架前置。
 
 ## 2. 首版发行裁决
 
 ### 2.1 推荐形态
 
 - Mac App Store 只建立一个 Woice App 记录，不把 Core/Offline 做成两个近似商店 App。
-- 商店首版不内置第三方模型权重；用户显式点击后，通过签名 Catalog 下载 Tiny、Qwen3-ASR 或 Large-v3，并保留 macOS on-device Speech。
+- 商店首版不内置第三方模型权重；首次使用和设置页始终同时列出 Tiny、Qwen3-ASR 和 Large-v3，逐项说明大小、资源、质量与适用场景，再由用户显式点击签名 Catalog 条目下载；同时保留 macOS on-device Speech。
 - 官网继续保留：
   - Core：小体积、不内置 WhisperKit 权重，允许用户配置本机/局域网/云端模型。
   - Offline：内置默认模型，开箱即用。
@@ -39,12 +39,12 @@
 
 | 项目 | 当前事实 | 上架缺口 |
 |---|---|---|
-| 构建 | SwiftPM 与正式 `Woice.xcodeproj` 门禁通过；`0.1.4 (Build 7)` 双架构、零模型 Distribution Archive 与本地 App Store Connect 导出包已生成 | 待上传 Build 7 并确认 App Store Connect 处理完成且可选 |
-| 签名 | Build 7 Archive 使用与 Profile 指纹精确匹配的 Apple Distribution 身份，描述文件内嵌且 `codesign --verify --deep --strict` 通过 | 仍需 App Store Connect 服务端分析、Store 沙盒运行与审核构建确认 |
+| 构建 | Build 9 全门禁、正式 Archive、导出、上传、审核批准与手动发布已完成 | App Store Connect 已为“可分发”；后续只跟踪商店页面传播与用户反馈 |
+| 签名 | Build 9 正式 Distribution Archive、深度验签和 App Store Connect 导出已通过 | Apple 审核已接受该构建；下个版本重新执行完整发行门禁 |
 | 沙盒 | `Resources/Woice-Store.entitlements` 已声明最小本机能力；本机 Bundle 静态检查通过 | 仍需正式 Store 签名下的容器、TCC、升级和干净用户运行验收 |
 | 体积 | Core 约 9.4 MB，Offline 约 610 MB | 体积本身可控；仍需模型许可证、包清单和下载体验裁决 |
 | 隐私 | `PrivacyInfo.xcprivacy`、隐私政策草案和 App Privacy 草案已进入工程/商店资料目录 | 缺法律审定、线上隐私政策 URL、App Store Connect 答卷和最终 API 审计 |
-| 模型 | Tiny、Qwen3-ASR 和 Large-v3 本机包的文件大小/SHA-256 验证通过，Catalog v2 已由 Store 内置公钥验签 | 待推送公开 Catalog v2、回读并实测 Qwen 下载 |
+| 模型 | Tiny、Qwen3-ASR 和 Large-v3 本机包的文件大小/SHA-256 验证通过，公开 Catalog v2 已发布并回读三条目，Store 内置公钥可验签 | 待在当前 Build 实测三模型下载与安装 |
 | 外部能力 | Store 编译条件已裁剪 Process Provider、Unix Socket Agent、自动粘贴和自有更新器；正式 Xcode Store Target 无签名构建和可执行文件静态禁用符号检查通过 | Store 签名下仍需复验组合根、沙盒运行和审核构建 |
 | 系统音频 | ScreenCaptureKit 双轨和 meetingMix 已有真实样本验收 | 需在 Store 签名和沙盒下重新完成 TCC/真实会议矩阵 |
 | 商店资产 | 已有 App Icon、描述/关键词草案；Woice 官网产品页与 GitHub Issues 均已确认公开可访问 | 缺最终截图、公开隐私政策 URL、审核联系人、版权主体及后台最终填写 |
@@ -83,7 +83,7 @@
 |---|---:|---:|---|
 | 麦克风录音 | 保留 | 保留 | 用户主动开始，持续显示录音状态 |
 | ScreenCaptureKit 系统声音 | 保留 | 保留 | 会议模式默认关闭，不保存屏幕图像 |
-| 双原轨与 meetingMix | 保留 | 保留 | 原轨不可变，默认分别转写合并，`standardMix` 仅作显式兼容模式 |
+| 双原轨与 meetingMix | 保留 | 保留 | 原轨不可变，默认只转写 meetingMix 一次，`sourceSeparated` 作为显式高级模式 |
 | WhisperKit 内置模型 | 保留 | Offline 保留 | Store 首版优先开箱可用 |
 | 用户导入模型 | 保留 | 保留 | 通过系统文件选择器导入并复制到容器，先校验后注册 |
 | localhost/局域网 HTTP ASR | 保留 | 保留 | 仅出站网络；公网发现继续 fail-closed |
@@ -95,6 +95,8 @@
 | 自有更新器 | 禁止 | 可选 | Store 更新只通过 Mac App Store |
 
 ## 6. 工作包
+
+> 2026-09-06 产品增量：Build 9 的[首次使用准备引导](../../specs/2026-09-06-first-run-setup-guidance.md)已完成代码与自动门禁。启动不再无上下文弹出保存面板；由清单式 Sheet 显示素材位置、麦克风、本机模型和可选电脑声音权限的实时状态与动作，真实桌面交互待本机稳定签名包手测。
 
 ### MAS-00：启动审计与决策冻结
 
@@ -122,11 +124,12 @@
 
 ### MAS-02：App Sandbox 与数据容器
 
-状态：本机 Entitlements、PrivacyInfo 和 Store Bundle 静态预检切片已完成；正式沙盒运行验收待 MAS-01。
+状态：Build 9 用户选定素材文件夹、security-scoped bookmark 和旧音频迁移已实现；正式沙盒运行验收待 MAS-01。
 
 - 启用 App Sandbox。
 - 只申请经过用例证明的麦克风、出站网络、用户选择文件读写等权限。
-- 录音、数据库、转写、任务和模型默认写入 App Container。
+- 麦克风录音、系统音轨、会议混音、导入原件/派生音频和录音块写入用户通过 `NSSavePanel` 选定的容器外素材文件夹。
+- 数据库索引、设置、任务、模型、缓存、恢复状态和书签保留在 App Container。
 - 导入/导出统一走 `NSOpenPanel`/`NSSavePanel`；导入模型默认复制进容器。
 - 如确需持续访问外部目录，使用 security-scoped bookmark，并覆盖吊销、移动和失效恢复。
 - Keychain 只保存密钥；重新验证 Store Team/Access Group 下的读写和升级兼容。
@@ -208,7 +211,7 @@
 
 ### MAS-08：提交与审核处理
 
-状态：Build 6 因“检查更新”问题被拒；Build 7 修复、Catalog v2、正式 Archive 和本地导出包已完成，待 Catalog 发布、实体 Mac 验收材料、Build 上传处理和正式提交审核。
+状态：Build 9 自动门禁、正式 Archive、上传、Review Notes、Resolution Center 回复、审核批准与手动发布已完成；App Store Connect 当前状态为“可分发”。
 
 - 选择经 TestFlight 验收的唯一 Build。
 - 完成价格、地区、年龄评级、出口合规、隐私和审核联系信息。
@@ -243,7 +246,7 @@ make acceptance-app-store-clean-user
 - `make verify-app-store`：通过，生成并检查 `build/Woice-Store.app`；这是本机 Store Bundle 预检，不是 Apple Archive/App Review。
 - `make acceptance-app-store-sandbox`：通过，证明本机签名 Bundle 的沙盒 Entitlements 和能力裁剪；不证明正式 Store TCC、TestFlight 或审核。
 - `make xcode-build-store`：通过，正式 `Woice.xcodeproj` 的 `Woice-Store / Release-AppStore` 无签名构建和 Bundle validation 通过；不证明 Apple 分发签名或 Archive。
-- `make archive-app-store`：已生成并验证 `build/Woice-Store-0.1.4-build7.xcarchive`；已用 `destination=export` 生成本地 `Woice.pkg`，尚未上传。
+- `make archive-app-store`：Build 9 的正式 Archive、严格验证、本地 App Store Connect 导出与上传已完成；App Store Connect 已处理并用于当前审核提交。
 - `make acceptance-app-store-clean-user`：只做显式干净用户路径预检，真实安装/TCC/GUI 仍需人工执行。
 
 ## 8. 审核说明模板要点
@@ -285,3 +288,13 @@ make acceptance-app-store-clean-user
 - 用户说“准备 TestFlight”：必须先满足 MAS-00 至 MAS-06 的退出条件。
 - 用户说“提交审核”：必须先满足 MAS-07，并再次确认价格、地区、隐私答卷和 Review Notes。
 - 用户说“正式发布”：只在审核通过后选择上架时间；此前任何状态都不得描述为已发布。
+
+
+## 2026-09-20：0.1.7 (12) 自动发布增量
+
+用户明确授权版本更新、上传、提交审核以及审核通过后自动上线。本次发布采用“自动发布此版本”与“立即向所有用户发布更新”，替代本文件旧版手动发布/再次确认要求，仅适用于本次更新。依据：[0.1.7 发布规格](../../specs/2026-09-20-app-store-0-1-7-release.md)。
+
+- MAS-12-01：版本递增与 287 项 Swift 回归、Store Bundle 检查、双架构正式 Archive/严格签名校验已通过。
+- MAS-12-02：正式 Apple 上传成功（Upload succeeded），Apple 处理完成；App Store Connect 已创建 0.1.7，中文更新说明及审核备注已保存，自动发布与立即向所有用户更新已回读。
+- MAS-12-03：Build 12 已选择、出口合规已完成，2026-09-20 01:26 已提交审核并回读“等待审核”；自动发布已保存，尚未上线。
+- 真实录音 UI/TCC 未新增验证，不把既有逻辑测试或静态签名检查描述为设备验收。不触碰用户数据，不提交或推送源码；历史 Store Archive 保留。

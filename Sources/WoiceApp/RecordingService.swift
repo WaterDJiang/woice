@@ -404,6 +404,11 @@ final class RecordingService {
     return microphoneStatus
   }
 
+  func requestMicrophoneAccess() async throws -> MicrophoneInputStatus {
+    try await requestRecordPermission()
+    return await refreshMicrophoneStatus()
+  }
+
   var receivedBufferCount: Int { writer?.snapshot().bufferCount ?? 0 }
   var capturedDuration: TimeInterval { writer?.snapshot().duration ?? 0 }
   var inputLevel: Float { writer?.snapshot().currentPeakLevel ?? 0 }

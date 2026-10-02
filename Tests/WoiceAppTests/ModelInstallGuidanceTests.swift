@@ -84,3 +84,21 @@ func storeRecommendationFallsBackToVerifiedCatalogEntries() {
     availablePackIDs: [])
   #expect(unavailable == nil)
 }
+
+@Test("模型选择始终列出三项并把当前 Mac 推荐项排在最前")
+func orderedModelChoicesKeepAllCandidatesVisible() {
+  let allPackIDs = Set(RecommendedModelPolicy.candidates.map(\.packID))
+  let choices = RecommendedModelPolicy.orderedCandidates(
+    physicalMemoryBytes: RecommendedModelPolicy.largeModelMinimumMemoryBytes,
+    availablePackIDs: allPackIDs)
+
+  #expect(choices.count == 3)
+  #expect(Set(choices.map(\.packID)) == allPackIDs)
+  #expect(choices.first?.packID == WhisperKitModelCatalogEntry.candidateLargeV3.packID)
+
+  let catalogStillLoading = RecommendedModelPolicy.orderedCandidates(
+    physicalMemoryBytes: RecommendedModelPolicy.qwenMinimumMemoryBytes,
+    availablePackIDs: [])
+  #expect(catalogStillLoading.count == 3)
+  #expect(Set(catalogStillLoading.map(\.packID)) == allPackIDs)
+}

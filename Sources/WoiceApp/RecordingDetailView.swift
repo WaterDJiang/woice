@@ -711,8 +711,8 @@ struct RecordingDetailView: View {
         trackBadge("合成回放", systemImage: "waveform.and.mic")
         Label(
           record.meetingTranscriptionMode == .standardMix
-            ? "由我的声音和电脑声音合成，标准模式只转写一次。"
-            : "由两条原始音轨合成，仅用于完整复听。",
+            ? "由我的声音和电脑声音合成，当前只转写这份回放一次。"
+            : "由两条原始音轨合成，分轨模式仅用它完整复听。",
           systemImage: "info.circle"
         )
         .font(.caption)

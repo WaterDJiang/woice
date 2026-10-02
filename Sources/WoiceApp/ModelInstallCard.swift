@@ -128,6 +128,20 @@ struct RecommendedModelPolicy: Equatable, Sendable {
       }
     return Recommendation(model: model, reason: "这台 Mac 有 \(memory) 内存，推荐\(description)。")
   }
+
+  static func orderedCandidates(
+    physicalMemoryBytes: UInt64,
+    availablePackIDs: Set<String>? = nil
+  ) -> [ModelInstallCardModel] {
+    guard
+      let recommendation = recommendation(
+        physicalMemoryBytes: physicalMemoryBytes,
+        availablePackIDs: availablePackIDs)
+    else {
+      return candidates
+    }
+    return [recommendation.model] + candidates.filter { $0 != recommendation.model }
+  }
 }
 
 struct ModelInstallTradeoffSummary: View {

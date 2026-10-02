@@ -218,6 +218,8 @@ func appStateMeetingModePersistsDualTrackRecord() async throws {
   let state = AppState(store: store)
   state.settings.captureSystemAudio = true
   state.startRecording()
+  let session = try #require(state.visibleRecordingSession)
+  #expect(store.loadRecordingSession()?.id == session.id)
   let requireSystemAudioSignal =
     ProcessInfo.processInfo.environment["WOICE_REQUIRE_SYSTEM_AUDIO_SIGNAL"] == "1"
   try await Task.sleep(for: requireSystemAudioSignal ? .seconds(15) : .seconds(2))
@@ -226,6 +228,10 @@ func appStateMeetingModePersistsDualTrackRecord() async throws {
   await state.stopRecording()
 
   let record = try #require(state.recordings.first)
+  #expect(record.id == session.id)
+  #expect(record.createdAt == session.createdAt)
+  #expect(state.visibleRecordingSession == nil)
+  #expect(state.recordings.filter { $0.id == session.id }.count == 1)
   #expect(record.duration > 0)
   #expect(abs(state.elapsed - record.duration) <= 0.02)
   #expect(state.audioFileExists(for: record))
@@ -268,16 +274,13 @@ func appStateMeetingModePersistsDualTrackRecord() async throws {
       let meetingMix = try AVAudioFile(forReading: state.meetingMixURL(for: record))
       // The durable meeting mix is the replay/export artifact: it stays at
       // 48 kHz AAC/M4A. ASR providers receive a disposable 16 kHz input from
-      // AudioPreparationService. The default source-separated mode still
-      // creates one task per usable original track.
+      // AudioPreparationService. The default single-pass mode creates one
+      // meetingMix task while retaining both originals.
       #expect(meetingMix.processingFormat.sampleRate == 48_000)
       #expect(meetingMix.processingFormat.channelCount == 1)
       let taskTracks = Set(record.processingTasks.compactMap(\.sourceTrack))
-      #expect(taskTracks.contains(.systemAudio))
-      if state.microphoneAudioFileExists(for: record) {
-        #expect(taskTracks.contains(.microphone))
-      }
-      #expect(record.processingTasks.allSatisfy { $0.meetingTranscriptionMode == .sourceSeparated })
+      #expect(taskTracks == [.meetingMix])
+      #expect(record.processingTasks.allSatisfy { $0.meetingTranscriptionMode == .standardMix })
     }
   }
 }
@@ -439,7 +442,7 @@ func appStateQueuesSourceSeparatedTranscriptionByTrack() throws {
   #expect(state.pendingExternalProcessing?.dataDescription == "电脑声音音轨（标准化 WAV）")
 }
 
-@Test("历史单次混音双轨素材重新转写时升级为两条原轨任务")
+@Test("历史分轨会议按当前默认收敛为单个合并音频任务")
 @MainActor
 func legacyMeetingMixRetryUsesBothRawTracks() throws {
   let root = FileManager.default.temporaryDirectory.appendingPathComponent(
@@ -455,9 +458,75 @@ func legacyMeetingMixRetryUsesBothRawTracks() throws {
   let systemURL = store.recordingsURL.appendingPathComponent("\(id.uuidString).caf")
   try writeTestAudioFile(to: microphoneURL)
   try writeTestAudioFile(to: systemURL)
+  let microphoneBefore = try Data(contentsOf: microphoneURL)
+  let systemBefore = try Data(contentsOf: systemURL)
+  let legacyArtifact = TranscriptArtifact(
+    parentRecordingID: id,
+    text: "旧版原文",
+    sourceTrack: .systemAudio,
+    meetingTranscriptionMode: .sourceSeparated)
   let record = RecordingRecord(
     id: id, createdAt: Date(), audioFileName: microphoneURL.lastPathComponent, duration: 1,
     transcript: "旧版原文", generatedMarkdown: nil, processingError: nil,
+    systemAudioFileName: systemURL.lastPathComponent,
+    meetingTranscriptionMode: .sourceSeparated,
+    processingTasks: [
+      ProcessingTask(
+        kind: .transcription,
+        idempotencyKey: "\(id.uuidString.lowercased()):transcription:microphone",
+        status: .failed,
+        sourceTrack: .microphone,
+        meetingTranscriptionMode: .sourceSeparated),
+      ProcessingTask(
+        kind: .transcription,
+        idempotencyKey: "\(id.uuidString.lowercased()):transcription:systemAudio",
+        status: .failed,
+        sourceTrack: .systemAudio,
+        meetingTranscriptionMode: .sourceSeparated),
+    ],
+    transcriptArtifacts: [legacyArtifact],
+    activeTranscriptArtifactID: legacyArtifact.id)
+  try store.saveRecordings([record])
+
+  let state = AppState(store: store)
+  state.requestTranscription(for: try #require(state.recordings.first))
+
+  let updated = try #require(state.recordings.first)
+  #expect(updated.meetingTranscriptionMode == .standardMix)
+  let transcriptionTasks = updated.processingTasks.filter { $0.kind == .transcription }
+  #expect(transcriptionTasks.count == 1)
+  #expect(transcriptionTasks.first?.sourceTrack == .meetingMix)
+  #expect(updated.meetingMixFileName != nil)
+  #expect(state.meetingMixFileExists(for: updated))
+  #expect(updated.transcript == "旧版原文")
+  #expect(updated.transcriptArtifacts.count == 1)
+  #expect(updated.transcriptArtifacts.first?.id == legacyArtifact.id)
+  #expect(updated.transcriptArtifacts.first?.text == legacyArtifact.text)
+  #expect(updated.transcriptArtifacts.first?.meetingTranscriptionMode == .sourceSeparated)
+  #expect(try Data(contentsOf: microphoneURL) == microphoneBefore)
+  #expect(try Data(contentsOf: systemURL) == systemBefore)
+}
+
+@Test("单次会议任务重建合并音频后持久化文件名")
+@MainActor
+func standardMeetingRetryPersistsRebuiltMixFileName() throws {
+  let root = FileManager.default.temporaryDirectory.appendingPathComponent(
+    "woice-rebuild-standard-meeting-" + UUID().uuidString, isDirectory: true)
+  defer { try? FileManager.default.removeItem(at: root) }
+  let store = WorkspaceStore(storageRootURL: root)
+  var settings = AppSettings.default
+  settings.asrProviderSelection = .external
+  settings.asrEndpoint = "https://example.test/v1"
+  try store.saveSettings(settings)
+
+  let id = UUID()
+  let microphoneURL = store.recordingsURL.appendingPathComponent("\(id.uuidString).wav")
+  let systemURL = store.recordingsURL.appendingPathComponent("\(id.uuidString).caf")
+  try writeTestAudioFile(to: microphoneURL)
+  try writeTestAudioFile(to: systemURL)
+  let record = RecordingRecord(
+    id: id, createdAt: Date(), audioFileName: microphoneURL.lastPathComponent, duration: 1,
+    transcript: nil, generatedMarkdown: nil, processingError: nil,
     systemAudioFileName: systemURL.lastPathComponent,
     meetingTranscriptionMode: .standardMix,
     processingTasks: [
@@ -474,12 +543,10 @@ func legacyMeetingMixRetryUsesBothRawTracks() throws {
   state.requestTranscription(for: try #require(state.recordings.first))
 
   let updated = try #require(state.recordings.first)
-  #expect(updated.meetingTranscriptionMode == .sourceSeparated)
-  let rawTasks = updated.processingTasks.filter {
-    $0.kind == .transcription && ($0.sourceTrack == .microphone || $0.sourceTrack == .systemAudio)
-  }
-  #expect(Set(rawTasks.compactMap(\.sourceTrack)) == [.microphone, .systemAudio])
-  #expect(updated.transcript == "旧版原文")
+  #expect(updated.meetingMixFileName != nil)
+  #expect(state.meetingMixFileExists(for: updated))
+  #expect(updated.processingTasks.filter { $0.kind == .transcription }.count == 1)
+  #expect(updated.processingTasks.first?.sourceTrack == .meetingMix)
 }
 
 @Test("旧版来源前缀迁移为干净原文且保留历史版本")
